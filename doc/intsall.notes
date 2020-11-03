@@ -1,0 +1,50 @@
+1. Postgres per https://www.postgresql.org/download/linux/redhat/
+
+yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+yum install -y postgresql13-server
+
+vi usr/lib/systemd/system/postgresql-13.service
+    # Edit:
+
+    # Location of database directory
+    #Environment=PGDATA=/var/lib/pgsql/13/data/
+    Environment=PGDATA=/data/pgsql/13/data/
+
+/usr/pgsql-13/bin/postgresql-13-setup initdb
+
+# See log file: /data/pgsql/13/data/log/postgresql-***.log
+
+2. Check installation
+sudo -u postgres -i
+psql
+\l
+\du+
+
+3. Create users and dbs (in psql)
+create role nsaph with password 'admin';
+alter user nsaph with login;
+alter user nsaph with Superuser;
+alter user nsaph with CreateDb;
+alter user nsaph with CreateRole;
+
+create database nsaph;
+alter database nsaph owner to nsaph;
+
+4. Install python3 (https://phoenixnap.com/kb/how-to-install-python-3-centos-7)
+sudo yum install centos-release-scl
+sudo yum install rh-python36
+scl enable rh-python36 bash
+
+5. Install venv
+cd .../nsaph
+python -m venv .nsaph
+source .nsaph/bin/activate
+pip install --upgrade pip --proxy http://rcproxy.rc.fas.harvard.edu:3128/
+pip install -r src/python/requirments.txt --proxy http://rcproxy.rc.fas.harvard.edu:3128/
+
+
+===================================================================
+Run ingestion
+cd /opt/projects/nsaph
+# update database.ini
+PYTHONPATH=src/python python -u -m nsaph.census_csv_loader data/census_county_interpolated.csv
