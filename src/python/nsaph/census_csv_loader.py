@@ -12,6 +12,62 @@ index_columns = [
 ]
 
 
+class CSVFileWrapper():
+    def __init__(self, file_like_object, sep = ',', null_replacement = "NA"):
+        self.file_like_object = file_like_object
+        self.sep = sep
+        self.null_replacement = null_replacement
+        self.empty_string = self.sep + self.sep
+        self.null_string = self.sep + self.null_replacement + sep
+        self.empty_string_eol = self.sep + '\n'
+        self.null_string_eol = self.sep + self.null_replacement + '\n'
+        self.l = len(sep)
+        self.remainder = ""
+        self.line_number = 0
+
+    def __getattr__(self, called_method):
+        if called_method == "readline":
+            return self._readline
+        if called_method == "read":
+            return self._read
+        return getattr(self.file_like_object, called_method)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.file_like_object.close()
+
+    def _replace_empty(self, s: str):
+        while self.empty_string in s:
+            s = s.replace(self.empty_string, self.null_string)
+        s = s.replace(self.empty_string_eol, self.null_string_eol)
+        return s
+
+    def _readline(self):
+        line = self.file_like_object.readline()
+        self.line_number += 1
+        return self._replace_empty(line)
+
+    def _read(self, size, *args, **keyargs):
+        _line = self.file_like_object.read(size, *args, **keyargs)
+        line = _line
+        while line[-self.l:] == self.sep:
+            next_char = self.file_like_object.read(self.l)
+            line += next_char
+        line = self._replace_empty(line)
+        if self.remainder:
+            line = self.remainder + line
+            self.remainder = ""
+
+        self.line_number += line.count('\n')
+        if len(line) > size:
+            self.remainder = line[size - len(line):]
+            return line[0:size]
+        return line
+
+
+
 integer = re.compile("\d+")
 float_number = re.compile("(\d*)\.(\d+)")
 
@@ -78,7 +134,7 @@ def guess_types(lines: list) -> list:
             v = lines[l][c].strip()
             if '"' in v:
                 t = "VARCHAR"
-            elif v in ['0', "NA"]:
+            elif not v or v in ['0', "NA"]:
                 t = "0"
             else:
                 f = float_number.match(v)
@@ -138,7 +194,7 @@ def create_table(file_path: str, cursor = None) -> str:
 
     for c in columns:
         if c.lower() in index_columns:
-            ddl += ";\nCREATE INDEX {column}_idx ON {table} ({column})"\
+            ddl += ";\nCREATE INDEX {table}_{column}_idx ON {table} ({column})"\
                 .format(table = name, column = c)
 
     print (ddl)
@@ -146,8 +202,9 @@ def create_table(file_path: str, cursor = None) -> str:
     if cursor:
         cursor.execute(ddl)
         with open(file_path) as data:
-            data.readline()
-            cursor.copy_from(data, name,sep=',', null="NA", columns=columns)
+            with CSVFileWrapper(data) as csv_data:
+                csv_data.readline()
+                cursor.copy_from(csv_data, name, sep=',', null="NA", columns=columns)
 
 
 
