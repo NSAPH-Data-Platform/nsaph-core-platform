@@ -8,7 +8,7 @@ from configparser import ConfigParser
 import csv
 
 
-def regex(pattern: str) -> re.Pattern:
+def regex(pattern: str) -> Pattern:
     pattern = 'A' + pattern.replace('.', '_') + 'Z'
     x = pattern.split('*')
     y = [re.escape(s) for s in x]
