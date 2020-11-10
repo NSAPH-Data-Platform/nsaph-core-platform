@@ -14,6 +14,9 @@ vi usr/lib/systemd/system/postgresql-13.service
 
 # See log file: /data/pgsql/13/data/log/postgresql-***.log
 
+edit to listen to Ip addresses (postgre.conf)
+edit ph_hba.conf to allow users from docker networks
+
 2. Check installation
 sudo -u postgres -i
 psql
@@ -48,3 +51,35 @@ Run ingestion
 cd /opt/projects/nsaph
 # update database.ini
 PYTHONPATH=src/python python -u -m nsaph.census_csv_loader data/census_county_interpolated.csv
+
+
+==================================================
+Docker
+#/etc/systemd/system/docker.service.d/http-proxy.conf
+[Service]
+Environment="HTTP_PROXY=http://rcproxy.rc.fas.harvard.edu:3128"
+Environment="HTTPS_PROXY=http://rcproxy.rc.fas.harvard.edu:3128"
+systemctl daemon-reload
+systemctl restart docker
+
+
+
+==================================================
+Superset
+
+Install docker-compose: https://docs.docker.com/compose/install/
+curl -L --proxy http://rcproxy.rc.fas.harvard.edu:3128/  "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+chmod a+x /usr/local/bin/docker-compose
+
+(base) misha@centos:~/projects/nsaph$ psql -U nsaph -h localhost
+nsaph=# create database superset;
+CREATE DATABASE
+nsaph=# create user superset with password 'superset';
+CREATE ROLE
+nsaph=# alter database superset owner to superset;
+ALTER DATABASE
+nsaph=#
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO superset;
+
+https://superset.apache.org/docs/installation/installing-superset-using-docker-compose
+# edit docker-compose.yaml and to exclude postgres container (we are using local)
