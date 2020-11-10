@@ -1,14 +1,14 @@
-from re import Pattern
-
 import psycopg2
 import os
 import re
+#from re import Pattern
 import sys
 from configparser import ConfigParser
 import csv
 
 
-def regex(pattern: str) -> Pattern:
+#def regex(pattern: str) -> Pattern:
+def regex(pattern: str):
     pattern = 'A' + pattern.replace('.', '_') + 'Z'
     x = pattern.split('*')
     y = [re.escape(s) for s in x]
@@ -33,7 +33,7 @@ NA = "NA"
 def is_index_column(c: str) -> bool:
     c = c.lower()
     for i in index_columns:
-        if isinstance(i, Pattern):
+        if not isinstance(i, str):
             if i.fullmatch(c):
                 return True
         else:
