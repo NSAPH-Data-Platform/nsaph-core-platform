@@ -16,30 +16,34 @@ def regex(pattern: str):
     return re.compile(regexp)
 
 
-index_columns = [
-    "fips",
-    "monitor",
-    "name",
-    "year",
-    "zip",
-    regex("*.code"),
-    regex("*.type"),
-    regex("*.name")
-]
+index_columns = {
+    "date":"btree",
+    "fips":"hash",
+    "monitor":"hash",
+    "name":"btree",
+    "state":"hash",
+    "st_abbrev":"hash",
+    "year":"btree",
+    "zip":"btree",
+    "*.code":"hash",
+    "*.date":"btree",
+    "*.type":"hash",
+    "*.name":"btree"
+}
 
 
 NA = "NA"
 
-def is_index_column(c: str) -> bool:
+def index_method(c: str) -> (str,None):
     c = c.lower()
     for i in index_columns:
-        if not isinstance(i, str):
-            if i.fullmatch(c):
-                return True
+        if "*" in i:
+            if regex(i).fullmatch(c):
+                return index_columns[c]
         else:
             if i == c:
-                return True
-    return False
+                return index_columns[c]
+    return None
 
 
 class CSVFileWrapper():
@@ -98,9 +102,10 @@ class CSVFileWrapper():
 
 
 
-integer = re.compile("\d+")
-float_number = re.compile("(\d*)\.(\d+)([e|E][-|+]?\d+)?")
-exponent = re.compile("(\d+)([e|E][-|+]?\d+)")
+integer = re.compile("-?\d+")
+float_number = re.compile("(-?\d*)\.(\d+)([e|E][-|+]?\d+)?")
+exponent = re.compile("(-?\d+)([e|E][-|+]?\d+)")
+date = re.compile("([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))")
 
 
 def unquote(s: str) -> str:
@@ -153,7 +158,7 @@ def test_connection ():
             print('Database connection closed.')
 
 
-def guess_types(rows: list, lines: list) -> list:
+def guess_types(rows: list, lines: list, columns: list) -> list:
     m = len(rows)
     n = len(rows[0])
     types = []
@@ -164,7 +169,9 @@ def guess_types(rows: list, lines: list) -> list:
         for l in range(0,m):
             v = rows[l][c].strip()
             v2 = lines[l][c].strip()
-            if '"' in v2:
+            if date.fullmatch(v):
+                t = "DATE"
+            elif '"' in v2:
                 t = "VARCHAR"
             elif not v or v in ['0', NA]:
                 t = "0"
@@ -193,7 +200,12 @@ def guess_types(rows: list, lines: list) -> list:
             elif type == "INT" and t == "NUMERIC":
                 type = t
             elif (type and type != t):
-                raise Exception("Inconsistent type for column {:d}".format(c))
+                msg = "Inconsistent type for column {:d} [{:s}]. "\
+                    .format(c+1, columns[c])
+                msg += "Up to line {:d}: {:s}, for line={:d}: {:s}. "\
+                    .format(l-1, type, l, t)
+                msg += "Value = {}".format(v)
+                raise Exception(msg)
             else:
                 type = t
         if type == "NUMERIC":
@@ -228,7 +240,7 @@ def create_table(file_path: str, cursor = None) -> str:
 
     if not rows:
         raise Exception("No data in {}".format(file_path))
-    types = guess_types(rows, lines)
+    types = guess_types(rows, lines, columns)
     for row in rows:
         for cell in row:
             if ',' in cell:
@@ -240,17 +252,20 @@ def create_table(file_path: str, cursor = None) -> str:
     ddl = "CREATE TABLE {}\n ({})".format(name, ",\n\t".join(col_spec))
 
     for c in sql_columns:
-        if is_index_column(c):
-            ddl += ";\nCREATE INDEX {table}_{column}_idx ON {table} ({column})"\
-                .format(table = name, column = c)
+        m = index_method(c)
+        if m:
+            ddl += ";\nCREATE INDEX {table}_{column}_idx ON {table} USING {method} ({column})"\
+                .format(table = name, column = c, method = m)
 
     print (ddl)
 
     if cursor:
         cursor.execute(ddl)
         if has_commas:
+            print("The CSV file contains commas, copying manually.")
             copy_data(cursor, name, sql_columns, types, file_path)
         else:
+            print("Copying data using system function.")
             with open(file_path) as data:
                 with CSVFileWrapper(data) as csv_data:
                     csv_data.readline()
@@ -279,7 +294,7 @@ def copy_data (cursor, table, columns, types, file_path):
             for i in range(0, len(types)):
                 if row[i] == NA:
                     row[i] = "NULL"
-                elif types[i] == "VARCHAR":
+                elif types[i] in ["VARCHAR", "DATE", "TIMESTAMP", "TIME"]:
                     row[i] = "'{}'".format(row[i].replace("'", "''"))
             values = "({})".format(','.join(row))
             sql += values
@@ -293,6 +308,7 @@ def copy_data (cursor, table, columns, types, file_path):
             if sql[-1] == ',':
                 sql = sql[:-1]
             cursor.execute(sql)
+            print("\r" + str(counter))
     return
 
 
