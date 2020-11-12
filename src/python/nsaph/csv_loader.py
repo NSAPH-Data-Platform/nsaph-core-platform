@@ -5,6 +5,7 @@ import re
 import sys
 from configparser import ConfigParser
 import csv
+import datetime
 
 
 #def regex(pattern: str) -> Pattern:
@@ -88,29 +89,42 @@ class CSVFileWrapper():
 
     def _read(self, size, *args, **keyargs):
         if (len(self.remainder) < size):
-            _line = self.file_like_object.read(size, *args, **keyargs)
-            line = _line
-            while line[-self.l:] == self.sep:
+            raw_buffer = self.file_like_object.read(size, *args, **keyargs)
+            buffer = raw_buffer
+            while buffer[-self.l:] == self.sep:
                 next_char = self.file_like_object.read(self.l)
-                line += next_char
-            line = self._replace_empty(line)
+                buffer += next_char
+            buffer = self._replace_empty(buffer)
         else:
-            _line = ""
-            line = _line
+            raw_buffer = ""
+            buffer = raw_buffer
         if self.remainder:
-            line = self.remainder + line
+            buffer = self.remainder + buffer
             self.remainder = ""
 
-        nl = line.count('\n')
+        if len(buffer) > size:
+            self.remainder = buffer[size - len(buffer):]
+            result = buffer[0:size]
+        else:
+            result = buffer
+
+        self.chars += len(result)
+        nl = result.count('\n')
         self.line_number += nl
-        self.chars += len(line) - nl
+        t = datetime.datetime.now()
         if (self.line_number - self.last_printed_line_number) > 1000000:
-            print("Processed {:d}/{:d} lines/chars".format(self.line_number, self.chars))
+            if self.chars > 1000000000:
+                c = "{:7.2f}G".format(self.chars/1000000000.0)
+            elif self.chars > 1000000:
+                c = "{:6.2f}M".format(self.chars/1000000.0)
+            else:
+                c = str(self.chars)
+            dt = datetime.datetime.now() - t
+            t = datetime.datetime.now()
+            print("{}: Processed {:d}/{} lines/chars [{}]"
+                  .format(str(t), self.line_number, c, str(dt)))
             self.last_printed_line_number = self.line_number
-        if len(line) > size:
-            self.remainder = line[size - len(line):]
-            return line[0:size]
-        return line
+        return result
 
 
 
