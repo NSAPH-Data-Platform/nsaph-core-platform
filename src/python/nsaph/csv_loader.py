@@ -58,6 +58,8 @@ class CSVFileWrapper():
         self.l = len(sep)
         self.remainder = ""
         self.line_number = 0
+        self.last_printed_line_number = 0
+        self.chars = 0
 
     def __getattr__(self, called_method):
         if called_method == "readline":
@@ -81,20 +83,30 @@ class CSVFileWrapper():
     def _readline(self):
         line = self.file_like_object.readline()
         self.line_number += 1
+        self.chars += len(line)
         return self._replace_empty(line)
 
     def _read(self, size, *args, **keyargs):
-        _line = self.file_like_object.read(size, *args, **keyargs)
-        line = _line
-        while line[-self.l:] == self.sep:
-            next_char = self.file_like_object.read(self.l)
-            line += next_char
-        line = self._replace_empty(line)
+        if (len(self.remainder) < size):
+            _line = self.file_like_object.read(size, *args, **keyargs)
+            line = _line
+            while line[-self.l:] == self.sep:
+                next_char = self.file_like_object.read(self.l)
+                line += next_char
+            line = self._replace_empty(line)
+        else:
+            _line = ""
+            line = _line
         if self.remainder:
             line = self.remainder + line
             self.remainder = ""
 
-        self.line_number += line.count('\n')
+        nl = line.count('\n')
+        self.line_number += nl
+        self.chars += len(line) - nl
+        if (self.line_number - self.last_printed_line_number) > 1000000:
+            print("Processed {:d}/{:d} lines/chars".format(self.line_number, self.chars))
+            self.last_printed_line_number = self.line_number
         if len(line) > size:
             self.remainder = line[size - len(line):]
             return line[0:size]
