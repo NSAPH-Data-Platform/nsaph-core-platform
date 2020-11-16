@@ -1,3 +1,8 @@
+import codecs
+import gzip
+import io
+import tarfile
+
 import psycopg2
 import os
 import re
@@ -34,16 +39,37 @@ index_columns = {
 
 
 NA = "NA"
+NaN = "NaN"
+
+
+def fopen(path):
+    if isinstance(path, io.BufferedReader):
+        return codecs.getreader("utf-8")(path)
+    if not isinstance(path, str):
+        return path
+    if path.endswith(".gz"):
+        return gzip.open(path, "rt")
+    return open(path)
+
+
+def name(path):
+    if isinstance(path, tarfile.TarInfo):
+        full_name =  path.name
+    else:
+        full_name = str(path)
+    name, _ = os.path.splitext(os.path.basename(full_name))
+    return name
+
 
 def index_method(c: str) -> (str,None):
     c = c.lower()
     for i in index_columns:
         if "*" in i:
             if regex(i).fullmatch(c):
-                return index_columns[c]
+                return index_columns[i]
         else:
             if i == c:
-                return index_columns[c]
+                return index_columns[i]
     return None
 
 
@@ -183,169 +209,246 @@ def test_connection ():
             conn.close()
             print('Database connection closed.')
 
+def load_range(n, f) -> int:
+    for i in range(0, n):
+        try:
+            f()
+        except StopIteration:
+            return i
+    return n
 
-def guess_types(rows: list, lines: list, columns: list) -> list:
-    m = len(rows)
-    n = len(rows[0])
-    types = []
-    for c in range(0,n):
-        type = None
-        precision = 0
-        scale = 0
-        for l in range(0,m):
-            v = rows[l][c].strip()
-            v2 = lines[l][c].strip()
-            if date.fullmatch(v):
-                t = "DATE"
-            elif '"' in v2:
-                t = "VARCHAR"
-            elif not v or v in ['0', NA]:
-                t = "0"
-            else:
-                f = float_number.fullmatch(v)
-                if f:
-                    t = "NUMERIC"
-                    s = len(f.group(2))
-                    p = len(f.group(1))
-                    scale = max(scale, s)
-                    precision = max(precision, p)
-                elif exponent.fullmatch(v):
-                    t = "NUMERIC"
-                elif integer.fullmatch(v):
-                    t = "INT"
-                else:
+
+class CustomColumn:
+    def __init__(self, name, type, extraction_method):
+        self.name = name
+        self.type = type
+        self.extraction_method = extraction_method
+
+    def extract_value(self, input_source):
+        if isinstance(self.extraction_method, int):
+            n = self.extraction_method - 1
+            return name(input_source).split('_')[n]
+
+
+class Table:
+    def __init__(self, file_path: str, get_entry):
+        self.file_path = file_path
+        file_name = os.path.basename(file_path)
+        name, ext = os.path.splitext(file_name)
+        while ext not in [".csv", ""]:
+            name, ext = os.path.splitext(name)
+        self.table = name
+        self.has_commas = False
+        self.sql_columns = []
+        self.csv_columns = []
+        self.types = []
+        self.get_entry = get_entry
+        self.force_manual = False
+        self.add_columns = []
+
+    def fopen(self, source):
+        return fopen(self.get_entry(source))
+
+    def add_column(self, name, type, extraction_method):
+        self.add_columns.append(CustomColumn(name, type, extraction_method))
+        self.force_manual = True
+
+    def create(self, cursor = None, entry = None):
+        if not entry:
+            entry = self.file_path
+        with self.fopen(entry) as data:
+            reader = csv.reader(data, quotechar='"', delimiter=',',
+                         quoting=csv.QUOTE_ALL, skipinitialspace=True)
+            row = next(reader)
+            self.csv_columns = [unquote(c) for c in row]
+
+            rows = []
+            load_range(10000, lambda : rows.append(next(reader)))
+        with self.fopen(entry) as data:
+            reader = csv.reader(data, quotechar='"', delimiter=',',
+                         quoting=csv.QUOTE_NONE, skipinitialspace=True)
+            next(reader)
+            lines = []
+            load_range(10000, lambda : lines.append(next(reader)))
+
+        if not rows:
+            raise Exception("No data in {}".format(self.file_path))
+        self.guess_types(rows, lines)
+        for row in rows:
+            for cell in row:
+                if ',' in cell:
+                    self.has_commas = True
+                    break
+
+        self.sql_columns = [c.replace('.', '_') for c in self.csv_columns]
+        col_spec = [
+            "{} \t{}".format(self.sql_columns[i], self.types[i])
+                for i in range(0, len(self.csv_columns))
+        ]
+        for c in self.add_columns:
+            self.sql_columns.append(c.name)
+            col_spec.append("{} \t{}".format(c.name, c.type))
+        ddl = "CREATE TABLE {}\n ({})".format(self.table, ",\n\t".join(col_spec))
+
+        for c in self.sql_columns:
+            m = index_method(c)
+            if m:
+                ddl += ";\nCREATE INDEX {table}_{column}_idx ON {table} USING {method} ({column})"\
+                    .format(table = self.table, column = c, method = m)
+
+        print (ddl)
+
+        if cursor:
+            cursor.execute(ddl)
+            self.add_data(cursor, entry)
+
+        return
+
+    def guess_types(self, rows: list, lines: list):
+        m = len(rows)
+        n = len(rows[0])
+        self.types.clear()
+        for c in range(0, n):
+            type = None
+            precision = 0
+            scale = 0
+            for l in range(0, m):
+                v = rows[l][c].strip()
+                v2 = lines[l][c].strip()
+                if date.fullmatch(v):
+                    t = "DATE"
+                elif '"' in v2:
                     t = "VARCHAR"
-            if t == "0":
-                continue
+                elif not v or v in ['0', NA, NaN]:
+                    t = "0"
+                else:
+                    f = float_number.fullmatch(v)
+                    if f:
+                        t = "NUMERIC"
+                        s = len(f.group(2))
+                        p = len(f.group(1))
+                        scale = max(scale, s)
+                        precision = max(precision, p)
+                    elif exponent.fullmatch(v):
+                        t = "NUMERIC"
+                    elif integer.fullmatch(v):
+                        t = "INT"
+                    else:
+                        t = "VARCHAR"
+                if t == "0":
+                    continue
+                if type == "0":
+                    type = t
+                elif type == "NUMERIC" and t == "INT":
+                    continue
+                elif type == "VARCHAR" and t in ["INT", "NUMERIC"]:
+                    continue
+                elif type == "INT" and t == "NUMERIC":
+                    type = t
+                elif (type and type != t):
+                    msg = "Inconsistent type for column {:d} [{:s}]. " \
+                        .format(c + 1, self.csv_columns[c])
+                    msg += "Up to line {:d}: {:s}, for line={:d}: {:s}. " \
+                        .format(l - 1, type, l, t)
+                    msg += "Value = {}".format(v)
+                    raise Exception(msg)
+                else:
+                    type = t
+            if type == "NUMERIC":
+                precision += scale
+                type = type + "({:d},{:d})".format(precision + 2, scale)
             if type == "0":
-                type = t
-            elif type == "NUMERIC" and t == "INT":
-                continue
-            elif type == "VARCHAR" and t in ["INT", "NUMERIC"]:
-                continue
-            elif type == "INT" and t == "NUMERIC":
-                type = t
-            elif (type and type != t):
-                msg = "Inconsistent type for column {:d} [{:s}]. "\
-                    .format(c+1, columns[c])
-                msg += "Up to line {:d}: {:s}, for line={:d}: {:s}. "\
-                    .format(l-1, type, l, t)
-                msg += "Value = {}".format(v)
-                raise Exception(msg)
-            else:
-                type = t
-        if type == "NUMERIC":
-            precision += scale
-            type = type + "({:d},{:d})".format(precision+2, scale)
-        if type == "0":
-            type =  "NUMERIC"
-        types.append(type)
-    return types
+                type = "NUMERIC"
+            self.types.append(type)
+        return
 
-
-def create_table(file_path: str, cursor = None) -> str:
-    has_commas = False
-    file_name = os.path.basename(file_path)
-    name, _ = os.path.splitext(file_name)
-    with open(file_path) as data:
-        reader = csv.reader(data, quotechar='"', delimiter=',',
-                     quoting=csv.QUOTE_ALL, skipinitialspace=True)
-        row = next(reader)
-        columns = [unquote(c) for c in row]
-
-        rows = []
-        for i in range(0,10000):
-            rows.append(next(reader))
-    with open(file_path) as data:
-        reader = csv.reader(data, quotechar='"', delimiter=',',
-                     quoting=csv.QUOTE_NONE, skipinitialspace=True)
-        next(reader)
-        lines = []
-        for i in range(0,10000):
-            lines.append(next(reader))
-
-    if not rows:
-        raise Exception("No data in {}".format(file_path))
-    types = guess_types(rows, lines, columns)
-    for row in rows:
-        for cell in row:
-            if ',' in cell:
-                has_commas = True
-                break
-
-    sql_columns = [c.replace('.', '_') for c in columns]
-    col_spec = ["{} \t{}".format(sql_columns[i], types[i]) for i in range(0, len(columns))]
-    ddl = "CREATE TABLE {}\n ({})".format(name, ",\n\t".join(col_spec))
-
-    for c in sql_columns:
-        m = index_method(c)
-        if m:
-            ddl += ";\nCREATE INDEX {table}_{column}_idx ON {table} USING {method} ({column})"\
-                .format(table = name, column = c, method = m)
-
-    print (ddl)
-
-    if cursor:
-        cursor.execute(ddl)
-        if has_commas:
+    def add_data(self, cursor, entry):
+        if self.has_commas:
             print("The CSV file contains commas, copying manually.")
-            copy_data(cursor, name, sql_columns, types, file_path)
+            self.copy_data(cursor, entry)
+        elif self.force_manual:
+            print("Forcing manual copy of the data.")
+            self.copy_data(cursor, entry)
         else:
             print("Copying data using system function.")
-            with open(file_path) as data:
+            with self.fopen(entry) as data:
                 with CSVFileWrapper(data) as csv_data:
                     csv_data.readline()
-                    cursor.copy_from(csv_data, name, sep=',', null=NA, columns=sql_columns)
+                    cursor.copy_from(csv_data, self.table, sep=',', null=NA,
+                                     columns=self.sql_columns)
 
-    return name
 
+    def copy_data (self, cursor, input_source):
+        N = 10000
+        insert = "INSERT INTO {table} ({columns}) VALUES "\
+            .format(table = self.table, columns=','.join(self.sql_columns))
+        #values = "({})".format('')
+        with self.fopen(input_source) as data:
+            reader = csv.reader(data, quotechar='"', delimiter=',',
+                         quoting=csv.QUOTE_ALL, skipinitialspace=True)
+            next(reader)
+            counter = 0
+            sql = insert
+            while True:
+                try:
+                    row = next(reader)
+                except(StopIteration):
+                    break
+                counter += 1
+                for i in range(0, len(self.types)):
+                    if row[i] in [NA, NaN]:
+                        row[i] = "NULL"
+                    elif self.types[i] in ["VARCHAR", "DATE", "TIMESTAMP", "TIME"]:
+                        row[i] = "'{}'".format(row[i].replace("'", "''"))
 
-def copy_data (cursor, table, columns, types, file_path):
-    N = 10000
-    insert = "INSERT INTO {table} ({columns}) VALUES "\
-        .format(table = table, columns=','.join(columns))
-    #values = "({})".format('')
-    with open(file_path) as data:
-        reader = csv.reader(data, quotechar='"', delimiter=',',
-                     quoting=csv.QUOTE_ALL, skipinitialspace=True)
-        next(reader)
-        counter = 0
-        sql = insert
-        while True:
-            try:
-                row = next(reader)
-            except(StopIteration):
-                break
-            counter += 1
-            for i in range(0, len(types)):
-                if row[i] == NA:
-                    row[i] = "NULL"
-                elif types[i] in ["VARCHAR", "DATE", "TIMESTAMP", "TIME"]:
-                    row[i] = "'{}'".format(row[i].replace("'", "''"))
-            values = "({})".format(','.join(row))
-            sql += values
-            if (counter % N) == 0:
+                for c in self.add_columns:
+                    row.append(c.extract_value(input_source))
+                values = "({})".format(','.join(row))
+                sql += values
+                if (counter % N) == 0:
+                    cursor.execute(sql)
+                    print(counter)
+                    sql = insert
+                else:
+                    sql += ","
+            if (counter % N) != 0:
+                if sql[-1] == ',':
+                    sql = sql[:-1]
                 cursor.execute(sql)
-                print(counter)
-                sql = insert
-            else:
-                sql += ","
-        if (counter % N) != 0:
-            if sql[-1] == ',':
-                sql = sql[:-1]
-            cursor.execute(sql)
-            print("\r" + str(counter))
-    return
+                print("\r" + str(counter))
+        return
 
 
-def ingest(path: str) -> str:
+def ingest(args: list):
+    path = args[0]
     connection = None
     try:
         connection = connect()
         cur = connection.cursor()
-        name = create_table(path, cur)
 
-        print("Table created")
+        entries = []
+        f = lambda e: e
+        if path.endswith(".tar") or path.endswith(".tgz") or path.endswith(".tar.gz"):
+            tfile = tarfile.open(path)
+            entries = [e for e in tfile.getmembers() if e.isfile()]
+            f = lambda e: tfile.extractfile(e)
+        elif os.path.isdir(path):
+            pass
+
+        table = Table(path, f)
+        for a in args[1:]:
+            x = a.split(':')
+            table.add_column(x[0], x[1], int(x[2]))
+        if entries:
+            table.create(cur, entries[0])
+            for i in range(1, len(entries)):
+                e = entries[i]
+                print ("Adding: " + e.name)
+                table.add_data(cur, e)
+        else:
+            table.create(cur)
+
+        print("Table created: " + table.table)
         cur.close()
 
         connection.commit()
@@ -358,5 +461,5 @@ def ingest(path: str) -> str:
 
 if __name__ == '__main__':
     test_connection()
-    ingest(sys.argv[1])
+    ingest(sys.argv[1:])
 
