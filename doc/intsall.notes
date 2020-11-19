@@ -83,3 +83,6 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO superset;
 
 https://superset.apache.org/docs/installation/installing-superset-using-docker-compose
 # edit docker-compose.yaml and to exclude postgres container (we are using local)
+
+edit superset/config.py:  set
+ENABLE_PROXY_FIX = True

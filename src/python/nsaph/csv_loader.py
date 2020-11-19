@@ -280,7 +280,9 @@ class Table:
                     self.has_commas = True
                     break
 
-        self.sql_columns = [c.replace('.', '_') for c in self.csv_columns]
+        self.sql_columns = [
+            c.replace('.', '_') if c else "Col" for c in self.csv_columns
+        ]
         col_spec = [
             "{} \t{}".format(self.sql_columns[i], self.types[i])
                 for i in range(0, len(self.csv_columns))
@@ -359,6 +361,8 @@ class Table:
                 type = type + "({:d},{:d})".format(precision + 2, scale)
             if type == "0":
                 type = "NUMERIC"
+            if not type:
+                type = "VARCHAR"
             self.types.append(type)
         return
 
