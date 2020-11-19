@@ -1,0 +1,232 @@
+databases:
+- database_name: NSAPH
+  extra: "{\r\n    \"metadata_params\": {},\r\n    \"engine_params\": {},\r\n    \"\
+    metadata_cache_timeout\": {},\r\n    \"schemas_allowed_for_csv_upload\": []\r\n\
+    }"
+  sqlalchemy_uri: postgresql+psycopg2://nsaph:XXXXXXXXXX@172.17.0.1/nsaph
+  tables:
+  - columns:
+    - column_name: date_local
+      is_dttm: true
+      type: DATE
+    - column_name: latitude
+      type: NUMERIC(10, 6)
+    - column_name: x1st_max_value
+      type: NUMERIC(6, 1)
+    - column_name: arithmetic_mean
+      type: NUMERIC(6, 1)
+    - column_name: x1st_max_hour
+      type: INTEGER
+    - column_name: local_site_name
+      type: VARCHAR
+    - column_name: units_of_measure
+      type: VARCHAR
+    - column_name: pollutant_standard
+      type: VARCHAR
+    - column_name: parameter_name
+      type: VARCHAR
+    - column_name: cbsa_name
+      type: VARCHAR
+    - column_name: sample_duration
+      type: VARCHAR
+    - column_name: state_name
+      type: VARCHAR
+    - column_name: state_code
+      type: VARCHAR
+    - column_name: city_name
+      type: VARCHAR
+    - column_name: county_name
+      type: VARCHAR
+    - column_name: method_name
+      type: VARCHAR
+    - column_name: event_type
+      type: VARCHAR
+    - column_name: address
+      type: VARCHAR
+    - column_name: datum
+      type: VARCHAR
+    - column_name: longitude
+      type: VARCHAR
+    - column_name: monitor
+      type: VARCHAR
+    - column_name: date_of_last_change
+      type: DATE
+    - column_name: parameter_code
+      type: INTEGER
+    - column_name: observation_percent
+      type: INTEGER
+    - column_name: observation_count
+      type: INTEGER
+    - column_name: county_code
+      type: INTEGER
+    - column_name: method_code
+      type: INTEGER
+    - column_name: site_num
+      type: INTEGER
+    - column_name: aqi
+      type: INTEGER
+    - column_name: poc
+      type: INTEGER
+    main_dttm_col: date_local
+    metrics:
+    - expression: COUNT(*)
+      metric_name: count
+      metric_type: count
+      verbose_name: COUNT(*)
+    table_name: pm25_daily_monitor_data
+  - columns:
+    - column_name: tmmx
+      description: Maximum Daily Temperature in degrees Kelvin
+      type: NUMERIC(17, 12)
+    - column_name: zip
+      description: Zip Code
+      type: INTEGER
+    - column_name: date
+      is_dttm: true
+      type: DATE
+    - column_name: rmax
+      type: NUMERIC(17, 13)
+    - column_name: pr
+      type: NUMERIC(22, 18)
+    - column_name: year
+      type: INTEGER
+    description: "The file in this directory contains temperature, relative humidty,\
+      \ and percipitation data linked to zipcodes using Google Earth Engine.\r\n\r\
+      \nThese data are derived from the GRIDMET Meterological dataset (https://developers.google.com/earth-engine/datasets/catalog/IDAHO_EPSCOR_GRIDMET)\r\
+      \nand are linked to zipcodes using google earth engine's spatial statistics\
+      \ algorithms to do an area weighted average based on ESRI shapefiles for zipcodes.\
+      \ \r\n\r\nThe variables included in the dataset are the following:\r\n\r\nZIP:\
+      \ zip code\r\ntmmx: Maxmimum Daily Temperture in degrees Kelvin\r\nrmax: Maximum\
+      \ Daily Relative Humidity (0-100%)\r\npr: Daily Precipitation (mm)\r\ndate:\
+      \ date\r\nyear: year"
+    main_dttm_col: date
+    metrics:
+    - expression: COUNT(*)
+      metric_name: count
+      metric_type: count
+      verbose_name: COUNT(*)
+    table_name: temperature_daily_zipcode
+  - columns:
+    - column_name: age_pct_0_14
+      type: NUMERIC(19, 16)
+    - column_name: median_house_value
+      type: NUMERIC(20, 12)
+    - column_name: age_pct_15_44
+      type: NUMERIC(18, 15)
+    - column_name: median_household_income
+      type: NUMERIC(18, 11)
+    - column_name: asian_pct
+      type: NUMERIC(21, 18)
+    - column_name: hispanic_pct
+      type: NUMERIC(21, 18)
+    - column_name: poverty_mcare
+      type: NUMERIC(21, 18)
+    - column_name: native_pct
+      type: NUMERIC(21, 18)
+    - column_name: blk_pct
+      type: NUMERIC(21, 18)
+    - column_name: median_age
+      type: NUMERIC(17, 13)
+    - column_name: age_pct_45_65
+      type: NUMERIC(19, 16)
+    - column_name: age_pct_65_plus
+      type: NUMERIC(19, 16)
+    - column_name: owner_occupied
+      type: NUMERIC(18, 15)
+    - column_name: no_grad_mcare
+      type: NUMERIC(19, 16)
+    - column_name: no_grad
+      type: NUMERIC(19, 16)
+    - column_name: white_pct
+      type: NUMERIC(19, 16)
+    - column_name: poverty
+      type: NUMERIC(19, 16)
+    - column_name: population
+      type: NUMERIC(22, 13)
+    - column_name: population_density
+      type: NUMERIC(23, 16)
+    - column_name: land_area
+      type: NUMERIC(24, 16)
+    - column_name: name
+      type: VARCHAR
+    - column_name: year
+      type: INTEGER
+    - column_name: fips
+      type: INTEGER
+    metrics:
+    - expression: COUNT(*)
+      metric_name: count
+      metric_type: count
+      verbose_name: COUNT(*)
+    table_name: census_county_interpolated
+  - columns:
+    - column_name: medhinc_cy
+      type: NUMERIC(20, 11)
+    - column_name: medval_cy
+      type: NUMERIC(21, 11)
+    - column_name: owner_cy
+      type: NUMERIC(21, 14)
+    - column_name: totpop_cy
+      type: NUMERIC(21, 14)
+    - column_name: own_occupied
+      type: NUMERIC(21, 17)
+    - column_name: tothu_cy
+      type: NUMERIC(22, 15)
+    - column_name: somehs_cy
+      type: NUMERIC(22, 16)
+    - column_name: no_grad
+      type: NUMERIC(22, 18)
+    - column_name: pop_den
+      type: NUMERIC(23, 15)
+    - column_name: nohs_cy
+      type: NUMERIC(23, 16)
+    - column_name: area
+      type: NUMERIC(24, 17)
+    - column_name: st_abbrev
+      type: VARCHAR
+    - column_name: name
+      type: VARCHAR
+    - column_name: id
+      type: VARCHAR
+    - column_name: year
+      type: INTEGER
+    metrics:
+    - expression: COUNT(*)
+      metric_name: count
+      metric_type: count
+      verbose_name: COUNT(*)
+    table_name: nejm_from_ba_all_years_interpolated
+  - columns:
+    - column_name: pr
+      type: NUMERIC(20, 16)
+    - column_name: tmmx
+      type: NUMERIC(17, 12)
+    - column_name: rmax
+      type: NUMERIC(17, 13)
+    - column_name: year
+      type: INTEGER
+    - column_name: zip
+      type: INTEGER
+    metrics:
+    - expression: COUNT(*)
+      metric_name: count
+      metric_type: count
+      verbose_name: COUNT(*)
+    table_name: temperature_annual_zipcode
+  - columns:
+    - column_name: a1c_exm_pct
+      type: NUMERIC(17, 13)
+    - column_name: amb_visit_pct
+      type: NUMERIC(17, 13)
+    - column_name: year
+      type: INTEGER
+    - column_name: fips
+      type: INTEGER
+    - column_name: zip
+      type: INTEGER
+    metrics:
+    - expression: COUNT(*)
+      metric_name: count
+      metric_type: count
+      verbose_name: COUNT(*)
+    table_name: dartmouth_interpolated
