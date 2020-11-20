@@ -482,7 +482,7 @@ def ingest(args: list, force: bool = False):
             try:
                 table.drop(connection.cursor())
             except:
-                pass
+                connection.rollback()
         for a in args[1:]:
             x = a.split(':')
             table.add_column(x[0], x[1], int(x[2]))
