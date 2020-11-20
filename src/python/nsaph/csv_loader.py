@@ -231,7 +231,11 @@ class CustomColumn:
 
 
 class Table:
-    def __init__(self, file_path: str, get_entry):
+    def __init__(self, file_path: str, get_entry, concurrent_indices: bool = False):
+        if concurrent_indices:
+            self.index_option = "CONCURRENTLY"
+        else:
+            self.index_option = ""
         self.file_path = file_path
         file_name = os.path.basename(file_path)
         name, ext = os.path.splitext(file_name)
@@ -256,6 +260,7 @@ class Table:
     def create(self, cursor = None, entry = None):
         if not entry:
             entry = self.file_path
+        print("Using for data analysis: " + name(entry))
         with self.fopen(entry) as data:
             reader = csv.reader(data, quotechar='"', delimiter=',',
                          quoting=csv.QUOTE_ALL, skipinitialspace=True)
@@ -292,19 +297,28 @@ class Table:
             col_spec.append("{} \t{}".format(c.name, c.type))
         ddl = "CREATE TABLE {}\n ({})".format(self.table, ",\n\t".join(col_spec))
 
+        print (ddl)
+        if cursor:
+            cursor.execute(ddl)
+
+    def build_indices(self, cursor):
+        ddl_pattern = "CREATE INDEX {option} {table}_{column}_idx ON {table} USING {method} ({column})"
         for c in self.sql_columns:
             m = index_method(c)
             if m:
-                ddl += ";\nCREATE INDEX {table}_{column}_idx ON {table} USING {method} ({column})"\
-                    .format(table = self.table, column = c, method = m)
+                ddl = ddl_pattern \
+                    .format(option=self.index_option,
+                            table = self.table,
+                            column = c,
+                            method = m)
+                print(str(datetime.datetime.now()) + ": " + ddl)
+                if cursor:
+                    cursor.execute(ddl)
 
-        print (ddl)
-
-        if cursor:
-            cursor.execute(ddl)
-            self.add_data(cursor, entry)
-
-        return
+    def drop(self, cursor):
+        sql = "DROP TABLE {} CASCADE".format(self.table)
+        print(sql)
+        cursor.execute(sql)
 
     def guess_types(self, rows: list, lines: list):
         m = len(rows)
@@ -391,14 +405,18 @@ class Table:
             reader = csv.reader(data, quotechar='"', delimiter=',',
                          quoting=csv.QUOTE_ALL, skipinitialspace=True)
             next(reader)
-            counter = 0
+            lines = 0
+            chars = 0
             sql = insert
+            t0 = datetime.datetime.now()
+            t1 = t0
             while True:
                 try:
                     row = next(reader)
                 except(StopIteration):
                     break
-                counter += 1
+                lines += 1
+                chars += sum([len(cell) for cell in row])
                 for i in range(0, len(self.types)):
                     if row[i] in [NA, NaN]:
                         row[i] = "NULL"
@@ -409,23 +427,41 @@ class Table:
                     row.append(c.extract_value(input_source))
                 values = "({})".format(','.join(row))
                 sql += values
-                if (counter % N) == 0:
+                if (lines % N) == 0:
                     cursor.execute(sql)
-                    print(counter)
+                    t1 = self.log_progress(t0, t1, chars, lines, N)
                     sql = insert
                 else:
                     sql += ","
-            if (counter % N) != 0:
+            if (lines % N) != 0:
                 if sql[-1] == ',':
                     sql = sql[:-1]
                 cursor.execute(sql)
-                print("\r" + str(counter))
+                self.log_progress(t0, t1, chars, lines, N)
         return
 
+    @staticmethod
+    def log_progress(t0, t1, chars, lines, N):
+        if chars > 1000000000:
+            c = "{:7.2f}G".format(chars / 1000000000.0)
+        elif chars > 1000000:
+            c = "{:6.2f}M".format(chars / 1000000.0)
+        else:
+            c = str(chars)
+        t = datetime.datetime.now()
+        dt1 = t - t1
+        dt0 = t - t0
+        r1 = N / dt1.total_seconds()
+        r0 = lines / dt0.total_seconds()
+        print("{}: Processed {:d}/{} lines/chars [t={}/{}, r={:5.1f}/{:5.1f} lines/sec]"
+              .format(str(t), lines, c, str(dt1), str(dt0), r1, r0))
+        return t
 
-def ingest(args: list):
+
+def ingest(args: list, force: bool = False):
     path = args[0]
     connection = None
+    table = None
     try:
         connection = connect()
         cur = connection.cursor()
@@ -438,24 +474,36 @@ def ingest(args: list):
             f = lambda e: tfile.extractfile(e)
         elif os.path.isdir(path):
             pass
+        else:
+            entries.append(path)
 
         table = Table(path, f)
+        if force:
+            try:
+                table.drop(connection.cursor())
+            except:
+                pass
         for a in args[1:]:
             x = a.split(':')
             table.add_column(x[0], x[1], int(x[2]))
-        if entries:
-            table.create(cur, entries[0])
-            for i in range(1, len(entries)):
-                e = entries[i]
-                print ("Adding: " + e.name)
-                table.add_data(cur, e)
-        else:
-            table.create(cur)
+        table.create(cur, entries[0])
+
+        for e in entries:
+            print ("Adding: " + name(e))
+            table.add_data(cur, e)
 
         print("Table created: " + table.table)
         cur.close()
-
         connection.commit()
+
+        print("Building indices:")
+        table.build_indices(connection.cursor())
+        print ("All DONE")
+
+    except Exception as x:
+        if table and connection and connection.autocommit:
+            table.drop(connection.cursor())
+        raise x
     finally:
         if connection is not None:
             connection.close()
@@ -464,6 +512,6 @@ def ingest(args: list):
 
 
 if __name__ == '__main__':
-    test_connection()
-    ingest(sys.argv[1:])
+    #test_connection()
+    ingest(sys.argv[1:], True)
 
