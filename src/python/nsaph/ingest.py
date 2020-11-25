@@ -4,6 +4,7 @@ from nsaph.analyze import analyze
 from nsaph.create import create_table
 from nsaph.index import build_indices
 from nsaph.db import Connection
+from nsaph.model import INDEX_REINDEX
 
 
 def ingest(args: list, force: bool = False):
@@ -15,7 +16,8 @@ def ingest(args: list, force: bool = False):
     print("Table created: " + table.table)
 
     print("Building indices:")
-    build_indices(table, force)
+    flag = INDEX_REINDEX if force else None
+    build_indices(table, flag)
     print ("All DONE")
 
 

@@ -6,6 +6,10 @@ import datetime
 from nsaph.reader import CSVFileWrapper, name, fopen, SpecialValues
 
 
+INDEX_REINDEX = "reindex"
+INDEX_INCREMENTAL = "incremental"
+
+
 def regex(pattern: str):
     pattern = 'A' + pattern.replace('.', '_') + 'Z'
     x = pattern.split('*')
@@ -180,14 +184,20 @@ class Table:
     def create(self, cursor):
         cursor.execute(self.create_table_ddl)
 
-    def build_indices(self, cursor, force: bool = False):
+    def build_indices(self, cursor, flag: str = None):
         for ddl in self.index_ddl:
-            if force:
-                sql = "DROP INDEX IF EXISTS {name}".format(name=ddl[0])
+            command = ddl[1]
+            name = ddl[0]
+            if flag == INDEX_REINDEX:
+                sql = "DROP INDEX IF EXISTS {name}".format(name=name)
                 print(str(datetime.datetime.now()) + ": " + sql)
                 cursor.execute(sql)
-            print(str(datetime.datetime.now()) + ": " + ddl[1])
-            cursor.execute(ddl[1])
+            elif flag == INDEX_INCREMENTAL:
+                command = command.replace(name, "IF NOT EXISTS " + name)
+            elif flag and flag != "default":
+                raise Exception("Invalid indexing flag: " + flag)
+            print(str(datetime.datetime.now()) + ": " + command)
+            cursor.execute(command)
 
     def drop(self, cursor):
         sql = "DROP TABLE {} CASCADE".format(self.table)

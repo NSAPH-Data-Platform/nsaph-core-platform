@@ -3,7 +3,7 @@ import threading
 import time
 
 from nsaph.db import Connection
-from nsaph.model import Table
+from nsaph.model import Table, INDEX_REINDEX, INDEX_INCREMENTAL
 
 SQL12 = """
     SELECT 
@@ -28,8 +28,8 @@ SQL11 = """
     WHERE a.query LIKE 'CREATE%INDEX%' 
 """
 
-def index(table, cursor, force):
-    table.build_indices(cursor, force)
+def index(table, cursor, flag):
+    table.build_indices(cursor, flag)
 
 
 def print_stat(connection):
@@ -63,15 +63,18 @@ def print_stat(connection):
 
 
 
-def build_indices(table: Table, force: bool = False):
+def build_indices(table: Table, flag: str):
     with Connection() as connection:
         connection.autocommit = True
         cursor = connection.cursor()
-        x = threading.Thread(target=index, args=(table, cursor, force))
+        x = threading.Thread(target=index, args=(table, cursor, flag))
         x.start()
+        n = 0
         while (x.is_alive()):
-            time.sleep(10)
-            print_stat(connection)
+            time.sleep(0.1)
+            n += 1
+            if (n % 100) == 0:
+                print_stat(connection)
         x.join()
 
 
@@ -82,8 +85,15 @@ if __name__ == '__main__':
                         required=True)
     parser.add_argument("--force", action='store_true',
                         help="Force reindexing if index already exists")
+    parser.add_argument("--incremental", "-i", action='store_true',
+                        help="Force reindexing if index already exists")
 
     args = parser.parse_args()
 
-    table = Table(args.config, None, args.force)
-    build_indices(table)
+    table = Table(args.config, None)
+    flag = None
+    if args.force:
+        flag = INDEX_REINDEX
+    elif args.incremental:
+        flag = INDEX_INCREMENTAL
+    build_indices(table, flag)
