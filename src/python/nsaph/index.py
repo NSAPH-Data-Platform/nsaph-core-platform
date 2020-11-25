@@ -14,7 +14,8 @@ SQL12 = """
       p.blocks_total, 
       p.blocks_done, 
       p.tuples_total, 
-      p.tuples_done
+      p.tuples_done,
+      p.pid
     FROM pg_stat_progress_create_index p 
     JOIN pg_stat_activity a ON p.pid = a.pid
 """
@@ -32,34 +33,40 @@ def index(table, cursor, flag):
     table.build_indices(cursor, flag)
 
 
-def print_stat(connection):
-    cursor = connection.cursor()
-    version = connection.info.server_version
-    if version > 120000:
-        sql = SQL12
-    else:
-        sql = SQL11
-    cursor.execute(sql)
-    for row in cursor:
+def print_stat():
+    with Connection(silent=True) as connection:
+        cursor = connection.cursor()
+        version = connection.info.server_version
         if version > 120000:
-            t = row[0]
-            c = row[1]
-            q = row[2][len(c):].strip().split(" ")
-            if q:
-                n = q[0]
-            else:
-                n = "?"
-            p = row[3]
-            b = row[5] * 100.0 / row[4] if row[4] else 0
-            tp = row[7] * 100.0 / row[6] if row[6] else 0
-            msg = "[{}] {}: {}. Blocks: {:2.0f}%, Tuples: {:2.0f}%"\
-                .format(str(t), p, n, b, tp)
+            sql = SQL12
         else:
-            t = row[0]
-            q = row[2]
-            s = row[2]
-            msg = "[{}] {}: {}".format(t, s, q)
-        print(msg)
+            sql = SQL11
+        cursor.execute(sql)
+        for row in cursor:
+            if version > 120000:
+                t = row[0]
+                c = row[1]
+                q = row[2][len(c):].strip().split(" ")
+                if q:
+                    n = "None"
+                    for x in q:
+                        if x not in ["IF", "NOT", "EXISTS"]:
+                            n = x
+                            break
+                else:
+                    n = "?"
+                p = row[3]
+                b = row[5] * 100.0 / row[4] if row[4] else 0
+                tp = row[7] * 100.0 / row[6] if row[6] else 0
+                pid = row[8]
+                msg = "[{}] {}: {}. Blocks: {:2.0f}%, Tuples: {:2.0f}%. PID = {:d}"\
+                    .format(str(t), p, n, b, tp, pid)
+            else:
+                t = row[0]
+                q = row[2]
+                s = row[2]
+                msg = "[{}] {}: {}".format(t, s, q)
+            print(msg)
 
 
 
@@ -74,7 +81,7 @@ def build_indices(table: Table, flag: str):
             time.sleep(0.1)
             n += 1
             if (n % 100) == 0:
-                print_stat(connection)
+                print_stat()
         x.join()
 
 

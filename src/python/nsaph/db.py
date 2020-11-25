@@ -41,9 +41,9 @@ class Connection:
             return "localhost"
         return hosts[0]
 
-    @staticmethod
-    def connect_to_database(params):
-        print('Connecting to the PostgreSQL database...')
+    def connect_to_database(self, params):
+        if not self.silent:
+            print('Connecting to the PostgreSQL database...')
         conn = psycopg2.connect(**params)
         return conn
 
@@ -51,7 +51,7 @@ class Connection:
     def default_port() -> int:
         return 5432
 
-    def __init__(self, filename=None, section=None):
+    def __init__(self, filename=None, section=None, silent: bool = False):
         if not filename:
             filename = Connection.default_filename
         if not section:
@@ -59,6 +59,7 @@ class Connection:
         self.parameters = self.read_config(filename, section)
         self.connection = None
         self.tunnel = None
+        self.silent = silent
 
     def connect(self):
         if "ssh_user" in self.parameters:
@@ -66,8 +67,9 @@ class Connection:
         else:
             self.connection = self.connect_to_database(self.parameters)
         info = self.connection.info
-        print("Connected to: {}@{}:{}/{}"
-              .format(info.user, info.host, info.port, info.dbname))
+        if not self.silent:
+            print("Connected to: {}@{}:{}/{}"
+                  .format(info.user, info.host, info.port, info.dbname))
         return self.connection
 
     def connect_via_tunnel(self):
