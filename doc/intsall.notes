@@ -3,12 +3,13 @@
 yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 yum install -y postgresql13-server
 
-vi usr/lib/systemd/system/postgresql-13.service
-    # Edit:
+less /usr/lib/systemd/system/postgresql-13.service
+# Edit:
+mkdir /etc/systemd/system/postgresql-13.service.d
+echo "[Service]" > override.conf
+echo "Environment=PGDATA=/data/pgsql/13/data/" >> override.conf
 
-    # Location of database directory
-    #Environment=PGDATA=/var/lib/pgsql/13/data/
-    Environment=PGDATA=/data/pgsql/13/data/
+semanage fcontext -a -t postgresql_db_t "/data/pgsql/13/data/(/.*)?"
 
 /usr/pgsql-13/bin/postgresql-13-setup initdb
 
