@@ -77,11 +77,16 @@ def build_indices(table: Table, flag: str):
         x = threading.Thread(target=index, args=(table, cursor, flag))
         x.start()
         n = 0
+        step = 100
         while (x.is_alive()):
             time.sleep(0.1)
             n += 1
-            if (n % 100) == 0:
+            if (n % step) == 0:
                 print_stat()
+                if n > 100000:
+                    step = 6000
+                elif n > 10000:
+                    step = 600
         x.join()
 
 
