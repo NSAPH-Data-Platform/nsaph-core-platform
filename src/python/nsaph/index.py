@@ -33,8 +33,8 @@ def index(table, cursor, flag):
     table.build_indices(cursor, flag)
 
 
-def print_stat():
-    with Connection(silent=True) as connection:
+def print_stat(db: str = None, section: str = None):
+    with Connection(db, section, silent=True) as connection:
         cursor = connection.cursor()
         version = connection.info.server_version
         if version > 120000:
@@ -69,9 +69,9 @@ def print_stat():
             print(msg)
 
 
-
-def build_indices(table: Table, flag: str):
-    with Connection() as connection:
+def build_indices(table: Table, flag: str, db: str = None,
+                  section: str = None):
+    with Connection(db, section) as connection:
         connection.autocommit = True
         cursor = connection.cursor()
         x = threading.Thread(target=index, args=(table, cursor, flag))
@@ -82,7 +82,7 @@ def build_indices(table: Table, flag: str):
             time.sleep(0.1)
             n += 1
             if (n % step) == 0:
-                print_stat()
+                print_stat(db, section)
                 if n > 100000:
                     step = 6000
                 elif n > 10000:
@@ -92,20 +92,28 @@ def build_indices(table: Table, flag: str):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser (description="Build indices")
-    parser.add_argument("--config", "-c",
+    parser.add_argument("--tdef", "-t",
                         help="Path to a config file for a table",
                         required=True)
     parser.add_argument("--force", action='store_true',
                         help="Force reindexing if index already exists")
     parser.add_argument("--incremental", "-i", action='store_true',
                         help="Force reindexing if index already exists")
+    parser.add_argument("--db",
+                        help="Path to a database connection parameters file",
+                        default="database.ini",
+                        required=False)
+    parser.add_argument("--section",
+                        help="Section in the database connection parameters file",
+                        default="postgres",
+                        required=False)
 
     args = parser.parse_args()
 
-    table = Table(args.config, None)
+    table = Table(args.tdef, None)
     flag = None
     if args.force:
         flag = INDEX_REINDEX
     elif args.incremental:
         flag = INDEX_INCREMENTAL
-    build_indices(table, flag)
+    build_indices(table, flag, args.db, args.section)

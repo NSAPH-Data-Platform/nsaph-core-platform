@@ -1,0 +1,15 @@
+{
+  "job": {
+    "data_file": {
+      "class": "File",
+      "location": "/Users/misha/harvard/projects/data_server/nsaph/data/pm25_test.csv"
+    },
+    "db_connection_params": {
+      "class": "File",
+      "location": "/Users/misha/harvard/projects/database.ini"
+    },
+    "PYTHONPATH": "/Users/misha/harvard/gitlab/nsaph/src/python",
+    "db_name": "postgresql10",
+    "force": true
+  }
+}

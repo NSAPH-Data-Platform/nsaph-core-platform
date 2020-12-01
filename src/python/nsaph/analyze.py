@@ -21,15 +21,19 @@ if __name__ == '__main__':
     parser.add_argument("--source", "-s", help="Path to a file or directory",
                         required=True)
     parser.add_argument("--column", "-c", help="Additional columns", nargs="*")
+    parser.add_argument("--outdir", help="Output directory")
 
     args = parser.parse_args()
 
     table = analyze(args.source, args.column)
 
-    d = os.path.dirname(os.path.abspath(table.file_path))
-    pd, cd = os.path.split(d)
-    if cd == "data":
-        d = os.path.join(pd, "config")
-        if not os.path.isdir(d):
-            os.mkdir(d)
+    if args.outdir:
+        d = os.path.abspath(args.outdir)
+    else:
+        d = os.path.dirname(os.path.abspath(table.file_path))
+        pd, cd = os.path.split(d)
+        if cd == "data":
+            d = os.path.join(pd, "config")
+            if not os.path.isdir(d):
+                os.mkdir(d)
     table.save(d)

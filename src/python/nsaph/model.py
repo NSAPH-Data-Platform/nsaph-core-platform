@@ -78,13 +78,16 @@ class CustomColumn:
 
 
 class Table:
-    def __init__(self, file_path: str, get_entry, concurrent_indices: bool = False):
+    def __init__(self, file_path: str, get_entry,
+                 concurrent_indices: bool = False, data_file: str = None):
         if file_path.endswith("json"):
             self.open_entry_function = get_entry
             with open(file_path) as fp:
                 j = json.load(fp)
             for a in j:
                 setattr(self, a, j[a])
+            if data_file:
+                self.file_path = data_file
             return
         if concurrent_indices:
             self.index_option = "CONCURRENTLY"
@@ -118,6 +121,7 @@ class Table:
 
         with open (f, "w") as config:
             json.dump(j, config, indent=2)
+        print("Saved table definition to: " + f)
 
     def fopen(self, source):
         return fopen(self.open_entry_function(source))

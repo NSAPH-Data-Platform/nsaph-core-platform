@@ -15,7 +15,7 @@ semanage fcontext -a -t postgresql_db_t "/data/pgsql/13/data/(/.*)?"
 
 # See log file: /data/pgsql/13/data/log/postgresql-***.log
 
-edit to listen to Ip addresses (postgre.conf)
+edit to listen to Ip addresses (postgres.conf)
 edit ph_hba.conf to allow users from docker networks
 
 2. Check installation
