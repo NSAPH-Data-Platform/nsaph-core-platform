@@ -6,7 +6,9 @@ class: Workflow
 inputs:
   data_file: File
   db_connection_params: File
-  db_name: string
+  db_name:
+    type: string
+    default: "postgresql"
   PYTHONPATH: string
   force:
     type: boolean

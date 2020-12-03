@@ -105,7 +105,7 @@ if __name__ == '__main__':
                         required=False)
     parser.add_argument("--section",
                         help="Section in the database connection parameters file",
-                        default="postgres",
+                        default="postgresql",
                         required=False)
 
     args = parser.parse_args()

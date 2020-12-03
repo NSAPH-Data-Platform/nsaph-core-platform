@@ -15,7 +15,13 @@ semanage fcontext -a -t postgresql_db_t "/data/pgsql/13/data/(/.*)?"
 
 # See log file: /data/pgsql/13/data/log/postgresql-***.log
 
+postgres.conf:
 edit to listen to Ip addresses (postgres.conf)
+work_mem = 128MB
+maintenance_work_mem = 2048MB
+max_parallel_maintenance_workers = 4    # taken from max_parallel_workers
+
+ph_hba.conf:
 edit ph_hba.conf to allow users from docker networks
 
 2. Check installation
@@ -87,3 +93,14 @@ https://superset.apache.org/docs/installation/installing-superset-using-docker-c
 
 edit superset/config.py:  set
 ENABLE_PROXY_FIX = True
+
+=================================================================
+Airflow https://airflow.readthedocs.io/en/stable/howto/run-with-systemd.html
+Postgres:
+create database airflow;
+create user airflow password 'a1rfl0w';
+alter database airflow owner to airflow;
+grant ALL  PRIVILEGES on DATABASE airflow to airflow;
+
+
+
