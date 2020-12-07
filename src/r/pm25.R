@@ -2,7 +2,7 @@ library(arepa)
 library(optparse)
 
 download_annual <- function (out_file, year, parameter = 88101) {
-  get_AQS_data_annual(year = 1990:2020)
+  get_AQS_data_annual(year = year)
   x <- load_annual_average(year = year)
 
   x <- x[x$Parameter.Code == parameter]
@@ -13,12 +13,12 @@ download_annual <- function (out_file, year, parameter = 88101) {
 
 
 option_list <- list(
-  make_option(c("-y", "--year"), type="character", default=1990:2020,
-              help="Year", metavar="character", ),
-  make_option(c("-p", "--parameter"), type="character", default=88101,
-              help="EPA Parameter Code", metavar="character", ),
+  make_option(c("-y", "--year"), type="integer", default=1990:2020,
+              help="Year", metavar="character"),
+  make_option(c("-p", "--parameter"), type="integer", default=88101,
+              help="EPA Parameter Code", metavar="character"),
   make_option(c("-o", "--out"), type="character", default = "pm25_monitor_annual_average.csv",
-              help="output file [default= %default]", metavar="character"),
+              help="output file [default= %default]", metavar="character")
 );
 
 opt_parser <- OptionParser(option_list=option_list);

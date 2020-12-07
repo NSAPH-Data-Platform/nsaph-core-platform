@@ -2,13 +2,16 @@
 
 cwlVersion: v1.0
 class: CommandLineTool
-baseCommand: /opt/anaconda3/envs/NSAPHclimate/bin/Rscript
+baseCommand: [/opt/anaconda3/envs/NSAPHclimate/bin/Rscript, /opt/projects/nsaph/src/r/pm25.R]
+
+requirements:
+  EnvVarRequirement:
+    envDef:
+      HTTPS_PROXY: "http://rcproxy.rc.fas.harvard.edu:3128"
+      HTTP_PROXY: "http://rcproxy.rc.fas.harvard.edu:3128"
+
 
 inputs:
-  rscript:
-    type: File
-    inputBinding:
-      position: 0
   year:
     type: string
     inputBinding:
