@@ -1,6 +1,8 @@
 import argparse
 import os
-from nsaph.reader import get_entries
+
+from nsaph.ds import create_datasource_def
+from nsaph.reader import get_entries, get_readme
 from nsaph.model import Table
 
 
@@ -22,6 +24,7 @@ if __name__ == '__main__':
                         required=True)
     parser.add_argument("--column", "-c", help="Additional columns", nargs="*")
     parser.add_argument("--outdir", help="Output directory")
+    parser.add_argument("--readme", help="Readme.md file [optional]")
 
     args = parser.parse_args()
 
@@ -37,3 +40,9 @@ if __name__ == '__main__':
             if not os.path.isdir(d):
                 os.mkdir(d)
     table.save(d)
+
+    if args.readme:
+        readme = args.readme
+    else:
+        readme = get_readme(table.file_path)
+    create_datasource_def(table, readme, d)

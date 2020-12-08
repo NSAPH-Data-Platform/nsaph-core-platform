@@ -21,6 +21,12 @@ outputs:
   analysis_log:
     type: File
     outputSource: analyze/log
+  table_def:
+    type: File
+    outputSource: analyze/table_def
+  datasource_def:
+    type: File
+    outputSource: analyze/datasource_def
   ingestion_log:
     type: File
     outputSource: ingest/log
@@ -35,7 +41,7 @@ steps:
     in:
       PYTHONPATH: PYTHONPATH
       data_file: data_file
-    out: [table_def, log]
+    out: [table_def, datasource_def, log]
 
   ingest:
     run: ingest.cwl

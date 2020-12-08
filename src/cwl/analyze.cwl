@@ -26,5 +26,9 @@ outputs:
     type: File
     outputBinding:
       glob: "*.json"
+  datasource_def:
+    type: File
+    outputBinding:
+      glob: "*.yml"
 
 stdout: analysis.log

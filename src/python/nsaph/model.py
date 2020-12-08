@@ -9,6 +9,9 @@ from nsaph.reader import CSVFileWrapper, name, fopen, SpecialValues
 INDEX_REINDEX = "reindex"
 INDEX_INCREMENTAL = "incremental"
 
+BTREE = "btree"
+#HASH = "hash"
+HASH = BTREE  # problem building huge hash indices
 
 def regex(pattern: str):
     pattern = 'A' + pattern.replace('.', '_') + 'Z'
@@ -19,18 +22,18 @@ def regex(pattern: str):
 
 
 index_columns = {
-    "date":"btree",
-    "fips":"hash",
-    "monitor":"hash",
-    "name":"btree",
-    "state":"hash",
-    "st_abbrev":"hash",
-    "year":"btree",
-    "zip":"btree",
-    "*.code":"hash",
-    "*.date":"btree",
-    "*.type":"hash",
-    "*.name":"btree"
+    "date":BTREE,
+    "fips":HASH,
+    "monitor":HASH,
+    "name":BTREE,
+    "state":HASH,
+    "st_abbrev":HASH,
+    "year":BTREE,
+    "zip":BTREE,
+    "*.code":HASH,
+    "*.date":BTREE,
+    "*.type":HASH,
+    "*.name":BTREE
 }
 
 
@@ -186,6 +189,7 @@ class Table:
                 self.index_ddl.append((n, ddl))
 
     def create(self, cursor):
+        print(self.create_table_ddl)
         cursor.execute(self.create_table_ddl)
 
     def build_indices(self, cursor, flag: str = None):

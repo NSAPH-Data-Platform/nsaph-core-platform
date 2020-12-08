@@ -40,19 +40,52 @@ def name(path):
     return name
 
 
+def is_readme(name: str) -> bool:
+    name = name.lower()
+    if name.endswith(".md"):
+        return True
+    if name.startswith("readme"):
+        return True
+    if name.startswith("read.me"):
+        return True
+    return False
+
+
 def get_entries(path: str):
     entries = []
     f = lambda e: e
     if path.endswith(".tar") or path.endswith(".tgz") or path.endswith(
             ".tar.gz"):
         tfile = tarfile.open(path)
-        entries = [e for e in tfile.getmembers() if e.isfile()]
+        entries = [
+            e for e in tfile.getmembers()
+                if e.isfile() and not is_readme(e.name)
+        ]
         f = lambda e: tfile.extractfile(e)
     elif os.path.isdir(path):
         pass
     else:
         entries.append(path)
     return entries, f
+
+
+def get_readme(path:str):
+    encoding = "utf-8"
+    if path.endswith(".tar") or path.endswith(".tgz") or path.endswith(
+            ".tar.gz"):
+        tfile = tarfile.open(path, encoding=encoding)
+        readmes = [
+            tfile.extractfile(e).read().decode(encoding) for e in tfile.getmembers()
+                if e.isfile() and is_readme(e.name)
+        ]
+    elif os.path.isdir(path):
+        files = os.listdir(path)
+        readmes = [f for f in files if is_readme(f)]
+    else:
+        readmes = None
+    if readmes:
+        return readmes[0]
+    return None
 
 
 class CSVFileWrapper():

@@ -20,6 +20,7 @@ def create_table(table: Table, force: bool = False, db: str = None,
         for e in entries:
             print ("Adding: " + name(e))
             table.add_data(cur, e)
+        connection.commit()
 
 
 if __name__ == '__main__':
