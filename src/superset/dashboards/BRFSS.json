@@ -1,0 +1,270 @@
+{
+    "dashboards": [
+        {
+            "__Dashboard__": {
+                "css": null,
+                "dashboard_title": "BRFSS",
+                "description": null,
+                "json_metadata": "{\"timed_refresh_immune_slices\": [], \"filter_scopes\": {\"247\": {\"year\": {\"scope\": [\"ROOT_ID\"], \"immune\": []}}, \"252\": {\"iso\": {\"scope\": [\"ROOT_ID\"], \"immune\": []}}}, \"expanded_slices\": {}, \"refresh_frequency\": 0, \"default_filters\": \"{}\", \"remote_id\": 8}",
+                "position_json": "{\"CHART-8Uy_STBDes\":{\"children\":[],\"id\":\"CHART-8Uy_STBDes\",\"meta\":{\"chartId\":247,\"height\":19,\"sliceName\":\"YEAR\",\"width\":4},\"parents\":[\"ROOT_ID\",\"GRID_ID\",\"ROW-Lzjgd-6jXJ\"],\"type\":\"CHART\"},\"CHART-OSbf7kg2Lw\":{\"children\":[],\"id\":\"CHART-OSbf7kg2Lw\",\"meta\":{\"chartId\":250,\"height\":50,\"sliceName\":\"Smoking Trends\",\"width\":4},\"parents\":[\"ROOT_ID\",\"GRID_ID\",\"ROW-pHSB-E4VW\"],\"type\":\"CHART\"},\"CHART-Ri5mDONhsp\":{\"children\":[],\"id\":\"CHART-Ri5mDONhsp\",\"meta\":{\"chartId\":248,\"height\":50,\"sliceName\":\"BMI\",\"width\":4},\"parents\":[\"ROOT_ID\",\"GRID_ID\",\"ROW-Lzjgd-6jXJ\"],\"type\":\"CHART\"},\"CHART-gYWRZOPOzP\":{\"children\":[],\"id\":\"CHART-gYWRZOPOzP\",\"meta\":{\"chartId\":252,\"height\":20,\"sliceName\":\"State\",\"width\":4},\"parents\":[\"ROOT_ID\",\"GRID_ID\",\"ROW-pHSB-E4VW\"],\"type\":\"CHART\"},\"CHART-sTi6xsuW3E\":{\"children\":[],\"id\":\"CHART-sTi6xsuW3E\",\"meta\":{\"chartId\":251,\"height\":50,\"sliceName\":\"BMI Trends\",\"width\":4},\"parents\":[\"ROOT_ID\",\"GRID_ID\",\"ROW-pHSB-E4VW\"],\"type\":\"CHART\"},\"CHART-vsjYiAFxpL\":{\"children\":[],\"id\":\"CHART-vsjYiAFxpL\",\"meta\":{\"chartId\":246,\"height\":50,\"sliceName\":\"Smoking Rate\",\"width\":4},\"parents\":[\"ROOT_ID\",\"GRID_ID\",\"ROW-Lzjgd-6jXJ\"],\"type\":\"CHART\"},\"DASHBOARD_VERSION_KEY\":\"v2\",\"GRID_ID\":{\"children\":[\"ROW-Lzjgd-6jXJ\",\"ROW-pHSB-E4VW\"],\"id\":\"GRID_ID\",\"parents\":[\"ROOT_ID\"],\"type\":\"GRID\"},\"HEADER_ID\":{\"id\":\"HEADER_ID\",\"meta\":{\"text\":\"BRFSS\"},\"type\":\"HEADER\"},\"ROOT_ID\":{\"children\":[\"GRID_ID\"],\"id\":\"ROOT_ID\",\"type\":\"ROOT\"},\"ROW-Lzjgd-6jXJ\":{\"children\":[\"CHART-vsjYiAFxpL\",\"CHART-Ri5mDONhsp\",\"CHART-8Uy_STBDes\"],\"id\":\"ROW-Lzjgd-6jXJ\",\"meta\":{\"background\":\"BACKGROUND_TRANSPARENT\"},\"parents\":[\"ROOT_ID\",\"GRID_ID\"],\"type\":\"ROW\"},\"ROW-pHSB-E4VW\":{\"children\":[\"CHART-OSbf7kg2Lw\",\"CHART-sTi6xsuW3E\",\"CHART-gYWRZOPOzP\"],\"id\":\"ROW-pHSB-E4VW\",\"meta\":{\"0\":\"ROOT_ID\",\"background\":\"BACKGROUND_TRANSPARENT\"},\"parents\":[\"ROOT_ID\",\"GRID_ID\"],\"type\":\"ROW\"}}",
+                "slices": [
+                    {
+                        "__Slice__": {
+                            "cache_timeout": null,
+                            "datasource_name": "brfss_interpolated_iso",
+                            "datasource_type": "table",
+                            "id": 247,
+                            "params": "{\"adhoc_filters\": [], \"datasource\": \"27__table\", \"date_filter\": false, \"filter_configs\": [{\"asc\": true, \"clearable\": true, \"column\": \"year\", \"key\": \"CKzCR53By\", \"multiple\": true, \"searchAllOptions\": false}], \"granularity_sqla\": \"year\", \"queryFields\": {}, \"slice_id\": 247, \"time_range\": \"No filter\", \"time_range_endpoints\": [\"inclusive\", \"exclusive\"], \"url_params\": {}, \"viz_type\": \"filter_box\", \"remote_id\": 247, \"datasource_name\": \"brfss_interpolated_iso\", \"schema\": null, \"database_name\": \"NSAPH\"}",
+                            "slice_name": "YEAR",
+                            "viz_type": "filter_box"
+                        }
+                    },
+                    {
+                        "__Slice__": {
+                            "cache_timeout": null,
+                            "datasource_name": "brfss_interpolated_iso",
+                            "datasource_type": "table",
+                            "id": 246,
+                            "params": "{\"adhoc_filters\": [], \"datasource\": \"27__table\", \"entity\": \"iso\", \"granularity_sqla\": \"year\", \"linear_color_scheme\": \"schemeGrays\", \"metric\": {\"aggregate\": \"AVG\", \"column\": {\"column_name\": \"smoke_rate\", \"description\": null, \"expression\": null, \"filterable\": true, \"groupby\": true, \"id\": 632, \"is_dttm\": false, \"optionName\": \"_col_smoke_rate\", \"python_date_format\": null, \"type\": \"NUMERIC(19, 16)\", \"verbose_name\": null}, \"expressionType\": \"SIMPLE\", \"hasCustomLabel\": false, \"isNew\": false, \"label\": \"AVG(smoke_rate)\", \"optionName\": \"metric_cpyo1k64qht_6s7zffj81n7\", \"sqlExpression\": null}, \"number_format\": \"SMART_NUMBER\", \"queryFields\": {\"entity\": \"groupby\", \"metric\": \"metrics\"}, \"select_country\": \"Usa\", \"slice_id\": 246, \"time_range\": \"No filter\", \"time_range_endpoints\": [\"inclusive\", \"exclusive\"], \"url_params\": {}, \"viz_type\": \"country_map\", \"remote_id\": 246, \"datasource_name\": \"brfss_interpolated_iso\", \"schema\": null, \"database_name\": \"NSAPH\"}",
+                            "slice_name": "Smoking Rate",
+                            "viz_type": "country_map"
+                        }
+                    },
+                    {
+                        "__Slice__": {
+                            "cache_timeout": null,
+                            "datasource_name": "brfss_interpolated_iso",
+                            "datasource_type": "table",
+                            "id": 248,
+                            "params": "{\"adhoc_filters\": [], \"datasource\": \"27__table\", \"entity\": \"iso\", \"granularity_sqla\": \"year\", \"linear_color_scheme\": \"schemeBlues\", \"metric\": {\"aggregate\": \"AVG\", \"column\": {\"column_name\": \"mean_bmi\", \"description\": null, \"expression\": null, \"filterable\": true, \"groupby\": true, \"id\": 633, \"is_dttm\": false, \"optionName\": \"_col_mean_bmi\", \"python_date_format\": null, \"type\": \"NUMERIC(17, 13)\", \"verbose_name\": null}, \"expressionType\": \"SIMPLE\", \"hasCustomLabel\": false, \"isNew\": false, \"label\": \"AVG(mean_bmi)\", \"optionName\": \"metric_77so6v7ivb7_gamnd8pz25\", \"sqlExpression\": null}, \"number_format\": \"SMART_NUMBER\", \"queryFields\": {\"entity\": \"groupby\", \"metric\": \"metrics\"}, \"select_country\": \"Usa\", \"time_range\": \"No filter\", \"time_range_endpoints\": [\"inclusive\", \"exclusive\"], \"url_params\": {}, \"viz_type\": \"country_map\", \"remote_id\": 248, \"datasource_name\": \"brfss_interpolated_iso\", \"schema\": null, \"database_name\": \"NSAPH\"}",
+                            "slice_name": "BMI",
+                            "viz_type": "country_map"
+                        }
+                    },
+                    {
+                        "__Slice__": {
+                            "cache_timeout": null,
+                            "datasource_name": "brfss_interpolated_iso",
+                            "datasource_type": "table",
+                            "id": 250,
+                            "params": "{\"adhoc_filters\": [], \"bottom_margin\": \"auto\", \"color_scheme\": \"supersetColors\", \"columns\": [], \"datasource\": \"27__table\", \"granularity_sqla\": \"year\", \"groupby\": [\"year\"], \"label_colors\": {}, \"metrics\": [{\"aggregate\": \"AVG\", \"column\": {\"column_name\": \"smoke_rate\", \"description\": null, \"expression\": null, \"filterable\": true, \"groupby\": true, \"id\": 632, \"is_dttm\": false, \"python_date_format\": null, \"type\": \"NUMERIC(19, 16)\", \"verbose_name\": null}, \"expressionType\": \"SIMPLE\", \"hasCustomLabel\": false, \"isNew\": false, \"label\": \"AVG(smoke_rate)\", \"optionName\": \"metric_bl9ured0wle_s5mwr6gszxk\", \"sqlExpression\": null}], \"order_bars\": true, \"queryFields\": {\"columns\": \"groupby\", \"groupby\": \"groupby\", \"metrics\": \"metrics\"}, \"row_limit\": 10000, \"show_controls\": false, \"show_legend\": true, \"slice_id\": 250, \"time_range\": \"No filter\", \"time_range_endpoints\": [\"inclusive\", \"exclusive\"], \"url_params\": {}, \"viz_type\": \"dist_bar\", \"x_ticks_layout\": \"auto\", \"y_axis_format\": \"SMART_NUMBER\", \"remote_id\": 250, \"datasource_name\": \"brfss_interpolated_iso\", \"schema\": null, \"database_name\": \"NSAPH\"}",
+                            "slice_name": "Smoking Trends",
+                            "viz_type": "dist_bar"
+                        }
+                    },
+                    {
+                        "__Slice__": {
+                            "cache_timeout": null,
+                            "datasource_name": "brfss_interpolated_iso",
+                            "datasource_type": "table",
+                            "id": 251,
+                            "params": "{\"adhoc_filters\": [], \"bottom_margin\": \"auto\", \"color_scheme\": \"supersetColors\", \"columns\": [], \"datasource\": \"27__table\", \"granularity_sqla\": \"year\", \"groupby\": [\"year\"], \"label_colors\": {}, \"metrics\": [{\"aggregate\": \"AVG\", \"column\": {\"column_name\": \"mean_bmi\", \"description\": null, \"expression\": null, \"filterable\": true, \"groupby\": true, \"id\": 633, \"is_dttm\": false, \"optionName\": \"_col_mean_bmi\", \"python_date_format\": null, \"type\": \"NUMERIC(17, 13)\", \"verbose_name\": null}, \"expressionType\": \"SIMPLE\", \"hasCustomLabel\": false, \"isNew\": false, \"label\": \"AVG(mean_bmi)\", \"optionName\": \"metric_bl9ured0wle_s5mwr6gszxk\", \"sqlExpression\": null}], \"order_bars\": true, \"queryFields\": {\"columns\": \"groupby\", \"groupby\": \"groupby\", \"metrics\": \"metrics\"}, \"row_limit\": 10000, \"show_controls\": false, \"show_legend\": true, \"time_range\": \"No filter\", \"time_range_endpoints\": [\"inclusive\", \"exclusive\"], \"url_params\": {}, \"viz_type\": \"dist_bar\", \"x_ticks_layout\": \"auto\", \"y_axis_format\": \"SMART_NUMBER\", \"remote_id\": 251, \"datasource_name\": \"brfss_interpolated_iso\", \"schema\": null, \"database_name\": \"NSAPH\"}",
+                            "slice_name": "BMI Trends",
+                            "viz_type": "dist_bar"
+                        }
+                    },
+                    {
+                        "__Slice__": {
+                            "cache_timeout": null,
+                            "datasource_name": "brfss_interpolated_iso",
+                            "datasource_type": "table",
+                            "id": 252,
+                            "params": "{\"adhoc_filters\": [], \"datasource\": \"27__table\", \"date_filter\": false, \"filter_configs\": [{\"asc\": true, \"clearable\": true, \"column\": \"iso\", \"key\": \"bUdSMfn5N\", \"label\": \"State\", \"multiple\": true, \"searchAllOptions\": false}], \"granularity_sqla\": \"year\", \"queryFields\": {}, \"time_range\": \"No filter\", \"time_range_endpoints\": [\"inclusive\", \"exclusive\"], \"url_params\": {}, \"viz_type\": \"filter_box\", \"remote_id\": 252, \"datasource_name\": \"brfss_interpolated_iso\", \"schema\": null, \"database_name\": \"NSAPH\"}",
+                            "slice_name": "State",
+                            "viz_type": "filter_box"
+                        }
+                    }
+                ],
+                "slug": null
+            }
+        }
+    ],
+    "datasources": [
+        {
+            "__SqlaTable__": {
+                "cache_timeout": null,
+                "columns": [
+                    {
+                        "__TableColumn__": {
+                            "changed_by_fk": 1,
+                            "changed_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "column_name": "fips",
+                            "created_by_fk": 1,
+                            "created_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "description": null,
+                            "expression": null,
+                            "filterable": true,
+                            "groupby": true,
+                            "id": 631,
+                            "is_active": true,
+                            "is_dttm": false,
+                            "python_date_format": null,
+                            "table_id": 27,
+                            "type": "INTEGER",
+                            "verbose_name": null
+                        }
+                    },
+                    {
+                        "__TableColumn__": {
+                            "changed_by_fk": 1,
+                            "changed_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "column_name": "smoke_rate",
+                            "created_by_fk": 1,
+                            "created_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "description": null,
+                            "expression": null,
+                            "filterable": true,
+                            "groupby": true,
+                            "id": 632,
+                            "is_active": true,
+                            "is_dttm": false,
+                            "python_date_format": null,
+                            "table_id": 27,
+                            "type": "NUMERIC(19, 16)",
+                            "verbose_name": null
+                        }
+                    },
+                    {
+                        "__TableColumn__": {
+                            "changed_by_fk": 1,
+                            "changed_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "column_name": "mean_bmi",
+                            "created_by_fk": 1,
+                            "created_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "description": null,
+                            "expression": null,
+                            "filterable": true,
+                            "groupby": true,
+                            "id": 633,
+                            "is_active": true,
+                            "is_dttm": false,
+                            "python_date_format": null,
+                            "table_id": 27,
+                            "type": "NUMERIC(17, 13)",
+                            "verbose_name": null
+                        }
+                    },
+                    {
+                        "__TableColumn__": {
+                            "changed_by_fk": 1,
+                            "changed_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "column_name": "zip",
+                            "created_by_fk": 1,
+                            "created_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "description": null,
+                            "expression": null,
+                            "filterable": true,
+                            "groupby": true,
+                            "id": 635,
+                            "is_active": true,
+                            "is_dttm": false,
+                            "python_date_format": null,
+                            "table_id": 27,
+                            "type": "INTEGER",
+                            "verbose_name": null
+                        }
+                    },
+                    {
+                        "__TableColumn__": {
+                            "changed_by_fk": 1,
+                            "changed_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "column_name": "iso",
+                            "created_by_fk": 1,
+                            "created_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "description": null,
+                            "expression": null,
+                            "filterable": true,
+                            "groupby": true,
+                            "id": 636,
+                            "is_active": true,
+                            "is_dttm": false,
+                            "python_date_format": null,
+                            "table_id": 27,
+                            "type": "VARCHAR",
+                            "verbose_name": null
+                        }
+                    },
+                    {
+                        "__TableColumn__": {
+                            "changed_by_fk": 1,
+                            "changed_on": {
+                                "__datetime__": "2020-12-09T03:44:07"
+                            },
+                            "column_name": "year",
+                            "created_by_fk": 1,
+                            "created_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "description": null,
+                            "expression": null,
+                            "filterable": true,
+                            "groupby": true,
+                            "id": 634,
+                            "is_active": true,
+                            "is_dttm": true,
+                            "python_date_format": null,
+                            "table_id": 27,
+                            "type": "INTEGER",
+                            "verbose_name": null
+                        }
+                    }
+                ],
+                "database_id": 2,
+                "default_endpoint": null,
+                "description": null,
+                "fetch_values_predicate": null,
+                "filter_select_enabled": false,
+                "main_dttm_col": null,
+                "metrics": [
+                    {
+                        "__SqlMetric__": {
+                            "changed_by_fk": 1,
+                            "changed_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "created_by_fk": 1,
+                            "created_on": {
+                                "__datetime__": "2020-12-09T03:09:14"
+                            },
+                            "d3format": null,
+                            "description": null,
+                            "expression": "COUNT(*)",
+                            "id": 34,
+                            "metric_name": "count",
+                            "metric_type": "count",
+                            "table_id": 27,
+                            "verbose_name": "COUNT(*)",
+                            "warning_text": null
+                        }
+                    }
+                ],
+                "offset": 0,
+                "params": "{\"remote_id\": 27, \"database_name\": \"NSAPH\"}",
+                "schema": null,
+                "sql": null,
+                "table_name": "brfss_interpolated_iso",
+                "template_params": null
+            }
+        }
+    ]
+}
