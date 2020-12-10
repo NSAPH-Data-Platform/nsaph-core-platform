@@ -5,10 +5,20 @@ class: Workflow
 
 requirements:
   SubworkflowFeatureRequirement: {}
+  InlineJavascriptRequirement: {}
 
 inputs:
-  data_file:
-    type: File
+  year:
+    type: string
+    default: "1990:2020"
+  aggregation:
+    type: string
+    default: "annual"
+  parameter_code:
+    type: string
+    default: "88101"
+  csv_name:
+    type: string
   db_connection_params:
     type: File
     default:
@@ -28,6 +38,9 @@ inputs:
     default: false
 
 outputs:
+  data:
+    type: File
+    outputSource: download/csv
   analysis_log:
     type: File
     outputSource: analyze/log
@@ -53,11 +66,19 @@ outputs:
 
 
 steps:
+  download:
+    run: arepa.cwl
+    in:
+      year: year
+      aggregation: aggregation
+      parameter_code: parameter_code
+      output_path: csv_name
+    out: [csv]
   analyze:
     run: analyze.cwl
     in:
       PYTHONPATH: PYTHONPATH
-      data_file: data_file
+      data_file: download/csv
     out: [table_def, datasource_def, log]
 
   ingest:
@@ -65,7 +86,7 @@ steps:
     in:
       PYTHONPATH: PYTHONPATH
       table_def: analyze/table_def
-      data_file: data_file
+      data_file: download/csv
       db_connection_params: db_connection_params
       db_name: db_name
       force: force

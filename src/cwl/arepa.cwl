@@ -1,8 +1,8 @@
 #!/usr/bin/env cwl-runner
 
-cwlVersion: v1.0
+cwlVersion: v1.1
 class: CommandLineTool
-baseCommand: [/opt/anaconda3/envs/NSAPHclimate/bin/Rscript, /opt/projects/nsaph/src/r/pm25.R]
+baseCommand: [/opt/anaconda3/envs/NSAPHclimate/bin/Rscript, /opt/projects/nsaph/src/r/download_epa.R]
 
 requirements:
   EnvVarRequirement:
@@ -14,14 +14,21 @@ requirements:
 inputs:
   year:
     type: string
+    default: "1990:2020"
     inputBinding:
       position: 1
       prefix: --year
+  aggregation:
+    type: string
+    default: "annual"
+    inputBinding:
+      position: 2
+      prefix: --aggregation
   output_path:
     type: string
     inputBinding:
       prefix: --out
-      position: 2
+      position: 3
   parameter_code:
     type: string
     default: "88101"

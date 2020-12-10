@@ -1,0 +1,9 @@
+{
+  "job": {
+    "data_file": {
+      "class": "File",
+      "location": "/opt/projects/nsaph/data/no2_monitor_annual_average.csv"
+    },
+    "force": true
+  }
+}

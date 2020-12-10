@@ -10,7 +10,9 @@ requirements:
 
 inputs:
   PYTHONPATH: string
-  ingestion_log: File
+  depends_on:
+    type: File
+    default:
   table_def:
     type: File
     inputBinding:
