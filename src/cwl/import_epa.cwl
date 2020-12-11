@@ -56,6 +56,9 @@ outputs:
   indexing_log:
     type: File
     outputSource: index/log
+  link_log:
+    type: File
+    outputSource: link/log
   push_ds_log:
     type: File
     outputSource: push_ds/out
@@ -107,10 +110,21 @@ steps:
     out:
       [log]
 
+  link:
+    run: link_gis.cwl
+    in:
+      PYTHONPATH: PYTHONPATH
+      table_def: analyze/table_def
+      db_connection_params: db_connection_params
+      db_name: db_name
+      depends_on: ingest/log
+    out:
+      [log]
+
   push_ds:
     run: push_datasource_def.cwl
     in:
       datasource: analyze/datasource_def
-      depends_on: ingest/log
+      depends_on: link/log
     out: [out,err]
 

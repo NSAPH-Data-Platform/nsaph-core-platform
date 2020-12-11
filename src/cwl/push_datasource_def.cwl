@@ -8,10 +8,8 @@ inputs:
     type: File
 
   depends_on:
-    type: File
-    default:
-      class: File
-      location: "none"
+    type: Any
+    default: "none"
 
 outputs:
   out:

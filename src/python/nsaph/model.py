@@ -54,6 +54,7 @@ float_number = re.compile("(-?\d*)\.(\d+)([e|E][-|+]?\d+)?")
 exponent = re.compile("(-?\d+)([e|E][-|+]?\d+)")
 date = re.compile("([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))")
 
+SET_COLUMN = "UPDATE {table} SET {column} = {expression}"
 
 def unquote(s: str) -> str:
     return s.strip().strip('"')
@@ -129,9 +130,57 @@ class Table:
     def fopen(self, source):
         return fopen(self.open_entry_function(source))
 
+    def get_index_ddl(self, column, method):
+        index_name_pattern = "{table}_{column}_idx"
+        index_ddl_pattern = \
+            "CREATE INDEX {option} {name} ON {table} USING {method} ({column})"
+        n = index_name_pattern.format(table = self.table, column = column)
+        ddl = index_ddl_pattern \
+            .format(option=self.index_option,
+                    name = n,
+                    table=self.table,
+                    column=column,
+                    method = method)
+        return n, ddl
+
     def add_column(self, name, type, extraction_method):
         self.custom_columns.append(CustomColumn(name, type, extraction_method))
-        self.force_manual = True
+        if extraction_method:
+            self.force_manual = True
+
+    def make_column(self, name, type, sql, cursor, index=False, include=None):
+        ddl = "ALTER TABLE {table} ADD {column} {type}"\
+            .format(table = self.table, column = name, type = type)
+        print(ddl)
+        cursor.execute(ddl)
+        print(sql)
+        cursor.execute(sql)
+        if index:
+            idx, ddl = self.get_index_ddl(column=name, method=HASH)
+            if include:
+                ddl += " include({})".format(include)
+            print(ddl)
+            cursor.execute(ddl)
+
+    def make_fips_column(self, cursor):
+        column = "fips5"
+        s = "format('%2s', state_code)"
+        c = "format('%3s', county_code)"
+        e = "replace({} || {}, ' ', '0')".format(s, c)
+        sql = SET_COLUMN.format(table=self.table, column=column, expression=e)
+        self.make_column(column, "VARCHAR", sql, cursor, True)
+
+    def make_iso_column(self, anchor, cursor, include = None):
+        column = "state_iso"
+        if anchor.lower() == "state_name":
+            e = "(SELECT iso FROM us_states " \
+                "WHERE us_states.state_name = {}.{})"\
+                .format(self.table, anchor)
+        else:
+            e = "(SELECT iso FROM us_iso WHERE us_iso.{} = {}.{} LIMIT 1)"\
+                .format(self.table, anchor.lower(), anchor)
+        sql = SET_COLUMN.format(table=self.table, column=column, expression=e)
+        self.make_column(column, "VARCHAR", sql, cursor, True)
 
     def analyze(self, entry=None):
         if not entry:
@@ -154,12 +203,12 @@ class Table:
 
         if not rows:
             raise Exception("No data in {}".format(self.file_path))
-        self.guess_types(rows, lines)
         for row in rows:
             for cell in row:
                 if ',' in cell:
                     self.has_commas = True
                     break
+        self.guess_types(rows, lines)
 
         self.sql_columns = [
             c.replace('.', '_') if c else "Col" for c in self.csv_columns
@@ -174,19 +223,10 @@ class Table:
         self.create_table_ddl = \
             "CREATE TABLE {}\n ({})".format(self.table, ",\n\t".join(col_spec))
 
-        index_name_pattern = "{table}_{column}_idx"
-        index_ddl_pattern = "CREATE INDEX {option} {name} ON {table} USING {method} ({column})"
         for c in self.sql_columns:
             m = index_method(c)
             if m:
-                n = index_name_pattern.format(table = self.table, column = c)
-                ddl = index_ddl_pattern \
-                    .format(option=self.index_option,
-                            name = n,
-                            table=self.table,
-                            column=c,
-                            method = m)
-                self.index_ddl.append((n, ddl))
+                self.index_ddl.append(self.get_index_ddl(c, m))
 
     def create(self, cursor):
         print(self.create_table_ddl)
@@ -225,7 +265,7 @@ class Table:
                 v2 = lines[l][c].strip()
                 if date.fullmatch(v):
                     t = "DATE"
-                elif '"' in v2:
+                elif v2 == '"{}"'.format(v):
                     t = "VARCHAR"
                 elif SpecialValues.is_untyped(v):
                     t = "0"
