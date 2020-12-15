@@ -1,0 +1,8 @@
+{
+  "job": {
+    "csv_name": "no2_monitor_daily.csv",
+    "parameter_code": "42602",
+    "aggregation": "daily",
+    "force": true
+  }
+}

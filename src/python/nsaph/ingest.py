@@ -1,3 +1,4 @@
+import logging
 import sys
 
 from nsaph.analyze import analyze
@@ -13,9 +14,9 @@ def ingest(args: list, force: bool = False):
     table = analyze (path)
 
     create_table(table, force)
-    print("Table created: " + table.table)
+    logging.info("Table created: " + table.table)
 
-    print("Building indices:")
+    logging.info("Building indices:")
     flag = INDEX_REINDEX if force else None
     build_indices(table, flag)
     print ("All DONE")

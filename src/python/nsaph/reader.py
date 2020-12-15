@@ -1,9 +1,11 @@
 import codecs
 import gzip
 import io
+import logging
 import tarfile
 import datetime
 import os
+import zipfile
 
 
 class SpecialValues:
@@ -28,7 +30,7 @@ def fopen(path):
         return path
     if path.endswith(".gz"):
         return gzip.open(path, "rt")
-    return open(path)
+    return open(path, encoding="utf-8")
 
 
 def name(path):
@@ -48,6 +50,8 @@ def is_readme(name: str) -> bool:
         return True
     if name.startswith("read.me"):
         return True
+    if "readme" in name:
+        return True
     return False
 
 
@@ -62,6 +66,12 @@ def get_entries(path: str):
                 if e.isfile() and not is_readme(e.name)
         ]
         f = lambda e: tfile.extractfile(e)
+    elif path.endswith(".zip"):
+        zfile = zipfile.ZipFile(path)
+        entries = [
+            e for e in zfile.namelist() if not is_readme(e)
+        ]
+        f = lambda e: io.TextIOWrapper(zfile.open(e))
     elif os.path.isdir(path):
         pass
     else:
@@ -77,6 +87,12 @@ def get_readme(path:str):
         readmes = [
             tfile.extractfile(e).read().decode(encoding) for e in tfile.getmembers()
                 if e.isfile() and is_readme(e.name)
+        ]
+    elif path.endswith(".zip"):
+        zfile = zipfile.ZipFile(path)
+        readmes = [
+            io.TextIOWrapper(zfile.open(e)).read()
+                    for e in zfile.namelist() if is_readme(e)
         ]
     elif os.path.isdir(path):
         files = os.listdir(path)
@@ -162,7 +178,7 @@ class CSVFileWrapper():
                 c = str(self.chars)
             dt = datetime.datetime.now() - t
             t = datetime.datetime.now()
-            print("{}: Processed {:d}/{} lines/chars [{}]"
+            logging.info("{}: Processed {:d}/{} lines/chars [{}]"
                   .format(str(t), self.line_number, c, str(dt)))
             self.last_printed_line_number = self.line_number
         return result

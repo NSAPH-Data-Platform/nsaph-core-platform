@@ -1,5 +1,6 @@
 import argparse
 
+from nsaph import init_logging
 from nsaph.model import Table
 from nsaph.db import Connection
 from nsaph.reader import name, get_entries
@@ -24,6 +25,7 @@ def create_table(table: Table, force: bool = False, db: str = None,
 
 
 if __name__ == '__main__':
+    init_logging()
     parser = argparse.ArgumentParser (description="Create table and load data")
     parser.add_argument("--tdef", "-t",
                         help="Path to a table definition file for a table",
@@ -39,7 +41,7 @@ if __name__ == '__main__':
                         required=False)
     parser.add_argument("--section",
                         help="Section in the database connection parameters file",
-                        default="postgres",
+                        default="postgresql",
                         required=False)
 
     args = parser.parse_args()

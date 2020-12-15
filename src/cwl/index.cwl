@@ -37,6 +37,7 @@ inputs:
 
 outputs:
   log:
-    type: stdout
+    type: File
+    outputBinding:
+      glob: "*.log"
 
-stdout: indexing.log

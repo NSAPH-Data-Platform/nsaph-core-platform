@@ -1,3 +1,4 @@
+import logging
 import socket
 import paramiko
 import psycopg2
@@ -43,7 +44,7 @@ class Connection:
 
     def connect_to_database(self, params):
         if not self.silent:
-            print('Connecting to the PostgreSQL database...')
+            logging.info('Connecting to the PostgreSQL database...')
         conn = psycopg2.connect(**params)
         return conn
 
@@ -68,7 +69,7 @@ class Connection:
             self.connection = self.connect_to_database(self.parameters)
         info = self.connection.info
         if not self.silent:
-            print("Connected to: {}@{}:{}/{}"
+            logging.info("Connected to: {}@{}:{}/{}"
                   .format(info.user, info.host, info.port, info.dbname))
         return self.connection
 
@@ -110,14 +111,14 @@ def test_connection ():
     with Connection() as conn:
         cur = conn.cursor()
 
-        print('PostgreSQL database version:')
+        logging.info('PostgreSQL database version:')
         cur.execute('SELECT version()')
 
         db_version = cur.fetchone()
-        print(db_version)
+        logging.info(db_version)
 
         cur.close()
-    print('Database connection closed.')
+    logging.info('Database connection closed.')
 
 
 if __name__ == '__main__':

@@ -1,7 +1,9 @@
 import argparse
+import logging
 import threading
 import time
 
+from nsaph import init_logging
 from nsaph.db import Connection
 from nsaph.model import Table, INDEX_REINDEX, INDEX_INCREMENTAL
 
@@ -66,7 +68,7 @@ def print_stat(db: str = None, section: str = None):
                 q = row[2]
                 s = row[2]
                 msg = "[{}] {}: {}".format(t, s, q)
-            print(msg)
+            logging.info(msg)
 
 
 def build_indices(table: Table, flag: str, db: str = None,
@@ -91,6 +93,7 @@ def build_indices(table: Table, flag: str, db: str = None,
 
 
 if __name__ == '__main__':
+    init_logging()
     parser = argparse.ArgumentParser (description="Build indices")
     parser.add_argument("--tdef", "-t",
                         help="Path to a config file for a table",

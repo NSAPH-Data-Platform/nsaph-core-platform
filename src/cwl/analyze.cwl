@@ -21,7 +21,9 @@ arguments:
 
 outputs:
   log:
-    type: stdout
+    type: File
+    outputBinding:
+      glob: "*.log"
   table_def:
     type: File
     outputBinding:
@@ -31,4 +33,3 @@ outputs:
     outputBinding:
       glob: "*.yml"
 
-stdout: analysis.log

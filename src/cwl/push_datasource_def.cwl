@@ -55,9 +55,11 @@ steps:
             position: 1
             prefix: "-p"
       outputs:
-        out: stdout
+        out:
+          type: File
+          outputBinding:
+            glob: "*.log"
         err: stderr
-      stdout: "ds_out.log"
       stderr: "ds_err.log"
     in:
       datasource: copy/name
@@ -68,17 +70,12 @@ steps:
       class: CommandLineTool
       baseCommand: cat
       inputs:
-        o:
-          type: File
-          inputBinding:
-            position: 1
         e:
           type: File
           inputBinding:
             position: 2
       outputs: []
     in:
-      o: import/out
       e: import/err
     out: []
 

@@ -56,6 +56,13 @@ if (aggr == "annual") {
 # Codes: https://www.epa.gov/aqs/aqs-memos-technical-note-reporting-pm25-continuous-monitoring-and-speciation-data-air-quality
 "
 Parameter Name                          Parameter Code
+Nitrogen dioxide (NO2)	                    42602
+
+Ozone                                       44201
+
+Ambient Max Temperature	                    68104
+
+Ambient Min Temperature	                    68103
 
 PM2.5 LOCAL CONDITIONS                      88101
 

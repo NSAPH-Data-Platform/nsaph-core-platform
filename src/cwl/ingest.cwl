@@ -38,6 +38,6 @@ inputs:
 
 outputs:
   log:
-    type: stdout
-
-stdout: ingestion.log
+    type: File
+    outputBinding:
+      glob: "*.log"

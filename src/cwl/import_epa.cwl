@@ -6,6 +6,7 @@ class: Workflow
 requirements:
   SubworkflowFeatureRequirement: {}
   InlineJavascriptRequirement: {}
+  StepInputExpressionRequirement: {}
 
 inputs:
   year:
@@ -38,6 +39,9 @@ inputs:
     default: false
 
 outputs:
+  job:
+    type: File
+    outputSource: echo/job
   data:
     type: File
     outputSource: download/csv
@@ -69,6 +73,40 @@ outputs:
 
 
 steps:
+  echo:
+    run:
+      class: CommandLineTool
+      baseCommand: echo
+      inputs:
+        year:
+          type: string
+          inputBinding:
+            prefix: "year:"
+            position: 1
+        aggregation:
+          type: string
+          inputBinding:
+            prefix: "aggregation:"
+            position: 2
+        parameter_code:
+          type: string
+          inputBinding:
+            prefix: "parameter_code:"
+            position: 3
+        csv_name:
+          type: string
+          inputBinding:
+            prefix: "csv_name:"
+            position: 4
+      outputs:
+        job: stdout
+      stdout: job.txt
+    in:
+      year: year
+      aggregation: aggregation
+      parameter_code: parameter_code
+      csv_name: csv_name
+    out: [job]
   download:
     run: arepa.cwl
     in:

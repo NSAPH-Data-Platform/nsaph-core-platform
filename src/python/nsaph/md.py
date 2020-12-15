@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from typing import Dict
@@ -55,5 +56,5 @@ if __name__ == '__main__':
     path = sys.argv[1]
     columns = sys.argv[2:]
     txt, cds = parse(path, columns)
-    print(txt)
-    print(cds)
+    logging.info(txt)
+    logging.info(cds)

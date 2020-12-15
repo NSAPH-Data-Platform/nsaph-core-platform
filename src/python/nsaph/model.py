@@ -1,8 +1,13 @@
 import json
+import logging
 import os
 import re
 import csv
 import datetime
+import sys
+import traceback
+from typing import Dict
+
 from nsaph.reader import CSVFileWrapper, name, fopen, SpecialValues
 
 
@@ -31,6 +36,7 @@ index_columns = {
     "year":BTREE,
     "zip":BTREE,
     "*.code":HASH,
+    "fips*": BTREE,
     "*.date":BTREE,
     "*.type":HASH,
     "*.name":BTREE
@@ -69,6 +75,15 @@ def load_range(n, f) -> int:
     return n
 
 
+def csv_reader(data, unquote = True):
+    if unquote:
+        q = csv.QUOTE_ALL
+    else:
+        q = csv.QUOTE_NONE
+    return csv.reader(data, quotechar='"', delimiter=',',
+        quoting=q, skipinitialspace=True)
+
+
 class CustomColumn:
     def __init__(self, name, type, extraction_method):
         self.name = name
@@ -82,8 +97,11 @@ class CustomColumn:
 
 
 class Table:
-    def __init__(self, file_path: str, get_entry,
-                 concurrent_indices: bool = False, data_file: str = None):
+    def __init__(self, file_path: str,
+                 get_entry,
+                 concurrent_indices: bool = False,
+                 data_file: str = None,
+                 column_name_replacement: Dict = None):
         if file_path.endswith("json"):
             self.open_entry_function = get_entry
             with open(file_path) as fp:
@@ -99,11 +117,13 @@ class Table:
             self.index_option = ""
         self.file_path = os.path.abspath(file_path)
         file_name = os.path.basename(file_path)
-        name, ext = os.path.splitext(file_name)
+        tname, ext = os.path.splitext(file_name)
         while ext not in [".csv", ""]:
-            name, ext = os.path.splitext(name)
-        self.table = name
+            tname, ext = os.path.splitext(tname)
+        tname = tname.replace('-', '_')
+        self.table = tname
         self.has_commas = False
+        self.quoted_values = False
         self.sql_columns = []
         self.csv_columns = []
         self.types = []
@@ -112,6 +132,8 @@ class Table:
         self.custom_columns = []
         self.create_table_ddl = None
         self.index_ddl = []
+        self.column_map = column_name_replacement \
+            if column_name_replacement else dict()
 
     def save(self, to_dir):
         f = os.path.join(to_dir, self.table + ".json")
@@ -125,7 +147,7 @@ class Table:
 
         with open (f, "w") as config:
             json.dump(j, config, indent=2)
-        print("Saved table definition to: " + f)
+        logging.info("Saved table definition to: " + f)
 
     def fopen(self, source):
         return fopen(self.open_entry_function(source))
@@ -151,15 +173,15 @@ class Table:
     def make_column(self, name, type, sql, cursor, index=False, include=None):
         ddl = "ALTER TABLE {table} ADD {column} {type}"\
             .format(table = self.table, column = name, type = type)
-        print(ddl)
+        logging.info(ddl)
         cursor.execute(ddl)
-        print(sql)
+        logging.info(sql)
         cursor.execute(sql)
         if index:
             idx, ddl = self.get_index_ddl(column=name, method=HASH)
             if include:
                 ddl += " include({})".format(include)
-            print(ddl)
+            logging.info(ddl)
             cursor.execute(ddl)
 
     def make_fips_column(self, cursor):
@@ -177,26 +199,42 @@ class Table:
                 "WHERE us_states.state_name = {}.{})"\
                 .format(self.table, anchor)
         else:
+            us_iso_column = {
+                "fips": "county_fips",
+                "fips5": "county_fips"
+            }.get(anchor.lower(), anchor.lower())
             e = "(SELECT iso FROM us_iso WHERE us_iso.{} = {}.{} LIMIT 1)"\
-                .format(self.table, anchor.lower(), anchor)
+                .format(us_iso_column, self.table, anchor)
         sql = SET_COLUMN.format(table=self.table, column=column, expression=e)
         self.make_column(column, "VARCHAR", sql, cursor, True)
+
+    def parse_fips12(self, cursor):
+        column = "fips5"
+        e = "CAST(substring(fips12, 1, 5) AS INTEGER)"
+        sql = SET_COLUMN.format(table=self.table, column=column, expression=e)
+        # self.make_column(column, "VARCHAR", sql, cursor, True)
+        self.make_column(column, "INTEGER", sql, cursor, True)
+
+    def make_int_column(self, cursor, source: str, target:str, index: bool):
+        type = "INTEGER"
+        e = "CAST(NULLIF(REGEXP_REPLACE({what}, '[^0-9]', '','g'), '') AS {to})"\
+            .format(what=source, to=type)
+        sql = SET_COLUMN.format(table=self.table, column=target, expression=e)
+        self.make_column(target, type, sql, cursor, index)
 
     def analyze(self, entry=None):
         if not entry:
             entry = self.file_path
-        print("Using for data analysis: " + name(entry))
+        logging.info("Using for data analysis: " + name(entry))
         with self.fopen(entry) as data:
-            reader = csv.reader(data, quotechar='"', delimiter=',',
-                         quoting=csv.QUOTE_ALL, skipinitialspace=True)
+            reader = csv_reader(data, True)
             row = next(reader)
             self.csv_columns = [unquote(c) for c in row]
 
             rows = []
             load_range(10000, lambda : rows.append(next(reader)))
         with self.fopen(entry) as data:
-            reader = csv.reader(data, quotechar='"', delimiter=',',
-                         quoting=csv.QUOTE_NONE, skipinitialspace=True)
+            reader = csv_reader(data, False)
             next(reader)
             lines = []
             load_range(10000, lambda : lines.append(next(reader)))
@@ -210,9 +248,16 @@ class Table:
                     break
         self.guess_types(rows, lines)
 
-        self.sql_columns = [
-            c.replace('.', '_') if c else "Col" for c in self.csv_columns
-        ]
+
+        self.sql_columns = []
+        for c in self.csv_columns:
+            if not c:
+                self.sql_columns.append("Col")
+            elif c.lower() in self.column_map:
+                self.sql_columns.append(self.column_map[c.lower()])
+            else:
+                self.sql_columns.append(c.replace('.', '_').lower())
+
         col_spec = [
             "{} \t{}".format(self.sql_columns[i], self.types[i])
                 for i in range(0, len(self.csv_columns))
@@ -229,7 +274,7 @@ class Table:
                 self.index_ddl.append(self.get_index_ddl(c, m))
 
     def create(self, cursor):
-        print(self.create_table_ddl)
+        logging.info(self.create_table_ddl)
         cursor.execute(self.create_table_ddl)
 
     def build_indices(self, cursor, flag: str = None):
@@ -238,18 +283,18 @@ class Table:
             name = ddl[0]
             if flag == INDEX_REINDEX:
                 sql = "DROP INDEX IF EXISTS {name}".format(name=name)
-                print(str(datetime.datetime.now()) + ": " + sql)
+                logging.info(str(datetime.datetime.now()) + ": " + sql)
                 cursor.execute(sql)
             elif flag == INDEX_INCREMENTAL:
                 command = command.replace(name, "IF NOT EXISTS " + name)
             elif flag and flag != "default":
                 raise Exception("Invalid indexing flag: " + flag)
-            print(str(datetime.datetime.now()) + ": " + command)
+            logging.info(str(datetime.datetime.now()) + ": " + command)
             cursor.execute(command)
 
     def drop(self, cursor):
         sql = "DROP TABLE {} CASCADE".format(self.table)
-        print(sql)
+        logging.info(sql)
         cursor.execute(sql)
 
     def guess_types(self, rows: list, lines: list):
@@ -267,6 +312,7 @@ class Table:
                     t = "DATE"
                 elif v2 == '"{}"'.format(v):
                     t = "VARCHAR"
+                    self.quoted_values = True
                 elif SpecialValues.is_untyped(v):
                     t = "0"
                 else:
@@ -314,13 +360,16 @@ class Table:
 
     def add_data(self, cursor, entry):
         if self.has_commas:
-            print("The CSV file contains commas, copying manually.")
+            logging.info("The CSV file contains commas, copying manually.")
+            self.copy_data(cursor, entry)
+        elif self.quoted_values:
+            logging.info("The CSV file uses quoted values.")
             self.copy_data(cursor, entry)
         elif self.force_manual:
-            print("Forcing manual copy of the data.")
+            logging.info("Forcing manual copy of the data.")
             self.copy_data(cursor, entry)
         else:
-            print("Copying data using system function.")
+            logging.info("Copying data using system function.")
             with self.fopen(entry) as data:
                 with CSVFileWrapper(data) as csv_data:
                     csv_data.readline()
@@ -335,8 +384,7 @@ class Table:
             .format(table = self.table, columns=','.join(self.sql_columns))
         #values = "({})".format('')
         with self.fopen(input_source) as data:
-            reader = csv.reader(data, quotechar='"', delimiter=',',
-                         quoting=csv.QUOTE_ALL, skipinitialspace=True)
+            reader = csv_reader(data, True)
             next(reader)
             lines = 0
             chars = 0
@@ -348,6 +396,9 @@ class Table:
                     row = next(reader)
                 except(StopIteration):
                     break
+                except:
+                    logging.info(row)
+                    traceback.print_exc(file=sys.stdout)
                 lines += 1
                 chars += sum([len(cell) for cell in row])
                 for i in range(0, len(self.types)):
@@ -386,7 +437,7 @@ class Table:
         dt0 = t - t0
         r1 = N / dt1.total_seconds()
         r0 = lines / dt0.total_seconds()
-        print("{}: Processed {:d}/{} lines/chars [t={}({}), r={:5.1f}({:5.1f}) lines/sec]"
+        logging.info("{}: Processed {:d}/{} lines/chars [t={}({}), r={:5.1f}({:5.1f}) lines/sec]"
               .format(str(t), lines, c, str(dt1), str(dt0), r1, r0))
         return t
 

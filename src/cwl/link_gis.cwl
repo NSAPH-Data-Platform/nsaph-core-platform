@@ -29,6 +29,6 @@ inputs:
 
 outputs:
   log:
-    type: stdout
-
-stdout: link_gis.log
+    type: File
+    outputBinding:
+      glob: "*.log"
