@@ -31,6 +31,7 @@ inputs:
       prefix: --force
   increment:
     type: boolean
+    default: false
     inputBinding:
       prefix: --incremental
 

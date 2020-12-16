@@ -9,7 +9,7 @@ args = {
 }
 
 dag = CWLDAG(
-    workflow="/opt/projects/nsaph/src/cwl/import_epa.cwl",
-    dag_id="EPA_import",
+    workflow="/opt/projects/nsaph/src/cwl/import_adi.cwl",
+    dag_id="ADI_import",
     default_args=args
 )

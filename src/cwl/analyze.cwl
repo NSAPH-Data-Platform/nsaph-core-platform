@@ -14,6 +14,11 @@ inputs:
     type: File
     inputBinding:
       prefix: --source
+  mapping:
+    type: string?
+    inputBinding:
+      prefix: --map
+
 
 arguments:
   - valueFrom: "."

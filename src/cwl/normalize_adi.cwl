@@ -2,22 +2,21 @@
 
 cwlVersion: v1.0
 class: CommandLineTool
-baseCommand: [python, -m, nsaph.create]
+baseCommand: [python, -m, nsaph.adi]
 requirements:
   EnvVarRequirement:
     envDef:
       PYTHONPATH: $(inputs.PYTHONPATH)
 
 inputs:
+  depends_on:
+    type: Any
+    default: "none"
   PYTHONPATH: string
   table_def:
     type: File
     inputBinding:
       prefix: --tdef
-  data_file:
-    type: File
-    inputBinding:
-      prefix: --data
   db_connection_params:
     type: File
     inputBinding:
@@ -26,15 +25,6 @@ inputs:
     type: string
     inputBinding:
       prefix: --section
-  force:
-    type: boolean
-    inputBinding:
-      prefix: --force
-  increment:
-    type: boolean
-    default: false
-    inputBinding:
-      prefix: --increment
 
 
 outputs:

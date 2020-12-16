@@ -38,6 +38,7 @@ index_columns = {
     "*.code":HASH,
     "fips*": BTREE,
     "*.date":BTREE,
+    "date_local":BTREE,
     "*.type":HASH,
     "*.name":BTREE
 }
