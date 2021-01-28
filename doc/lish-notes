@@ -1,6 +1,0 @@
-When adding to DNS, also add a CNAME for any of the services:
-
-    - Airflow
-    - Superset
-
-This is needed because services need to have unique nginx server names
