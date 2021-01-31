@@ -94,6 +94,52 @@ The procedure is described in [PostgreSQL Documentation](https://www.postgresql.
 
 We do it in `'Installs PostgreSQL 13'` section
 
+### Memory configuration for PostgreSQL
+
+Most memory configuration parameters are defined in the file `postgresql.conf`
+located in the PostgreSQL data directory. We override the default location of 
+data directory, hence we are placing the new configuration in the location 
+defined by `local::postgres::pgdata`. 
+
+The necessary memory configuration is defined in the section: 
+`local::postgres::conf`
+
+Memory parameters are described in 
+[PostgreSQL Resource Documentation](https://www.postgresql.org/docs/current/runtime-config-resource.html#RUNTIME-CONFIG-RESOURCE-MEMORY) 
+
+If the database is used for data exploration, then `work_mem` is the most important 
+parameter as it is responsible for resources allocated for aggregation and sorting 
+and can make a difference of several orders of magnitude in time required
+to execute an aggregate query.
+
+Another important parameter is `maintenance_work_mem`, responsible for the speed of 
+data ingestion and for operations such as building indices. 
+
+Another set of parameters worth keeping in mind are those responsible for 
+[Write Ahead Log](https://www.postgresql.org/docs/current/wal-configuration.html). 
+They are most important for handling transactions and might be less so 
+for Information Systems. More information can be found in 
+[PostgreSQL Documentation](https://www.postgresql.org/docs/current/runtime-config-wal.html)
+
+All the rest parameters are set to default values, therefore we can 
+simply replace the original `postgresql.conf` with our custom one.
+
+### Authentication Configuration for PostgreSQL
+
+One parameter in `postgresql.conf` must be changed if any access, other than local 
+via unix sockets is required: `listen_addresses`. This is almost always the case
+as any third-party database tool or driver would need TCP/IP access besides
+raw sockets. Though this parameter is set to "*" in the example, the actual control is 
+defined by firewall rules and in the file `pg_hba.conf`. The original version 
+of `pg_hba.conf` contains some important settings, therefore we add to the 
+original copy rather than overriding it as we do with `postgresql.conf`. The 
+content to be added is defined in `local::postgres::pg_hba`.
+
+If Apache SUperset i sused, or any other tool that is installed as a 
+docker container, then, at the very minimum, we shoudl allow access 
+from docker networks (172.17.0.0/16 and 172.18.0.0/16 ). 
+
+
 
 ## Nginx
 
