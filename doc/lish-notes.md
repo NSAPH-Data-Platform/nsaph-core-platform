@@ -139,7 +139,53 @@ If Apache SUperset i sused, or any other tool that is installed as a
 docker container, then, at the very minimum, we shoudl allow access 
 from docker networks (172.17.0.0/16 and 172.18.0.0/16 ). 
 
+### Possible issue with PostgreSQL Client
 
+PostgreSQL client is an executable called psql. Once PostgreSQL is installed,
+one should be able to run:
+
+`sudo -u postgres psql`
+
+If the executable not found, then it means that the package `postgresql13`
+is not installed. If you see an error:
+
+`psql: symbol lookup error: psql: undefined symbol: PQsetErrorContextVisibility`
+
+the most probable reason is that libraries from an older version of PostgreSQL
+are installed. Run the following command:
+
+`yum list installed | grep postg`
+
+And if you see any packages without the latest version (13) - remove them and 
+reinstall from latest version. 
+For example:
+
+```
+[root@lish ~]# yum list installed | grep postg
+postgresql-libs.x86_64              9.2.24-4.el7_8             @centos-7-base   
+postgresql13.x86_64                 13.1-3PGDG.rhel7           @pgdg13          
+postgresql13-libs.x86_64            13.1-3PGDG.rhel7           @pgdg13          
+postgresql13-server.x86_64          13.1-3PGDG.rhel7           @pgdg13          
+[root@lish ~]# yum autoremove postgresql-libs
+...
+[root@lish ~]# yum reinstall  postgresql13-libs
+...
+```
+
+Note, that all libraries should be in `/usr/pgsql-13/lib/` directory, not
+`/lib64`
+
+Wrong:
+```
+[root@lish ~]# ldd /usr/pgsql-13/bin/psql 
+	libpq.so.5 => /lib64/libpq.so.5 (0x00007fcc80494000)
+```
+
+Right:
+```
+[root@lish ~]# ldd /usr/pgsql-13/bin/psql 
+	libpq.so.5 => /usr/pgsql-13/lib/libpq.so.5 (0x00007efeb84b4000)
+```
 
 ## Nginx
 
