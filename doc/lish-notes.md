@@ -25,7 +25,7 @@ To log in to puppetmaster, ssh there as root. This is important, only root user 
 
 # Create and Sign SSL Certificate
 
-Instructions are: https://docs-int.rc.fas.harvard.edu/generate-csr-and-ssl-cert/
+Follow the [instructions](https://docs-int.rc.fas.harvard.edu/generate-csr-and-ssl-cert/)
 
 Because we are creating virtual hosts we need to generate a multi-domain CSR
 
@@ -189,6 +189,28 @@ Right:
 
 ## Nginx
 
+### General Server Setup
+
  * Set Nginx to true
- * Define certificates for virtual hosts in `profiles::web::ssl::certs`
  * Define actual virtual hosts in `nginx::nginx_vhosts`
+
+### SSL Setup 
+
+[FAS RC SSL Documentation](https://docs-int.rc.fas.harvard.edu/generate-csr-and-ssl-cert/)
+describes how to put the certificates. Put them for each of teh virtual hosts
+
+ * Define certificates for virtual hosts in `profiles::web::ssl::certs`
+
+### Setting up proxy servers for Flask Gunicorn Applications
+
+Applications such as [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/) 
+or [Apache Superset](https://superset.apache.org/) are using 
+[Flask](https://flask.palletsprojects.com/en/1.1.x/) running on 
+[Gunicorn](https://gunicorn.org/). This setup is described in a 
+few documents on the net (e.g. https://medium.com/faun/deploy-flask-app-with-nginx-using-gunicorn-7fda4f50066a
+or https://www.digitalocean.com/community/tutorials/how-to-serve-flask-applications-with-gunicorn-and-nginx-on-ubuntu-18-04)
+
+We nned to configure nginx to be a proxy server for them. The configuration
+is doen in `location` block. Common options are defined in 
+`local::nginx::proxy: &proxy_pass` and specific proxy settings in 
+`nginx::nginx_locations`
