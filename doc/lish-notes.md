@@ -23,6 +23,47 @@ Follow [this document](https://gitlab-int.rc.fas.harvard.edu/common/cloud-docs/-
 to create a VM. Follow [Puppet Certificate Signing](https://docs-int.rc.fas.harvard.edu/puppet-certificate-signing-process/). 
 To log in to puppetmaster, ssh there as root. This is important, only root user can see the certificate signing requests.
 
+# Create and attach a disk for data
+
+## Create disk in OpenNebula
+
+* Go to Storage -> Images tab
+* Click green "+" icon
+* Fill in the name
+* Select:
+  * Type: Generic storage datablock
+  * Datastore (I used nese for my servers)
+  * Image location: empty disk image. Selecting this option will make visible "Size" field
+  * Fill in the required size
+* Click green "Create" button    
+* Go to the Instances -> VM Tab and attach the newly created disk    
+
+## Attach file system to the VM
+On the VM:
+
+* Make sure the disk is physically attached by running `lsblk`
+* Start `parted`
+  * `(parted) mklabel gpt`
+  * `(parted) print`  
+  * `(parted) mkpart`
+    * name
+    * File system type? xfs
+    * Start? 0% ## It is important to use "%"
+    * End? 100%
+  * Quit parted
+* Run `fdisk -l` to ensure changes
+* \[Optionally] Change file system type from 
+  'Microsoft basic data' to 'Linux filesystem'
+  * fdisk
+    * `t`
+    * `20`
+    * `w`
+* Create File system: `mkfs.xfs /dev/vdb1`
+* Note UUID of the disk
+  * `fdisk -l`
+  * Or `ll /dev/disk/by-uuid/`  
+  * Or `lsblk -f`
+    
 # Create and Sign SSL Certificate
 
 Follow the [instructions](https://docs-int.rc.fas.harvard.edu/generate-csr-and-ssl-cert/)
