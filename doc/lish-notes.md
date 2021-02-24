@@ -101,6 +101,7 @@ We need to add rules to:
 
 ## FAS RC Resources
 ### Files
+#### Miscellaneous
  * Docker requires setting up HTTP proxies, 
    this is done in `/etc/systemd/system/docker.service.d/http-proxy.conf`
  * Nginx restart (I am personally unsure)
@@ -115,25 +116,41 @@ We need to add rules to:
    which is referenced where needed. [More Information](https://pgstef.github.io/2018/02/28/custom_pgdata_with_systemd.html) 
  * Actual directory /data/pgsql/13  
 
-## Exec
+####Apache Superset
+
+Puppet creates the following files required for Apache Superset: 
+
+| File | Description
+|------|------------
+|docker-compose.yml | Docker-compose file, contains the majority of all settings
+|superset/superset-config.py | Script that doecker executes within teh container
+|superset/postresql/init/db-init.sql | database definitions
+|startup.sh | script that can be used either to install and initialize Superset or as a list of commands that should be manually executed
+
+Puppet does not initialize Superset, it should be done manually using the  
+`startup.sh` script
+
+
+
+### Exec
 
 We use exec resource in Puppet to install additional software.
 
-### Installing docker-compose
+#### Installing docker-compose
 
 Installation of docker-compose is described [here](https://docs.docker.com/compose/install/).
 
 In host file this is done in `'/usr/local/bin/docker-compose'` section
 
+#### Installing the latest version of PostgreSQL
+The procedure is described in [PostgreSQL Documentation](https://www.postgresql.org/download/linux/redhat/)
+
+We do it in `'Installs PostgreSQL 13'` section
 ### Setting system-wide HTTP proxy
 
 We are setting system-wide environment variable to define HTTP proxy.
 See `'Set HTTP Proxy'` section.
 
-### Installing the latest version of PostgreSQL
-The procedure is described in [PostgreSQL Documentation](https://www.postgresql.org/download/linux/redhat/)
-
-We do it in `'Installs PostgreSQL 13'` section
 
 ### Memory configuration for PostgreSQL
 
