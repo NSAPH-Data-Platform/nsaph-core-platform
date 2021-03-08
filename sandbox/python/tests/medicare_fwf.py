@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # Code to read file character by character, toss out bad chars/restructure line
+import os
 import string as s
 
 def get_next_character(f):
@@ -23,6 +24,7 @@ def clean_fwf_file(path, line_length, out_name='test.dat'):
     weird = {}
     expected = s.ascii_letters + "0123456789" + " "
 
+    l = 0
     for c in get_next_character(f):
         if c not in expected:
             if c in weird.keys():
@@ -37,6 +39,9 @@ def clean_fwf_file(path, line_length, out_name='test.dat'):
         if len(out) == line_length:
             out = out + "\n"
             out_file.write(out)
+            l += 1
+            if (l%10000) == 0:
+                print(l)
             out = ""
     try:
         assert out == ""
@@ -48,4 +53,12 @@ def clean_fwf_file(path, line_length, out_name='test.dat'):
         f.close()
         out_file.close()
         print(weird)
+
+
+if __name__ == '__main__':
+    d = "."
+    f2014 = "medpar_all_file_res000017155_req005819_2014.dat"
+    # clean_fwf_file(os.path.join(d, f2014), 1975)
+    f2015 = "medpar_all_file_res000017155_req007087_2015_001.dat"
+    clean_fwf_file(os.path.join(d, f2015), 2023)
 
