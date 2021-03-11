@@ -25,6 +25,8 @@ To log in to puppetmaster, ssh there as root. This is important, only root user 
 
 For vlan, use prod2448.
 
+NSAPH VMs managed on https://cloud-int-holy.rc.fas.harvard.edu
+
 # Create and attach a disk for data
 
 ## Create disk in OpenNebula
