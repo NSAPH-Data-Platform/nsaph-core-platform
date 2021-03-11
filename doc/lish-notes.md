@@ -23,6 +23,8 @@ Follow [this document](https://gitlab-int.rc.fas.harvard.edu/common/cloud-docs/-
 to create a VM. Follow [Puppet Certificate Signing](https://docs-int.rc.fas.harvard.edu/puppet-certificate-signing-process/). 
 To log in to puppetmaster, ssh there as root. This is important, only root user can see the certificate signing requests.
 
+For vlan, use prod2448.
+
 # Create and attach a disk for data
 
 ## Create disk in OpenNebula
