@@ -19,7 +19,7 @@ inputs:
     default: "postgresql"
   PYTHONPATH:
     type: string
-    default: "/opt/projects/nsaph/src/python"
+    default: "/home/nsaph/projects/nsaph/src/python"
   force:
     type: boolean
     default: false
