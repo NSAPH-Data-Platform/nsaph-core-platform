@@ -13,6 +13,9 @@ from nsaph.reader import CSVFileWrapper, name, fopen, SpecialValues
 
 INDEX_REINDEX = "reindex"
 INDEX_INCREMENTAL = "incremental"
+PG_INT_TYPE = "INT"
+PG_BIGINT_TYPE = "BIGINT"
+PG_MAXINT = 2147483647
 
 BTREE = "btree"
 #HASH = "hash"
@@ -304,9 +307,10 @@ class Table:
         n = len(rows[0])
         self.types.clear()
         for c in range(0, n):
-            type = None
+            c_type = None
             precision = 0
             scale = 0
+            max_val = 0
             for l in range(0, m):
                 v = rows[l][c].strip()
                 v2 = lines[l][c].strip()
@@ -328,36 +332,40 @@ class Table:
                     elif exponent.fullmatch(v):
                         t = "NUMERIC"
                     elif integer.fullmatch(v):
-                        t = "INT"
+                        t = PG_INT_TYPE
                     else:
                         t = "VARCHAR"
                 if t == "0":
                     continue
-                if type == "0":
-                    type = t
-                elif type == "NUMERIC" and t == "INT":
+                if t in [PG_INT_TYPE]:
+                    max_val = max(max_val, abs(int(v)))
+                if c_type == "0":
+                    c_type = t
+                elif c_type == "NUMERIC" and t == PG_INT_TYPE:
                     continue
-                elif type == "VARCHAR" and t in ["INT", "NUMERIC"]:
+                elif c_type == "VARCHAR" and t in [PG_INT_TYPE, "NUMERIC"]:
                     continue
-                elif type == "INT" and t == "NUMERIC":
-                    type = t
-                elif (type and type != t):
+                elif c_type == PG_INT_TYPE and t == "NUMERIC":
+                    c_type = t
+                elif (c_type and c_type != t):
                     msg = "Inconsistent type for column {:d} [{:s}]. " \
                         .format(c + 1, self.csv_columns[c])
                     msg += "Up to line {:d}: {:s}, for line={:d}: {:s}. " \
-                        .format(l - 1, type, l, t)
+                        .format(l - 1, c_type, l, t)
                     msg += "Value = {}".format(v)
                     raise Exception(msg)
                 else:
-                    type = t
-            if type == "NUMERIC":
+                    c_type = t
+            if c_type == PG_INT_TYPE and max_val * 10 > PG_MAXINT:
+                c_type = PG_BIGINT_TYPE
+            if c_type == "NUMERIC":
                 precision += scale
-                type = type + "({:d},{:d})".format(precision + 2, scale)
-            if type == "0":
-                type = "NUMERIC"
-            if not type:
-                type = "VARCHAR"
-            self.types.append(type)
+                c_type = c_type + "({:d},{:d})".format(precision + 2, scale)
+            if c_type == "0":
+                c_type = "NUMERIC"
+            if not c_type:
+                c_type = "VARCHAR"
+            self.types.append(c_type)
         return
 
     def add_data(self, cursor, entry):
