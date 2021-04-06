@@ -9,6 +9,7 @@ from nsaph.model import INDEX_REINDEX
 
 
 def ingest(args: list, force: bool = False):
+    logging.getLogger().setLevel("DEBUG")
     Connection.default_section = "postgresql10"
     path = args[0]
     table = analyze (path)

@@ -15,6 +15,7 @@ INDEX_REINDEX = "reindex"
 INDEX_INCREMENTAL = "incremental"
 PG_INT_TYPE = "INT"
 PG_BIGINT_TYPE = "BIGINT"
+PG_NUMERIC_TYPE = "NUMERIC"
 PG_MAXINT = 2147483647
 
 BTREE = "btree"
@@ -324,13 +325,13 @@ class Table:
                 else:
                     f = float_number.fullmatch(v)
                     if f:
-                        t = "NUMERIC"
+                        t = PG_NUMERIC_TYPE
                         s = len(f.group(2))
                         p = len(f.group(1))
                         scale = max(scale, s)
                         precision = max(precision, p)
                     elif exponent.fullmatch(v):
-                        t = "NUMERIC"
+                        t = PG_NUMERIC_TYPE
                     elif integer.fullmatch(v):
                         t = PG_INT_TYPE
                     else:
@@ -341,11 +342,11 @@ class Table:
                     max_val = max(max_val, abs(int(v)))
                 if c_type == "0":
                     c_type = t
-                elif c_type == "NUMERIC" and t == PG_INT_TYPE:
+                elif c_type == PG_NUMERIC_TYPE and t == PG_INT_TYPE:
                     continue
-                elif c_type == "VARCHAR" and t in [PG_INT_TYPE, "NUMERIC"]:
+                elif c_type == "VARCHAR" and t in [PG_INT_TYPE, PG_NUMERIC_TYPE]:
                     continue
-                elif c_type == PG_INT_TYPE and t == "NUMERIC":
+                elif c_type == PG_INT_TYPE and t == PG_NUMERIC_TYPE:
                     c_type = t
                 elif (c_type and c_type != t):
                     msg = "Inconsistent type for column {:d} [{:s}]. " \
@@ -358,11 +359,11 @@ class Table:
                     c_type = t
             if c_type == PG_INT_TYPE and max_val * 10 > PG_MAXINT:
                 c_type = PG_BIGINT_TYPE
-            if c_type == "NUMERIC":
+            if c_type == PG_NUMERIC_TYPE:
                 precision += scale
                 c_type = c_type + "({:d},{:d})".format(precision + 2, scale)
             if c_type == "0":
-                c_type = "NUMERIC"
+                c_type = PG_NUMERIC_TYPE
             if not c_type:
                 c_type = "VARCHAR"
             self.types.append(c_type)
@@ -416,6 +417,9 @@ class Table:
                         row[i] = "NULL"
                     elif self.types[i] in ["VARCHAR", "DATE", "TIMESTAMP", "TIME"]:
                         row[i] = "'{}'".format(row[i].replace("'", "''"))
+                    elif self.types[i] in [PG_INT_TYPE, PG_BIGINT_TYPE,
+                                           PG_NUMERIC_TYPE] and not row[i]:
+                        row[i] = "NULL"
 
                 for c in self.custom_columns:
                     row.append(c.extract_value(input_source))
