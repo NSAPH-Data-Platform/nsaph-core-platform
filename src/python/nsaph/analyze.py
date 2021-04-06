@@ -7,9 +7,11 @@ from nsaph.reader import get_entries, get_readme
 from nsaph.model import Table
 
 
-def analyze(path: str, columns = None, column_map = None):
+def analyze(path: str, metadata_path: str=None, columns=None, column_map=None):
     entries, open_function = get_entries(path)
-    table = Table(path, open_function, column_name_replacement=column_map)
+    table = Table(data_file=path, get_entry=open_function,
+                  metadata_file=metadata_path,
+                  column_name_replacement=column_map)
     table.analyze(entries[0])
     if columns:
         for c in columns:
@@ -24,6 +26,9 @@ if __name__ == '__main__':
         (description="Analyze file or directory and prepare import")
     parser.add_argument("--source", "-s", help="Path to a file or directory",
                         required=True)
+    parser.add_argument("--metadata", "-m",
+                        default="",
+                        help="Optional file with explicit columns metadata")
     parser.add_argument("--column", "-c", help="Additional columns", nargs="*")
     parser.add_argument("--outdir", help="Output directory")
     parser.add_argument("--readme", help="Readme.md file [optional]")
@@ -38,7 +43,7 @@ if __name__ == '__main__':
             m = e.split(':')
             column_map[m[0]] = m[1]
 
-    table = analyze(args.source, args.column, column_map)
+    table = analyze(args.source, args.metadata, args.column, column_map)
 
     if args.outdir:
         d = os.path.abspath(args.outdir)

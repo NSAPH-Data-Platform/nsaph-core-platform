@@ -9,6 +9,8 @@ requirements:
 inputs:
   data_file:
     type: File
+  metadata:
+    type: File?
   db_connection_params:
     type: File
     default:
@@ -26,6 +28,9 @@ inputs:
   increment:
     type: boolean
     default: false
+  superset:
+    type: boolean
+    default: True
 
 outputs:
   analysis_log:
@@ -58,6 +63,7 @@ steps:
     in:
       PYTHONPATH: PYTHONPATH
       data_file: data_file
+      metadata: metadata
     out: [table_def, datasource_def, log]
 
   ingest:
@@ -87,6 +93,7 @@ steps:
       [log]
 
   push_ds:
+    #when: $(inputs.superset)
     run: push_datasource_def.cwl
     in:
       datasource: analyze/datasource_def

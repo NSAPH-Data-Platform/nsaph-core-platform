@@ -1,4 +1,5 @@
 import json
+import yaml
 import logging
 import os
 import re
@@ -6,7 +7,7 @@ import csv
 import datetime
 import sys
 import traceback
-from typing import Dict
+from typing import Dict, Optional
 
 from nsaph.reader import CSVFileWrapper, name, fopen, SpecialValues
 
@@ -17,6 +18,10 @@ PG_INT_TYPE = "INT"
 PG_BIGINT_TYPE = "BIGINT"
 PG_NUMERIC_TYPE = "NUMERIC"
 PG_MAXINT = 2147483647
+
+METADATA_TYPE_KEY = "type"
+METADATA_TYPE_MODEL = "model_specification"
+
 
 BTREE = "btree"
 #HASH = "hash"
@@ -103,26 +108,38 @@ class CustomColumn:
 
 
 class Table:
-    def __init__(self, file_path: str,
-                 get_entry,
+    def __init__(self, metadata_file: str = None,
+                 get_entry = None,
                  concurrent_indices: bool = False,
                  data_file: str = None,
                  column_name_replacement: Dict = None):
-        if file_path.endswith("json"):
-            self.open_entry_function = get_entry
-            with open(file_path) as fp:
-                j = json.load(fp)
-            for a in j:
-                setattr(self, a, j[a])
-            if data_file:
-                self.file_path = data_file
-            return
+        metadata = None
+        if metadata_file:
+            fn = metadata_file.lower()
+            with open(metadata_file) as fp:
+                if fn.endswith("json"):
+                    metadata = json.load(fp)
+                elif fn.endswith(".yaml") or fn.endswith(".yml"):
+                    metadata = yaml.safe_load(fp)
+                else:
+                    raise Exception("Unsupported file type for metadata")
+            if metadata.get(METADATA_TYPE_KEY) == METADATA_TYPE_MODEL:
+                self.open_entry_function = get_entry
+                with open(metadata_file) as fp:
+                    j = json.load(fp)
+                for a in j:
+                    setattr(self, a, j[a])
+                if data_file:
+                    self.file_path = data_file
+                return
+
+        self.metadata = metadata
         if concurrent_indices:
             self.index_option = "CONCURRENTLY"
         else:
             self.index_option = ""
-        self.file_path = os.path.abspath(file_path)
-        file_name = os.path.basename(file_path)
+        self.file_path = os.path.abspath(data_file)
+        file_name = os.path.basename(self.file_path)
         tname, ext = os.path.splitext(file_name)
         while ext not in [".csv", ""]:
             tname, ext = os.path.splitext(tname)
@@ -144,6 +161,7 @@ class Table:
     def save(self, to_dir):
         f = os.path.join(to_dir, self.table + ".json")
         j = dict()
+        j[METADATA_TYPE_KEY] = METADATA_TYPE_MODEL
         for att in dir(self):
             if att[0] != '_':
                 v = getattr(self, att)
@@ -303,12 +321,31 @@ class Table:
         logging.info(sql)
         cursor.execute(sql)
 
+    def type_from_metadata(self, c: int) -> Optional[str]:
+        if not self.metadata:
+            return None
+        c_name = self.csv_columns[c]
+        metadata = self.metadata
+        if "table" in metadata:
+            metadata = metadata["table"]
+        if self.table in metadata:
+            metadata = metadata[self.table]
+        if "columns" in metadata:
+            metadata = metadata["columns"]
+        if c_name in metadata:
+            return metadata[c_name]
+        if isinstance(metadata, list):
+            for element in metadata:
+                if c_name in element:
+                    return element[c_name]
+        return None
+
     def guess_types(self, rows: list, lines: list):
         m = len(rows)
         n = len(rows[0])
         self.types.clear()
         for c in range(0, n):
-            c_type = None
+            c_type = self.type_from_metadata(c)
             precision = 0
             scale = 0
             max_val = 0

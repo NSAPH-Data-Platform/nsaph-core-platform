@@ -14,6 +14,10 @@ inputs:
     type: File
     inputBinding:
       prefix: --source
+  metadata:
+    type: File?
+    inputBinding:
+      prefix: --metadata
   mapping:
     type: string?
     inputBinding:
