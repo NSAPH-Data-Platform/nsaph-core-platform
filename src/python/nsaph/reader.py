@@ -178,7 +178,7 @@ class CSVFileWrapper():
                 c = str(self.chars)
             dt = datetime.datetime.now() - t
             t = datetime.datetime.now()
-            logging.info("{}: Processed {:d}/{} lines/chars [{}]"
+            logging.info("{}: Processed {:,}/{} lines/chars [{}]"
                   .format(str(t), self.line_number, c, str(dt)))
             self.last_printed_line_number = self.line_number
         return result

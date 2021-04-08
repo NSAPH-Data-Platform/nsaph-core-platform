@@ -488,7 +488,7 @@ class Table:
         dt0 = t - t0
         r1 = N / dt1.total_seconds()
         r0 = lines / dt0.total_seconds()
-        logging.info("{}: Processed {:d}/{} lines/chars [t={}({}), r={:5.1f}({:5.1f}) lines/sec]"
+        logging.info("{}: Processed {:,}/{} lines/chars [t={}({}), r={:5.1f}({:5.1f}) lines/sec]"
               .format(str(t), lines, c, str(dt1), str(dt0), r1, r0))
         return t
 
