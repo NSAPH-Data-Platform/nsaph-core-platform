@@ -1,0 +1,21 @@
+gridmet:
+  tables:
+    us_prediction_points:
+      columns:
+        - sitecode
+        - zip
+        - state
+        - name
+      children:
+        tmmx_custom_point_2016:
+          parent: sitecode
+          columns:
+            - date
+            - sitecode
+            - tmmx
+        rmax_custom_point_2016:
+          parent: sitecode
+          columns:
+            - date
+            - sitecode
+            - rmax

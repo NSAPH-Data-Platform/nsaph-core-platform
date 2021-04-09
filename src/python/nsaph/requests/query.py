@@ -1,12 +1,67 @@
+import argparse
+import json
+import os
 from collections import OrderedDict
+from pathlib import Path
 from typing import Dict, List, Set
 
 import yaml
+
+from nsaph import init_logging
+from nsaph.db import Connection, ResultSet
 
 
 def fqn(t):
     return t
     #return '"public"."{}"'.format(t)
+
+
+class Query:
+    def __init__(self, user_request, connection):
+        if isinstance(user_request, str) and os.path.isfile(user_request):
+            with open(user_request) as f:
+                ff = user_request.lower()
+                if ff.endswith(".json"):
+                    request = json.load(f)
+                elif ff.endswith(".yml") or ff.endswith(".yaml"):
+                    request = yaml.safe_load(f)
+                else:
+                    raise Exception("Unsupported format for user request: {}"
+                                    .format(user_request) +
+                                    ". Supported formats are: JSON, YAML")
+        elif isinstance(user_request, dict):
+            request = user_request
+        else:
+            t = str(type(user_request))
+            raise Exception("Unsupported type of user request: {}".format(t))
+        src = Path(__file__).parents[3]
+        registry_path = os.path.join(src, "yml", "registry.yaml")
+        with open(registry_path) as rf:
+            self.registry = yaml.safe_load(rf)
+        self.request = request
+        if isinstance(connection, Connection):
+            self.connection = connection
+        else:
+            self.connection = Connection(*connection)
+        self.cursor = None
+        self.sql = None
+        self.header = None
+
+    def execute(self):
+        self.cursor.execute(self.sql)
+        return ResultSet(header=self.header, cursor=self.cursor)
+
+    def prepare(self):
+        connection = self.connection.connect()
+        self.cursor = connection.cursor()
+        self.sql, self.header = generate(self.registry, self.request)
+
+    def __enter__(self):
+        self.prepare()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.connection.close()
 
 
 def find_tables(column: str, tables: Dict) -> List[str]:
@@ -152,7 +207,23 @@ def reduce_tables(variables: Dict) -> bool:
     return reduced
 
 
-def generate(system, user) -> str:
+def generate_order_by(request: dict) -> str:
+    group = None
+    if "package" in request:
+        if "group" in request["package"]:
+            group = request["package"]["group"]
+    if not group:
+        return ""
+    if isinstance(group, str):
+        return "\nORDER BY {}".format(group)
+    if isinstance(group, list):
+        return "\nORDER BY {}".format(", ".join(group))
+    else:
+        raise Exception("Invalid specification for grouping: ".
+                        format(str(group)))
+
+
+def generate(system, user) -> (str, List):
     source_name = user["source"]
     source = system[source_name]
 
@@ -178,14 +249,40 @@ def generate(system, user) -> str:
 
     from_clause = generate_from(variables, filters, source_tables)
     where = generate_where(user["restrict"], source_tables, tables)
+    order_by = generate_order_by(user)
 
-    sql = select + "\n" + from_clause + "\n" + where
-    return sql
+    sql = select + "\n" + from_clause + "\n" + where + order_by
+    return sql, list(variables)
 
 
 if __name__ == '__main__':
-    with open("../../../yml/ellen.yaml") as request:
-        config = yaml.safe_load(request)
-    sql = generate(config["system"], config["request"])
-    print(sql)
+    init_logging()
+    parser = argparse.ArgumentParser (description="Create table and load data")
+    parser.add_argument("--request", "-r",
+                        help="Path to a table definition file for a table",
+                        default=None,
+                        required=False)
+    parser.add_argument("--db",
+                        help="Path to a database connection parameters file",
+                        default="database.ini",
+                        required=False)
+    parser.add_argument("--section",
+                        help="Section in the database connection parameters file",
+                        default="postgresql",
+                        required=False)
+
+    args = parser.parse_args()
+    if not args.request:
+        d = os.path.dirname(__file__)
+        args.request = os.path.join(d, "../../../yml/ellen.yaml")
+
+    with Query(args.request, (args.db, args.section)) as q:
+        print(q.sql)
+        count = 0
+        rs = q.execute()
+        for r in rs:
+            count += 1
+            print(r)
+    print("Count rows: {:d}".format(count))
+
 

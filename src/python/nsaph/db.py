@@ -123,3 +123,26 @@ def test_connection ():
 
 if __name__ == '__main__':
     test_connection()
+
+
+class ResultSet:
+    SIZE = 10000
+
+    def __init__(self, header, cursor):
+        self.header = header
+        self.cursor = cursor
+        self.rows = self.cursor.fetchmany(self.SIZE)
+        self.idx = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        self.idx += 1
+        if self.idx > len(self.rows):
+            self.rows = self.cursor.fetchmany(self.SIZE)
+            if len(self.rows) < 1:
+                raise StopIteration
+            self.idx = 1
+        row = self.rows[self.idx - 1]
+        return {self.header[i]: row[i] for i in range(len(self.header))}

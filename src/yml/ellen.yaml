@@ -1,43 +1,26 @@
-request:
-  name: request_148302
-  source: gridmet
-  variables:
-    - sitecode
-    - zip
+name: request_148302
+source: gridmet
+variables:
+  - state
+  - sitecode
+  - zip
+  - date
+  - tmmx
+  - rmax
+  - name
+restrict:
+  date:
+    YEAR: 2016
+    MONTH: 1
+  state:
+    - CA
+    - MA
+  name:
+    - Ferndale
+    - Allston
+    - Newton
+package:
+  format: hdf5
+  group:
+    - state
     - date
-    - tmmx
-    - rmax
-    - name
-  restrict:
-    date:
-      YEAR: 2016
-      DAY: 1
-    state: CA
-    name: Ferndale
-  package:
-    format: hdf5
-    group:
-      - state
-      - date
-system:
-  gridmet:
-    tables:
-      us_prediction_points:
-        columns:
-          - sitecode
-          - zip
-          - state
-          - name
-        children:
-          tmmx_custom_point_2016:
-            parent: sitecode
-            columns:
-              - date
-              - sitecode
-              - tmmx
-          rmax_custom_point_2016:
-            parent: sitecode
-            columns:
-              - date
-              - sitecode
-              - rmax
