@@ -163,7 +163,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if not args.request:
         d = os.path.dirname(__file__)
-        args.request = os.path.join(d, "../../../yml/ellen.yaml")
+        args.request = os.path.join(d, "../../../yml/example_request.yaml")
 
     with Query(args.request, (args.db, args.section)) as q:
         print(q.sql)
