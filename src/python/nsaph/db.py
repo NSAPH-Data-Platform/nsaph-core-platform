@@ -61,6 +61,7 @@ class Connection:
         self.connection = None
         self.tunnel = None
         self.silent = silent
+        self.types = None
 
     def connect(self):
         if "ssh_user" in self.parameters:
@@ -91,6 +92,18 @@ class Connection:
         params["port"] = self.tunnel.local_bind_port
         params["host"] = self.tunnel.local_bind_host
         return self.connect_to_database(params)
+
+    def get_database_types(self):
+        if not self.types:
+            sql = "SELECT oid, typname from pg_catalog.pg_type"
+            cursor = self.connection.cursor()
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+            self.types = {
+                row[0]: row[1] for row in rows
+            }
+            cursor.close()
+        return self.types
 
     def close(self):
         if (self.connection and  not self.connection.closed):
@@ -128,9 +141,11 @@ if __name__ == '__main__':
 class ResultSet:
     SIZE = 10000
 
-    def __init__(self, header, cursor):
-        self.header = header
+    def __init__(self, cursor, metadata: dict):
         self.cursor = cursor
+        description = self.cursor.description
+        self.header = [c.name for c in description]
+        self.types = [metadata[c.type_code] for c in description]
         self.rows = self.cursor.fetchmany(self.SIZE)
         self.idx = 0
 

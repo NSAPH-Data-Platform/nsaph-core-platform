@@ -1,11 +1,92 @@
 import argparse
 import os
+from typing import List
 
 import h5py
 import numpy
 
 from nsaph.db import ResultSet
 from nsaph.requests.query import Query
+
+
+class Dataset:
+    def __init__(self, t):
+        self.data = []
+        self.indices = []
+        self.type = t
+        self.max_len = 1
+
+    def clear(self):
+        self.data.clear()
+
+    def add_index(self, idx):
+        self.indices.append(idx)
+
+    def append(self, row: list):
+        if self.type == float:
+            values = [float(row[i]) for i in self.indices]
+        else:
+            values = [row[i] for i in self.indices]
+        if self.type == str:
+            self.max_len = max([self.max_len] + [len(v) for v in values])
+        self.data.append(values)
+
+    def type_name(self):
+        return self.type.__name__
+
+    def to_hdf5(self, parent, name):
+        ds_name = "{}_{}".format(name, self.type_name())
+        if self.type == str:
+            dtype = "<S{}".format(self.max_len)
+            h5 = parent.create_dataset(ds_name, data=self.data, dtype=dtype)
+        else:
+            h5 = parent.create_dataset(ds_name, data=self.data)
+        for v in enumerate(self.indices):
+            h5.attrs[v[1]] = v[0]
+        return h5
+
+
+def dtype(t):
+    if t == int:
+        return numpy.dtype(numpy.int32)
+    if t == float:
+        return numpy.dtype(numpy.float)
+    return numpy.dtype(numpy.str)
+
+
+def append(datasets: List, row):
+    for dataset in datasets:
+        dataset.append(row)
+    return
+
+
+def map2ds(rs: ResultSet, groups: list) -> List:
+    datasets = {}
+    for i in range(0, len(rs.header)):
+        h = rs.header[i]
+        t = rs.types[i]
+        if h not in groups:
+            if t.startswith("int"):
+                if int not in datasets:
+                    datasets[int] = Dataset(int)
+                datasets[int].add_index(h)
+            elif t.startswith("numeric") or t.startswith("float"):
+                if float not in datasets:
+                    datasets[float] = Dataset(float)
+                datasets[float].add_index(h)
+            else:
+                if str not in datasets:
+                    datasets[str] = Dataset(str)
+                datasets[str].add_index(h)
+    return list(datasets.values())
+
+
+def store(parent, name:str, datasets: list, attrs):
+    for dataset in datasets:
+        h5ds = dataset.to_hdf5(parent, name)
+        for attr in attrs:
+            h5ds.attrs[attr] = attrs[attr]
+        dataset.clear()
 
 
 def export(request: dict, rs: ResultSet, path: str):
@@ -31,40 +112,36 @@ def export(request: dict, rs: ResultSet, path: str):
         f.attrs["name"] = request["name"]
         f.attrs["file_name"] = name
         h5 = f
-        for g in groups[:-1]:
+        for g in groups:
             h5.attrs["grouping"] = g
-            h5 = h5.create_group(row[g])
+            h5 = h5.create_group(str(row[g]))
         g = groups[-1]
         h5.attrs["grouping"] = g
-        #ds = h5.create_dataset(str(row[g]), shape=(len(data_columns),None))
-        data =[]
+        datasets = map2ds(rs, groups)
         idx = 0
-        data.append(tuple(row[data_columns[i]] for i in data_columns))
+        append(datasets, row)
         for row in rs:
-            i = ng - 1
-            while i > 0 and row[g] != current[g]:
-                g = groups[i]
+            i = ng
+            while i > 0:
+                g = groups[i-1]
+                if row[g] == current[g]:
+                    break
                 i -= 1
-            if i < ng - 1:
-                array = numpy.array(data)
-                ds = h5.create_dataset(str(row[groups[-1]]), data=array)
-                for g in groups:
-                    ds.attrs[g] = str(current[g])
-                data.clear()
+            if i < ng:
+                attrs = {g: str(current[g]) for g in groups}
+                store(h5, str(row[groups[-1]]), datasets, attrs)
                 current = {g: row[g] for g in groups}
-                h5 = ds.parent
                 ii = i
-                for i in range(ii, ng - 1):
+                for i in range(ii, ng):
                     h5 = h5.parent
-                for i in range(ii, ng - 1):
+                for i in range(ii, ng):
                     g = groups[i]
                     h5.attrs["grouping"] = g
-                    h5 = h5.create_group(row[g])
-                ds = h5.create_dataset(str(row[g]), shape=(len(data_columns),))
-                for g in groups:
-                    ds.attrs[g] = str(current[g])
+                    h5 = h5.create_group(str(row[g]))
             idx += 1
-            data.append(tuple(row[data_columns[i]] for i in data_columns))
+            append(datasets, row)
+        attrs = {g: str(current[g]) for g in groups}
+        store(h5, str(row[groups[-1]]), datasets, attrs)
 
 
 if __name__ == '__main__':

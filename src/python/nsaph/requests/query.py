@@ -45,16 +45,17 @@ class Query:
             self.connection = Connection(*connection)
         self.cursor = None
         self.sql = None
-        self.header = None
+        self.metadata = None
 
     def execute(self):
         self.cursor.execute(self.sql)
-        return ResultSet(header=self.header, cursor=self.cursor)
+        return ResultSet(cursor=self.cursor, metadata=self.metadata)
 
     def prepare(self):
         connection = self.connection.connect()
+        self.metadata = self.connection.get_database_types()
         self.cursor = connection.cursor()
-        self.sql, self.header = generate(self.registry, self.request)
+        self.sql = generate(self.registry, self.request)
 
     def __enter__(self):
         self.prepare()
@@ -252,7 +253,7 @@ def generate(system, user) -> (str, List):
     order_by = generate_order_by(user)
 
     sql = select + "\n" + from_clause + "\n" + where + order_by
-    return sql, list(variables)
+    return sql
 
 
 if __name__ == '__main__':
