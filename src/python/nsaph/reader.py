@@ -23,13 +23,13 @@ class SpecialValues:
         return cls.is_missing(v) or v in ['0']
 
 
-def fopen(path):
+def fopen(path, mode = "rt"):
     if isinstance(path, io.BufferedReader):
         return codecs.getreader("utf-8")(path)
     if not isinstance(path, str):
         return path
     if path.endswith(".gz"):
-        return gzip.open(path, "rt")
+        return gzip.open(path, mode)
     return open(path, encoding="utf-8")
 
 
