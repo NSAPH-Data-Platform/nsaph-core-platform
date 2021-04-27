@@ -1,0 +1,86 @@
+medicaid:
+  reference: "https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/dominici_data_pipelines/-/blob/master/medicaid/reports/schema.yml"
+  tables:
+    demographics:
+      columns:
+        - bene_id:
+            type: "VARCHAR"
+        - dob:
+            type: "DATE"
+        - dod:
+            type: "DATE"
+        - race_ethnicity_code:
+            type: "INT"
+            description: "https://resdac.org/cms-data/variables/raceethnicity-msis"
+        - sex: "VARCHAR(1)"
+      children:
+        enrollments_month:
+          parent: "bene_id"
+          columns:
+            - year:
+                type: "INT"
+            - month:
+                type: "INT"
+            - state:
+                type: "VARCHAR(2)"
+            - residence_county:
+                type: "VARCHAR(3)"
+            - zip
+            - state_count:
+                type: "INT"
+            - dead:
+                type: "BOOLEAN"
+            - eligibility_code:
+                type: "INT"
+            - managed_care_code:
+                type: "INT"
+                description: "https://resdac.org/cms-data/variables/managed-care-combinations-jan"
+            - medicare_eligibility:
+                type: "INT"
+                values:
+                  - 0
+                  - 1
+                  - 2
+                  - 3
+            - restrictions:
+                type: "VARCHAR(1)"
+                description: "https://resdac.org/cms-data/variables/restricted-benefits-jan"
+        enrollments_year:
+          parent: "bene_id"
+          columns:
+            - year
+                type: "INT"
+            - state:
+                type: "VARCHAR(2)"
+            - residence_county:
+                type: "VARCHAR(3)"
+            - zip
+            - months_eligible:
+                type: "INT"
+            - months_dual_eligible:
+                type: "INT"
+            - state_count:
+                type: "INT"
+            - dead:
+                type: "BOOLEAN"
+            - eligibility_code:
+                type: "INT[12]"
+            - managed_care_code:
+                type: "INT[12]"
+                description: "https://resdac.org/cms-data/variables/managed-care-combinations-jan"
+            - medicare_eligibility:
+                type: "INT[12]"
+                values:
+                  - 0
+                  - 1
+                  - 2
+                  - 3
+            - restrictions:
+                type: "VARCHAR(1)[12]"
+                description: "https://resdac.org/cms-data/variables/restricted-benefits-jan"
+        admissions:
+          parent: "bene_id"
+          columns:
+            - diagnosi:
+                type: "VARCHAR[10]"
+

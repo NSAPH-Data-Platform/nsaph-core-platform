@@ -12,4 +12,6 @@ Admissions:     /data/incoming/rce/ci3_health_data/medicaid/cvd/1999_2012/desouz
     Description of columns:
         https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/dominici_data_pipelines/-/blob/master/medicaid/code/2_create_cvd_data.R
         https://github.com/NSAPH/data_requests/blob/master/request_projects/dec2019_medicaid_platform_cvd/cvd_readme.md
+
+Sample user request: https://github.com/NSAPH/data_requests/tree/master/request_projects/feb2021_jenny_medicaid_resp
 '''
