@@ -14,40 +14,12 @@ medicaid:
             description: "https://resdac.org/cms-data/variables/raceethnicity-msis"
         - sex: "VARCHAR(1)"
       children:
-        enrollments_month:
-          parent: "bene_id"
-          columns:
-            - year:
-                type: "INT"
-            - month:
-                type: "INT"
-            - state:
-                type: "VARCHAR(2)"
-            - residence_county:
-                type: "VARCHAR(3)"
-            - zip
-            - state_count:
-                type: "INT"
-            - dead:
-                type: "BOOLEAN"
-            - eligibility_code:
-                type: "INT"
-            - managed_care_code:
-                type: "INT"
-                description: "https://resdac.org/cms-data/variables/managed-care-combinations-jan"
-            - medicare_eligibility:
-                type: "INT"
-                values:
-                  - 0
-                  - 1
-                  - 2
-                  - 3
-            - restrictions:
-                type: "VARCHAR(1)"
-                description: "https://resdac.org/cms-data/variables/restricted-benefits-jan"
         enrollments_year:
           parent: "bene_id"
           columns:
+            - 'bene_id$year':
+                type: "VARCHAR"
+                description: "Composite key for the table"
             - year
                 type: "INT"
             - state:
@@ -63,24 +35,43 @@ medicaid:
                 type: "INT"
             - dead:
                 type: "BOOLEAN"
-            - eligibility_code:
-                type: "INT[12]"
-            - managed_care_code:
-                type: "INT[12]"
-                description: "https://resdac.org/cms-data/variables/managed-care-combinations-jan"
-            - medicare_eligibility:
-                type: "INT[12]"
-                values:
-                  - 0
-                  - 1
-                  - 2
-                  - 3
-            - restrictions:
-                type: "VARCHAR(1)[12]"
-                description: "https://resdac.org/cms-data/variables/restricted-benefits-jan"
-        admissions:
-          parent: "bene_id"
-          columns:
-            - diagnosi:
-                type: "VARCHAR[10]"
+          children:
+            enrollments_month:
+              parent: "bene_id$year"
+              columns:
+                - 'bene_id$year$month':
+                    type: "VARCHAR"
+                    description: "Composite key for the table"
+                - month:
+                    type: "INT"
+                - eligibility_code:
+                    type: "INT"
+                - managed_care_code:
+                    type: "INT"
+                    description: "https://resdac.org/cms-data/variables/managed-care-combinations-jan"
+                - medicare_eligibility:
+                    type: "INT"
+                    values:
+                      - 0
+                      - 1
+                      - 2
+                      - 3
+                - restrictions:
+                    type: "VARCHAR(1)"
+                    description: "https://resdac.org/cms-data/variables/restricted-benefits-jan"
+              children:
+                admissions:
+                  parent:
+                    name: "bene_id$year$month"
+                    source: "YEAR(admission_date)$MONTH(admission_date)"
+                  columns:
+                    - admission_date:
+                        type: "DATE"
+                        original: "ADMSN_DT"
+                    - service_end_date:
+                        type: "DATE"
+                        original: "SRVC_END_DT"
+                    - diagnosis:
+                        type: "VARCHAR[10]"
+                        original: "DIAG_CD_*"
 
