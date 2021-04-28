@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Set
 
 import yaml
+from nsaph_utils.utils.io_utils import as_dict
 
 from nsaph import init_logging
 from nsaph.db import Connection, ResultSet
@@ -18,22 +19,7 @@ def fqn(t):
 
 class Query:
     def __init__(self, user_request, connection):
-        if isinstance(user_request, str) and os.path.isfile(user_request):
-            with open(user_request) as f:
-                ff = user_request.lower()
-                if ff.endswith(".json"):
-                    request = json.load(f)
-                elif ff.endswith(".yml") or ff.endswith(".yaml"):
-                    request = yaml.safe_load(f)
-                else:
-                    raise Exception("Unsupported format for user request: {}"
-                                    .format(user_request) +
-                                    ". Supported formats are: JSON, YAML")
-        elif isinstance(user_request, dict):
-            request = user_request
-        else:
-            t = str(type(user_request))
-            raise Exception("Unsupported type of user request: {}".format(t))
+        request = as_dict(user_request)
         src = Path(__file__).parents[3]
         registry_path = os.path.join(src, "yml", "registry.yaml")
         with open(registry_path) as rf:

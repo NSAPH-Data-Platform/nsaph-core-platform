@@ -77,18 +77,17 @@ def write_csv(df: DataFrame, dest: str, append: bool):
     return
 
 
-def convert(path: str):
+def convert_file(path: str, buffer_size = 10000):
     if not path.endswith(".fst"):
         raise Exception("Unknown format of file " + path)
     name = path[:-4]
     dest = name + ".csv.gz"
     complete = False
     n_rows = 0
-    N = 10000
     start = 1
     append = False
     while not complete:
-        end = start + N - 1
+        end = start + buffer_size - 1
         df, complete = read_fst(path, start, end)
         start = end + 1
         n_rows += df.nrow
@@ -100,5 +99,5 @@ def convert(path: str):
 
 
 if __name__ == '__main__':
-    convert(sys.argv[1])
+    convert_file(sys.argv[1])
     print("All Done")

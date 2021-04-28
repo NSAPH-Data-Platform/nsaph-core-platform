@@ -1,5 +1,6 @@
 medicaid:
   reference: "https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/dominici_data_pipelines/-/blob/master/medicaid/reports/schema.yml"
+  index: "unless excluded"
   tables:
     demographics:
       columns:
@@ -12,20 +13,37 @@ medicaid:
         - race_ethnicity_code:
             type: "INT"
             description: "https://resdac.org/cms-data/variables/raceethnicity-msis"
+            source: "race_cd"
         - sex: "VARCHAR(1)"
+      primary_key:
+        - bene_id
       children:
         enrollments_year:
-          parent: "bene_id"
           columns:
-            - 'bene_id$year':
-                type: "VARCHAR"
-                description: "Composite key for the table"
-            - year
+#            - 'bene_id$year':
+#                type: "VARCHAR"
+#                description: "Composite key for the table"
+            - year:
                 type: "INT"
+                source: "MAX_YR_DT"
             - state:
                 type: "VARCHAR(2)"
+                source: "STATE_CD"
+            - state_iso:
+                type: "VARCHAR(5)"
+                source:
+                  type: "generated"
+                  code: "GENERATED ALWAYS AS ('US-' || state) STORED"
             - residence_county:
                 type: "VARCHAR(3)"
+                source: "EL_RSDNC_CNTY_CD_LTST"
+            - fips5:
+                source:
+                  type: "compute"
+                  parameter:
+                    - state
+                    - residence_county
+                  code: "fips_dict[$1] * 1000 + $2"
             - zip
             - months_eligible:
                 type: "INT"
@@ -35,19 +53,32 @@ medicaid:
                 type: "INT"
             - dead:
                 type: "BOOLEAN"
+          primary_key:
+            - bene_id
+            - year
           children:
             enrollments_month:
-              parent: "bene_id$year"
               columns:
-                - 'bene_id$year$month':
-                    type: "VARCHAR"
-                    description: "Composite key for the table"
+#                - 'bene_id$year$month':
+#                    type: "VARCHAR"
+#                    description: "Composite key for the table"
                 - month:
                     type: "INT"
+                    source:
+                      type: "range"
+                      values: 1:12
                 - eligibility_code:
                     type: "INT"
+                    source:
+                      type: "multi_column"
+                      parameter: "month"
+                      pattern: "MAX_ELG_CD_MO_{:d}"
                 - managed_care_code:
                     type: "INT"
+                    source:
+                      type: "multi_column"
+                      parameter: "month"
+                      pattern: "MC_COMBO_MO_{:d}"
                     description: "https://resdac.org/cms-data/variables/managed-care-combinations-jan"
                 - medicare_eligibility:
                     type: "INT"
@@ -56,22 +87,33 @@ medicaid:
                       - 1
                       - 2
                       - 3
+                    source:
+                      type: "multi_column"
+                      parameter: "month"
+                      pattern: "EL_MDCR_BEN_MO_{:d}"
                 - restrictions:
                     type: "VARCHAR(1)"
+                    source:
+                      type: "multi_column"
+                      parameter: "month"
+                      pattern: "EL_RSTRCT_BNFT_FLG_{:d}"
                     description: "https://resdac.org/cms-data/variables/restricted-benefits-jan"
+              primary_key:
+                - bene_id
+                - year
+                - month
               children:
                 admissions:
                   parent:
-                    name: "bene_id$year$month"
                     source: "YEAR(admission_date)$MONTH(admission_date)"
                   columns:
                     - admission_date:
                         type: "DATE"
                         original: "ADMSN_DT"
-                    - service_end_date:
+                    - discharge_date:
                         type: "DATE"
-                        original: "SRVC_END_DT"
+                        source: "SRVC_END_DT"
                     - diagnosis:
                         type: "VARCHAR[10]"
-                        original: "DIAG_CD_*"
+                        source: "DIAG_CD_*"
 

@@ -21,7 +21,8 @@ PG_MAXINT = 2147483647
 
 METADATA_TYPE_KEY = "type"
 METADATA_TYPE_MODEL = "model_specification"
-
+INDEX_DDL_PATTERN = "CREATE INDEX {option} {name} ON {table} USING {method} ({column})"
+INDEX_NAME_PATTERN = "{table}_{column}_idx"
 
 BTREE = "btree"
 #HASH = "hash"
@@ -177,11 +178,8 @@ class Table:
         return fopen(self.open_entry_function(source))
 
     def get_index_ddl(self, column, method):
-        index_name_pattern = "{table}_{column}_idx"
-        index_ddl_pattern = \
-            "CREATE INDEX {option} {name} ON {table} USING {method} ({column})"
-        n = index_name_pattern.format(table = self.table, column = column)
-        ddl = index_ddl_pattern \
+        n = INDEX_NAME_PATTERN.format(table = self.table, column = column)
+        ddl = INDEX_DDL_PATTERN \
             .format(option=self.index_option,
                     name = n,
                     table=self.table,
