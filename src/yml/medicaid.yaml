@@ -1,6 +1,7 @@
 medicaid:
   reference: "https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/dominici_data_pipelines/-/blob/master/medicaid/reports/schema.yml"
   index: "unless excluded"
+  schema: "medicaid"
   tables:
     demographics:
       columns:

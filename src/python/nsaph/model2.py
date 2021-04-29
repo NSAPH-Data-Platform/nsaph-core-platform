@@ -9,6 +9,12 @@ class Domain:
     def __init__(self, spec, name):
         self.domain = name
         self.spec = as_dict(spec)
+        if "schema" in self.spec[self.domain]:
+            self.schema = self.spec[self.domain]["schema"]
+        elif "schema" in self.spec:
+            self.schema = self.spec["schema"]
+        else:
+            self.schema = None
         self.indices = []
         self.ddl = []
         self.conucrrent_indices = False
@@ -24,7 +30,10 @@ class Domain:
 
 
     def generate_ddl(self) -> None:
-        self.ddl = []
+        if self.schema:
+            self.ddl = ["CREATE SCHEMA IF NOT EXISTS {};".format(self.schema)]
+        else:
+            self.ddl = []
         tables = self.spec[self.domain]["tables"]
         nodes = {t: tables[t] for t in tables}
         for node in nodes:
@@ -33,6 +42,9 @@ class Domain:
 
     def ddl_for_node(self, node, parent = None) -> None:
         table, definition = node
+        if self.schema:
+            table = self.schema + '.' + table
+        columns = definition["columns"]
         features = []
 
         fk = None
@@ -41,16 +53,17 @@ class Domain:
             if "primary_key" not in pdef:
                 raise Exception("Parent table {} must define primary key".format(ptable))
             fk_columns = pdef["primary_key"]
-            fk_name = "{}_to_{}".format(table, ptable)
+            fk_name = "{}_to_{}".format(table.split('.')[-1], ptable)
             fk_column_list = ", ".join(fk_columns)
+            if self.schema:
+                ptable = self.schema + '.' + ptable
             fk = "CONSTRAINT {name} FOREIGN KEY ({columns}) REFERENCES {parent} ({columns})"\
                 .format(name=fk_name, columns=fk_column_list, parent=ptable)
             for column in pdef["columns"]:
                 c, _ = self.split(column)
                 if c in fk_columns:
-                    features.append(self.column_spec(column))
+                    columns.append(column)
 
-        columns = definition["columns"]
         features.extend([self.column_spec(column) for column in columns])
 
         if "primary_key" in definition:
@@ -109,7 +122,7 @@ class Domain:
         else:
             method = "BTREE"
         if not iname:
-            iname = INDEX_NAME_PATTERN.format(table = table, column = cname)
+            iname = INDEX_NAME_PATTERN.format(table = table.split('.')[-1], column = cname)
         return INDEX_DDL_PATTERN.format(
             option = option,
             name = iname,
