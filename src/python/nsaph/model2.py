@@ -285,7 +285,7 @@ def test(argv):
     domain.generate_ddl()
     for index in domain.indices:
         print(index)
-    with Connection("database.ini", "local nsaph2") as connection:
+    with Connection("database.ini", "nsaph2") as connection:
         cursor = connection.cursor()
         domain.create_tables(cursor)
         domain.import_csv("demographics", src, cursor)
