@@ -1,6 +1,7 @@
 import csv
 import logging
 import os
+import sys
 from pathlib import Path
 
 from nsaph_utils.utils.io_utils import as_dict, fopen
@@ -273,7 +274,11 @@ class Domain:
 
 
 
-def test():
+def test(argv):
+    if len(argv) > 1:
+        src = argv[1]
+    else:
+        src = "data/medicaid/maxdata_demographics.csv.gz"
     src = Path(__file__).parents[2]
     registry_path = os.path.join(src, "yml", "medicaid.yaml")
     domain = Domain(registry_path, "medicaid")
@@ -283,10 +288,10 @@ def test():
     with Connection("database.ini", "local nsaph2") as connection:
         cursor = connection.cursor()
         domain.create_tables(cursor)
-        domain.import_csv("demographics", "data/medicaid/maxdata_demographics.csv.gz", cursor)
+        domain.import_csv("demographics", src, cursor)
         connection.commit()
 
 
 if __name__ == '__main__':
     init_logging()
-    test()
+    test(sys.argv)
