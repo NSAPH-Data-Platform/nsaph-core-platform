@@ -244,7 +244,6 @@ class Domain:
             table, definition = node
         table = self.fqn(table)
         columns = definition["columns"]
-        pk = definition["primary_key"]
         with fopen(path, "r") as csv_file:
             reader = csv.reader(csv_file, quoting=csv.QUOTE_NONNUMERIC)
             header = next(reader)
@@ -276,9 +275,9 @@ class Domain:
 
 def test(argv):
     if len(argv) > 1:
-        src = argv[1]
+        path_to_csv = argv[1]
     else:
-        src = "data/medicaid/maxdata_demographics.csv.gz"
+        path_to_csv = "data/medicaid/maxdata_demographics.csv.gz"
     src = Path(__file__).parents[2]
     registry_path = os.path.join(src, "yml", "medicaid.yaml")
     domain = Domain(registry_path, "medicaid")
@@ -288,7 +287,7 @@ def test(argv):
     with Connection("database.ini", "nsaph2") as connection:
         cursor = connection.cursor()
         domain.create_tables(cursor)
-        domain.import_csv("demographics", src, cursor)
+        domain.import_csv("demographics", path_to_csv, cursor)
         connection.commit()
 
 
