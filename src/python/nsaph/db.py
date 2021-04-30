@@ -42,12 +42,6 @@ class Connection:
             return "localhost"
         return hosts[0]
 
-    def connect_to_database(self, params):
-        if not self.silent:
-            logging.info('Connecting to the PostgreSQL database...')
-        conn = psycopg2.connect(**params)
-        return conn
-
     @staticmethod
     def default_port() -> int:
         return 5432
@@ -62,6 +56,12 @@ class Connection:
         self.tunnel = None
         self.silent = silent
         self.types = None
+
+    def connect_to_database(self, params):
+        if not self.silent:
+            logging.info('Connecting to the PostgreSQL database...')
+        conn = psycopg2.connect(**params)
+        return conn
 
     def connect(self):
         if "ssh_user" in self.parameters:
@@ -134,10 +134,6 @@ def test_connection ():
     logging.info('Database connection closed.')
 
 
-if __name__ == '__main__':
-    test_connection()
-
-
 class ResultSet:
     SIZE = 10000
 
@@ -161,3 +157,15 @@ class ResultSet:
             self.idx = 1
         row = self.rows[self.idx - 1]
         return {self.header[i]: row[i] for i in range(len(self.header))}
+
+
+# class PreparedInsert:
+#     def __init__(self, cursor, sql: str):
+
+
+
+
+if __name__ == '__main__':
+    test_connection()
+
+
