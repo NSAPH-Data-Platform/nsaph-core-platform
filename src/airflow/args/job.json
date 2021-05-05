@@ -2,7 +2,11 @@
   "job": {
     "data_file": {
       "class": "File",
-      "location": "/opt/projects/nsaph/data/no2_monitor_annual_average.csv"
+      "location": "/home/nsaph/projects/DataExploration/data_exploration_exercises.csv.gz"
+    },
+    "metadata": {
+      "class": "File",
+      "location": "/home/nsaph/projects/DataExploration/exercises.yaml"
     },
     "force": true
   }
