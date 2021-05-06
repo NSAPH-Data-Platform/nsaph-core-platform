@@ -1,3 +1,4 @@
+import datetime
 import logging
 from collections import OrderedDict
 from typing import Optional
@@ -81,11 +82,14 @@ class Inserter:
     def import_file(self, path, limit = None, log_step = 1000000):
         l: int = 0
         l1 = l
+        t0 = datetime.datetime.now()
         while self.ready:
             l += self.next()
             if l - l1 >= log_step:
                 l1 = l
-                logging.info("Records imported from {}: {:d}".format(path, l))
+                t1 = datetime.datetime.now()
+                rate = float(l) / (t1 - t0).seconds
+                logging.info("Records imported from {}: {:d}; rate: {:f} rec/sec".format(path, l, rate))
             if limit and l >= limit:
                 break
         logging.info("Total records imported from {}: {:d}".format(path, l))

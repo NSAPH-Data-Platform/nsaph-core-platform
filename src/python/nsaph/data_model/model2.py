@@ -23,10 +23,11 @@ def test_init(argv):
     domain.init()
     for index in domain.indices:
         print(index)
-    with Connection("database.ini", "nsaph2") as connection:
+    with Connection("database.ini", "nsaph2") as connection, DataReader(path_to_csv) as reader:
         cursor = connection.cursor()
         domain.create_tables(cursor)
-        domain.import_file("demographics", path_to_csv, cursor)
+        inserter = Inserter(domain, "demographics", reader, cursor)
+        inserter.import_file(os.path.basename(path_to_csv))
         connection.commit()
 
 
@@ -42,7 +43,7 @@ def test_step2(argv):
     with Connection("database.ini", "nsaph2") as connection, DataReader(path_to_fst) as reader:
         cursor = connection.cursor()
         inserter = Inserter(domain, "enrollments_year", reader, cursor, page_size=100)
-        inserter.import_file(path_to_fst, limit=40000, log_step=1000)
+        inserter.import_file(os.path.basename(path_to_fst), limit=None, log_step=10000)
         connection.commit()
 
 def print_ddl():
