@@ -60,6 +60,7 @@ medicaid:
             - state
           children:
             enrollments_month:
+              hard_linked: true
               columns:
 #                - 'bene_id$year$month':
 #                    type: "VARCHAR"
@@ -68,22 +69,23 @@ medicaid:
                     type: "INT"
                     source:
                       type: "range"
-                      values: 1:12
+                      values: [1,2,3,4,5,6,7,8,9,10,11,12]
                 - eligibility_code:
-                    type: "INT"
+                    type: "VARCHAR(2)"
+                    description: "https://resdac.org/cms-data/variables/medicare-medicaid-dual-eligibility-code-january"
                     source:
                       type: "multi_column"
                       parameter: "month"
                       pattern: "MAX_ELG_CD_MO_{:d}"
                 - managed_care_code:
-                    type: "INT"
+                    type: "VARCHAR(2)"
                     source:
                       type: "multi_column"
                       parameter: "month"
                       pattern: "MC_COMBO_MO_{:d}"
                     description: "https://resdac.org/cms-data/variables/managed-care-combinations-jan"
                 - medicare_eligibility:
-                    type: "INT"
+                    type: "VARCHAR(2)"
                     values:
                       - 0
                       - 1
