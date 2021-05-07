@@ -93,7 +93,9 @@ class Inserter:
         return "OFF"
 
     def import_file(self, path, limit = None, log_step = 1000000):
-        logging.info("Autocommit is: " + self.get_autocommit())
+        logging.info("Autocommit is: {}. Page size = {:d}. Logging every {:d} records"
+                     .format(self.get_autocommit(), self.page_size, log_step)
+        )
         l: int = 0
         l1 = l
         t0 = datetime.datetime.now()

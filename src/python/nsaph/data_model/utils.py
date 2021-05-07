@@ -44,14 +44,16 @@ class DataReader:
     Generalized reader for columns-structured files, such as CSV and FST
     """
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, buffer_size = None):
         self.path = path
         self.reader = None
         self.columns = None
         self.to_close = None
+        self.buffer_size = buffer_size
 
     def open_fst(self):
-        self.reader = FSTReader(self.path, 200000)
+        bs = self.buffer_size if self.buffer_size else 100000
+        self.reader = FSTReader(self.path, bs)
         self.reader.open()
         self.to_close = self.reader
         self.columns = list(self.reader.columns.keys())

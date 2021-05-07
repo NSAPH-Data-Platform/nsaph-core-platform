@@ -81,7 +81,7 @@ def run():
         if arguments.reset:
             tables = domain.drop(table, connection)
             domain.create(connection, tables)
-        with DataReader(arguments.data) as reader:
+        with DataReader(arguments.data, buffer_size=arguments.buffer) as reader:
             inserter = Inserter(domain, table, reader, connection, page_size=page)
             inserter.import_file(os.path.basename(arguments.data), limit=arguments.limit, log_step=log_step)
         connection.commit()
@@ -114,6 +114,7 @@ def args():
     parser.add_argument("--page", type=int, help="Explicit page size for the database")
     parser.add_argument("--log", type=int, help="Explicit interval for logging")
     parser.add_argument("--limit", type=int, help="Load at most specified number of records")
+    parser.add_argument("--buffer", type=int, help="Buffer size for converting fst files")
 
     arguments = parser.parse_args()
     return arguments
