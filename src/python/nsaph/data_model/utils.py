@@ -51,13 +51,13 @@ class DataReader:
         self.to_close = None
 
     def open_fst(self):
-        self.reader = FSTReader(self.path)
+        self.reader = FSTReader(self.path, 200000)
         self.reader.open()
         self.to_close = self.reader
         self.columns = list(self.reader.columns.keys())
 
     def open_csv(self):
-        self.to_close = fopen(self.path, "r")
+        self.to_close = fopen(self.path, "rt")
         self.reader = csv.reader(self.to_close, quoting=csv.QUOTE_NONNUMERIC)
         header = next(self.reader)
         self.columns = header

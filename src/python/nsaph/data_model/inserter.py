@@ -20,15 +20,16 @@ def compute(how, row):
 
 class Inserter:
 
-    def __init__(self, domain, root_table_name, reader: DataReader, cursor, page_size = 1000):
+    def __init__(self, domain, root_table_name, reader: DataReader, connection, page_size = 1000):
         self.tables = []
         self.page_size = page_size
         self.ready = False
         self.reader = reader
-        self.cursor = cursor
+        self.connection = connection
         self.domain = domain
         table = domain.find(root_table_name)
         self.prepare(root_table_name, table)
+        self.times = dict()
 
     def prepare(self, name, table):
         self.tables.append(self.Table(self, name, table))
@@ -46,6 +47,7 @@ class Inserter:
         batch = {
             table.name: [] for table in self.tables
         }
+        t0 = datetime.datetime.now()
         for row in self.reader.rows():
             is_valid = True
             for table in self.tables:
@@ -60,10 +62,15 @@ class Inserter:
             l += 1
             if l >= self.page_size:
                 break
+        t = datetime.datetime.now()
+        self.times["read"] = self.times.get("read", 0) + (t - t0).microseconds
+        t0 = t
         if len(batch) > 0:
             self.push(batch)
         else:
             self.ready = False
+        t = datetime.datetime.now()
+        self.times["store"] = self.times.get("store", 0) + (t - t0).microseconds
         return l
 
     def push(self, batch):
@@ -74,22 +81,35 @@ class Inserter:
                 for r in records:
                     print("({})".format(", ".join([str(e) for e in r])))
             try:
-                execute_values(self.cursor, table.insert, records, page_size=len(records))
+                with self.connection.cursor() as cursor:
+                    execute_values(cursor, table.insert, records, page_size=len(records))
             except Exception as x:
                 logging.error("While executing: " + table.insert)
                 raise x
 
+    def get_autocommit(self):
+        if self.connection.autocommit:
+            return "ON"
+        return "OFF"
+
     def import_file(self, path, limit = None, log_step = 1000000):
+        logging.info("Autocommit is: " + self.get_autocommit())
         l: int = 0
         l1 = l
         t0 = datetime.datetime.now()
+        self.times.clear()
         while self.ready:
             l += self.next()
             if l - l1 >= log_step:
                 l1 = l
                 t1 = datetime.datetime.now()
                 rate = float(l) / (t1 - t0).seconds
-                logging.info("Records imported from {}: {:d}; rate: {:f} rec/sec".format(path, l, rate))
+                rt = self.times["read"]
+                st = self.times["store"]
+                t = rt + st
+                logging.info(
+                    "Records imported from {}: {:d}; rate: {:f} rec/sec; read: {:d}% / store: {:d}%"
+                        .format(path, l, rate, int(rt*100/t), int(st*100/t)))
             if limit and l >= limit:
                 break
         logging.info("Total records imported from {}: {:d}".format(path, l))

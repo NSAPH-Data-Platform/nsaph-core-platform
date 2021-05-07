@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from nsaph_utils.utils.io_utils import as_dict
 
@@ -7,6 +8,7 @@ from nsaph.model import index_method, INDEX_NAME_PATTERN, INDEX_DDL_PATTERN
 
 
 class Domain:
+    CREATE = "CREATE TABLE {name}"
     def __init__(self, spec, name):
         self.domain = name
         self.spec = as_dict(spec)
@@ -45,7 +47,7 @@ class Domain:
             return self.schema + '.' + table
         return table
 
-    def find(self, table, root = None):
+    def find(self, table: str, root = None) -> Optional[dict]:
         if not root:
             tables = self.spec[self.domain]["tables"]
         else:
@@ -58,6 +60,26 @@ class Domain:
                 return d
         return None
 
+    def find_dependent(self, table: str) -> list:
+        t = self.find(table)
+        if t is None:
+            raise LookupError("Table {} does not exist in domain {}".format(table, self.domain))
+        result = [self.fqn(table)]
+        if "children" in t:
+            for child in t["children"]:
+                result.extend(self.find_dependent(child))
+        return result
+
+    def drop(self, table, connection) -> list:
+        tables = self.find_dependent(table)
+        with connection.cursor() as cursor:
+            for t in tables:
+                sql = "DROP TABLE IF EXISTS {} CASCADE".format(t)
+                logging.info(sql)
+                cursor.execute(sql)
+            if not connection.autocommit:
+                connection.commit()
+        return tables
 
     def ddl_for_node(self, node, parent = None) -> None:
         table, definition = node
@@ -89,7 +111,7 @@ class Domain:
         if fk:
             features.append(fk)
 
-        create_table = "CREATE TABLE {name} (\n\t{features}\n);".format(name=table, features=",\n\t".join(features))
+        create_table = (self.CREATE + " (\n\t{features}\n);").format(name=table, features=",\n\t".join(features))
         self.ddl.append(create_table)
 
         for column in columns:
@@ -176,9 +198,22 @@ class Domain:
             return "{} {} {}".format(name, t, code)
         return "{} {}".format(name, t)
 
-    def create_tables(self, cursor):
-        for statement in self.ddl:
-            logging.info(statement)
-        sql = "\n".join(self.ddl)
-        cursor.execute(sql)
-        logging.info("Tables created")
+    @classmethod
+    def matches(cls, create_statement, list_of_tables) -> bool:
+        for t in list_of_tables:
+            if create_statement.startswith(cls.CREATE.format(name=t)):
+                return True
+        return False
+
+    def create(self, connection, list_of_tables = None):
+        with connection.cursor() as cursor:
+            for statement in self.ddl:
+                if list_of_tables:
+                    if not self.matches(statement, list_of_tables):
+                        continue
+                logging.info(statement)
+            sql = "\n".join(self.ddl)
+            cursor.execute(sql)
+            if not connection.autocommit:
+                connection.commit()
+            logging.info("Schema and all tables for domain {} have been created".format(self.domain))

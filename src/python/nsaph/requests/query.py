@@ -21,7 +21,7 @@ class Query:
     def __init__(self, user_request, connection):
         request = as_dict(user_request)
         src = Path(__file__).parents[3]
-        registry_path = os.path.join(src, "yml", "registry.yaml")
+        registry_path = os.path.join(src, "yml", "gridmet.yaml")
         with open(registry_path) as rf:
             self.registry = yaml.safe_load(rf)
         self.request = request
@@ -40,7 +40,7 @@ class Query:
     def prepare(self):
         connection = self.connection.connect()
         self.metadata = self.connection.get_database_types()
-        self.cursor = connection.cursor()
+        self.cursor = connection.connection()
         self.sql = generate(self.registry, self.request)
 
     def __enter__(self):
