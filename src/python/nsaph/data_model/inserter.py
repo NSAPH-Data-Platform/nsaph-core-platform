@@ -1,4 +1,4 @@
-import datetime
+from datetime import timedelta, datetime
 import logging
 from collections import OrderedDict
 from typing import Optional
@@ -47,7 +47,7 @@ class Inserter:
         batch = {
             table.name: [] for table in self.tables
         }
-        t0 = datetime.datetime.now()
+        t0 = datetime.now()
         for row in self.reader.rows():
             is_valid = True
             for table in self.tables:
@@ -62,14 +62,15 @@ class Inserter:
             l += 1
             if l >= self.page_size:
                 break
-        t = datetime.datetime.now()
+        t = datetime.now()
         self.times["read"] = self.times.get("read", 0) + (t - t0).microseconds
         t0 = t
-        if len(batch) > 0:
+        size = min([len(records) for records in batch.values()])
+        if size > 0:
             self.push(batch)
         else:
             self.ready = False
-        t = datetime.datetime.now()
+        t = datetime.now()
         self.times["store"] = self.times.get("store", 0) + (t - t0).microseconds
         return l
 
@@ -83,9 +84,24 @@ class Inserter:
             try:
                 with self.connection.cursor() as cursor:
                     execute_values(cursor, table.insert, records, page_size=len(records))
+            except:
+                logging.error("While executing: {} with {:d} records".format(table.insert, len(records)))
+                self.drilldown(cursor, table.insert, records)
+
+    @staticmethod
+    def drilldown(cursor, sql: str, records: list):
+        if not records:
+            raise Exception("Empty records array for " + sql)
+        n = len(records[0])
+        sql = sql.replace("%s", "({})".format(','.join(["%s" for _ in range(n)])))
+        for record in records:
+            try:
+                cursor.execute(sql, record)
             except Exception as x:
-                logging.error("While executing: " + table.insert)
+                s = ", ".join([str(v) for v in record])
+                logging.error("While executing: {} ({})".format(sql, s))
                 raise x
+
 
     def get_autocommit(self):
         if self.connection.autocommit:
@@ -93,25 +109,33 @@ class Inserter:
         return "OFF"
 
     def import_file(self, path, limit = None, log_step = 1000000):
-        logging.info("Autocommit is: {}. Page size = {:d}. Logging every {:d} records"
+        logging.info(
+            "Autocommit is: {}. Page size = {:d}. Logging progress every {:d} records"
                      .format(self.get_autocommit(), self.page_size, log_step)
         )
         l: int = 0
         l1 = l
-        t0 = datetime.datetime.now()
+        t0 = datetime.now()
+        t1 = t0
         self.times.clear()
         while self.ready:
             l += self.next()
             if l - l1 >= log_step:
+                rate1 = float(l - l1) / (datetime.now() - t1).seconds
                 l1 = l
-                t1 = datetime.datetime.now()
+                t1 = datetime.now()
                 rate = float(l) / (t1 - t0).seconds
                 rt = self.times["read"]
                 st = self.times["store"]
                 t = rt + st
                 logging.info(
                     "Records imported from {}: {:d}; rate: {:f} rec/sec; read: {:d}% / store: {:d}%"
-                        .format(path, l, rate, int(rt*100/t), int(st*100/t)))
+                        .format(path, l, rate, int(rt*100/t), int(st*100/t))
+                )
+                logging.debug(
+                    "Current rate: {:f} rec/sec, time read: {}; time store: {}"
+                        .format(rate1, str(timedelta(microseconds=rt)), str(timedelta(microseconds=st)))
+                )
             if limit and l >= limit:
                 break
         logging.info("Total records imported from {}: {:d}".format(path, l))

@@ -207,12 +207,15 @@ class Domain:
 
     def create(self, connection, list_of_tables = None):
         with connection.cursor() as cursor:
-            for statement in self.ddl:
-                if list_of_tables:
-                    if not self.matches(statement, list_of_tables):
-                        continue
+            if list_of_tables:
+                statements = [
+                    s for s in self.ddl if self.matches(s, list_of_tables)
+                ]
+            else:
+                statements = self.ddl
+            for statement in statements:
                 logging.info(statement)
-            sql = "\n".join(self.ddl)
+            sql = "\n".join(statements)
             cursor.execute(sql)
             if not connection.autocommit:
                 connection.commit()
