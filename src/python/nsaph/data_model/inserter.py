@@ -149,7 +149,7 @@ class Inserter:
 
     def get_autocommit(self):
         ac = [
-            connection.autocommit for connection in self.connections.objects
+            connection.autocommit for connection in self.connections._objects
         ]
         if all(ac):
             return "ON"
