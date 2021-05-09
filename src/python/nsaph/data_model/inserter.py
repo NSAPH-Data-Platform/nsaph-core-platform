@@ -1,13 +1,19 @@
+import os.path
+import threading
+from contextlib import contextmanager
 from datetime import timedelta, datetime
 import logging
 from collections import OrderedDict
-from typing import Optional
+from typing import Optional, List
+from pyresourcepool.pyresourcepool import ResourcePool
+from timeit import default_timer as timer
 
 from sortedcontainers import SortedDict
 from psycopg2.extras import execute_values
 
 from nsaph.data_model.utils import split, DataReader
 from nsaph.fips import fips_dict
+from util.executors import BlockingThreadPoolExecutor
 
 
 def compute(how, row):
@@ -20,73 +26,111 @@ def compute(how, row):
 
 class Inserter:
 
-    def __init__(self, domain, root_table_name, reader: DataReader, connection, page_size = 1000):
+    def __init__(self, domain, root_table_name, reader: DataReader, connections, page_size = 1000):
         self.tables = []
         self.page_size = page_size
         self.ready = False
         self.reader = reader
-        self.connection = connection
+        if isinstance(connections, list):
+            self.connections = ResourcePool(connections)
+            self.capacity = len(connections)
+        else:
+            self.connections = ResourcePool([connections])
+            self.capacity = 1
         self.domain = domain
+        self.write_lock = threading.Lock()
+        self.read_lock = threading.Lock()
         table = domain.find(root_table_name)
         self.prepare(root_table_name, table)
-        self.times = dict()
+        self.timings = dict()
+        self.timestamps = dict()
+        self.current_row = 0
+        self.pushed_rows = 0
+        self.last_logged_row = 0
 
     def prepare(self, name, table):
-        self.tables.append(self.Table(self, name, table))
+        self.tables.append(self.Table(name, table))
         if table["children"]:
             for child_table in table["children"]:
                 child_table_def = table["children"][child_table]
                 if child_table_def.get("hard_linked"):
-                    self.tables.append(self.Table(self, child_table, child_table_def))
+                    self.tables.append(self.Table(child_table, child_table_def))
         self.ready = True
         for table in self.tables:
             logging.info(table.insert)
 
-    def next(self) -> int:
-        l: int = 0
-        batch = {
-            table.name: [] for table in self.tables
-        }
-        t0 = datetime.now()
-        for row in self.reader.rows():
-            is_valid = True
-            for table in self.tables:
-                records = table.read(row)
-                if records is None:
-                    is_valid = False
-                    logging.warning("Illegal row #{:d}: {}".format(l, str(row)))
+    def read_batch(self):
+        batch = self.Batch()
+        with self.read_lock:
+            for row in self.reader.rows():
+                self.current_row += 1
+                is_valid = True
+                for table in self.tables:
+                    records = table.read(row)
+                    if records is None:
+                        is_valid = False
+                        logging.warning("Illegal row #{:d}: {}".format(self.current_row, str(row)))
+                        break
+                    batch.add(table.name,records)
+                if not is_valid:
+                    continue
+                batch.inc()
+                if batch.rows >= self.page_size:
                     break
-                batch[table.name].extend(records)
-            if not is_valid:
-                continue
-            l += 1
-            if l >= self.page_size:
-                break
-        t = datetime.now()
-        self.times["read"] = self.times.get("read", 0) + (t - t0).microseconds
-        t0 = t
-        size = min([len(records) for records in batch.values()])
-        if size > 0:
-            self.push(batch)
+        return batch
+
+    def import_file(self, limit = None, log_step = 1000000) -> int:
+        logging.info(
+            "Autocommit is: {}. Page size = {:d}. Writer threads: {:d}. Logging progress every {:d} records"
+                .format(self.get_autocommit(), self.page_size, self.capacity, log_step)
+        )
+        self.reset_timer()
+        self.stamp_time("start")
+        if self.capacity > 1:
+            max_tasks = self.capacity * 2 + 1
+            with BlockingThreadPoolExecutor(max_queue_size=max_tasks, max_workers=self.capacity + 1) as executor:
+                l = self._loop(executor, limit, log_step)
+                executor.wait()
         else:
-            self.ready = False
-        t = datetime.now()
-        self.times["store"] = self.times.get("store", 0) + (t - t0).microseconds
+            l = self._loop(None, limit, log_step)
+        logging.info("Total records imported from {}: {:d}".format(self.reader.path, l))
+        return l
+
+    def _loop(self, executor: Optional[BlockingThreadPoolExecutor], limit = None, log_step = 1000000) -> int:
+        l: int = 0
+        l1 = l
+        while self.ready:
+            with self.timer("read"):
+                batch = self.read_batch()
+            if batch.is_empty():
+                self.ready = False
+            l += batch.rows
+            if batch.size() > 0:
+                if executor:
+                    executor.submit(self.push, batch)
+                else:
+                    self.push(batch)
+            if l - l1 >= log_step:
+                self.log_progress()
+                l1 = l
+            if limit and l >= limit:
+                break
         return l
 
     def push(self, batch):
-        for table in self.tables:
-            records = batch[table.name]
-            if False:
-                print(table.insert)
-                for r in records:
-                    print("({})".format(", ".join([str(e) for e in r])))
-            try:
-                with self.connection.cursor() as cursor:
-                    execute_values(cursor, table.insert, records, page_size=len(records))
-            except:
-                logging.error("While executing: {} with {:d} records".format(table.insert, len(records)))
-                self.drilldown(cursor, table.insert, records)
+        with self.connections.get_resource() as connection:
+            for table in self.tables:
+                records = batch[table]
+                with connection.cursor() as cursor, self.timer("store"):
+                    try:
+                        execute_values(cursor, table.insert, records, page_size=len(records))
+                    except Exception as x:
+                        msg = str(x)
+                        logging.error("Error {}; while executing: {} with {:d} records"
+                                      .format(msg, table.insert, len(records)))
+                        self.drilldown(cursor, table.insert, records)
+        with self.write_lock:
+            self.pushed_rows += batch.rows
 
     @staticmethod
     def drilldown(cursor, sql: str, records: list):
@@ -98,50 +142,81 @@ class Inserter:
             try:
                 cursor.execute(sql, record)
             except Exception as x:
+                msg = str(x)
                 s = ", ".join([str(v) for v in record])
-                logging.error("While executing: {} ({})".format(sql, s))
+                logging.error("Drill down: error {} while executing: {} ({})".format(msg, sql, s))
                 raise x
 
-
     def get_autocommit(self):
-        if self.connection.autocommit:
+        ac = [
+            connection.autocommit for connection in self.connections.objects
+        ]
+        if all(ac):
             return "ON"
-        return "OFF"
+        if all([(not a) for a in ac]):
+            return "OFF"
+        return ", ".join(["ON" if a else "OFF" for a in ac])
 
-    def import_file(self, path, limit = None, log_step = 1000000):
-        logging.info(
-            "Autocommit is: {}. Page size = {:d}. Logging progress every {:d} records"
-                     .format(self.get_autocommit(), self.page_size, log_step)
-        )
-        l: int = 0
-        l1 = l
-        t0 = datetime.now()
-        t1 = t0
-        self.times.clear()
-        while self.ready:
-            l += self.next()
-            if l - l1 >= log_step:
-                rate1 = float(l - l1) / (datetime.now() - t1).seconds
-                l1 = l
-                t1 = datetime.now()
-                rate = float(l) / (t1 - t0).seconds
-                rt = self.times["read"]
-                st = self.times["store"]
-                t = rt + st
-                logging.info(
-                    "Records imported from {}: {:d}; rate: {:f} rec/sec; read: {:d}% / store: {:d}%"
-                        .format(path, l, rate, int(rt*100/t), int(st*100/t))
-                )
-                logging.debug(
-                    "Current rate: {:f} rec/sec, time read: {}; time store: {}"
-                        .format(rate1, str(timedelta(microseconds=rt)), str(timedelta(microseconds=st)))
-                )
-            if limit and l >= limit:
-                break
-        logging.info("Total records imported from {}: {:d}".format(path, l))
-        return
+    def log_progress(self):
+        t0 = self.get_timestamp("start")
+        t1 = self.get_timestamp("last_logged", t0)
+        now = timer()
+        rate1 = float(self.pushed_rows - self.last_logged_row) / (now - t1)
+        rate = float(self.pushed_rows) / (now - t0)
+        rt = self.get_cumulative_timing("read")
+        st = self.get_cumulative_timing("store")
+        t = rt + st
+        rts = str(timedelta(seconds=rt))
+        sts = str(timedelta(seconds=st))
+        if self.capacity > 1:
+            rtl = ["{:.2f}".format(t) for t in self.get_timings("read")]
+            stl = ["{:.2f}".format(t) for t in self.get_timings("store")]
+            rts = "{} = {}".format(" + ".join(rtl), rts)
+            sts = "{} = {}".format(" + ".join(stl), sts)
+        with self.write_lock:
+            self.last_logged_row = self.pushed_rows
+            self.stamp_time("last_logged")
+            path = os.path.basename(self.reader.path)
+            logging.info(
+                "Records imported from {}: {:d} => {:d}; rate: {:f} rec/sec; read: {:d}% / store: {:d}%"
+                    .format(path, self.current_row, self.pushed_rows, rate, int(rt*100/t), int(st*100/t))
+            )
+            logging.debug(
+                "Current rate: {:f} rec/sec, time read: {}; time store: {}"
+                    .format(rate1, rts, sts)
+            )
 
-    class Table:
+    def Batch(self):
+        return self._Batch(self)
+
+    class _Batch:
+        def __init__(self, parent):
+            self.data = {
+                table.name: [] for table in parent.tables
+            }
+            self.rows = 0
+
+        def add(self, table: str, records: list):
+            self.data[table].extend(records)
+
+        def inc(self):
+            self.rows += 1
+
+        def size(self):
+            return min([len(records) for records in self.data.values()])
+
+        def is_empty(self) -> bool:
+            return self.rows == 0 and all([len(records) == 0 for records in self.data.values()])
+
+        def __getitem__(self, item):
+            if isinstance(item, Inserter._Table):
+                item = item.name
+            return self.data[item]
+
+    def Table(self, *args, **kwargs):
+        return self._Table(self, *args, **kwargs)
+
+    class _Table:
         def __init__(self, parent, name:str, table: dict):
             self.reader = parent.reader
             self.name = parent.domain.fqn(name)
@@ -268,4 +343,35 @@ class Inserter:
 
             return records
 
+    @contextmanager
+    def timer(self, context: str):
+        t0 = timer()
+        yield
+        t1 = timer()
+        tid = threading.get_ident()
+        if tid not in self.timings:
+            self.timings[tid] = dict()
+        self.timings[tid][context] = self.timings[tid].get(context, 0) + (t1 - t0)
+
+    def get_thread_timing(self, context: str) -> float:
+        tid = threading.get_ident()
+        if tid not in self.timings:
+            return 0
+        return self.timings[tid].get(context, 0)
+
+    def get_timings(self, context: str) -> List[float]:
+        return [self.timings[tid].get(context, 0) for tid in self.timings]
+
+    def get_cumulative_timing(self, context: str):
+        return sum(self.get_timings(context))
+
+    def stamp_time(self, context: str):
+        self.timestamps[context] = timer()
+
+    def get_timestamp(self, context: str, default = 0):
+        return self.timestamps.get(context, default)
+
+    def reset_timer(self):
+        self.timestamps.clear()
+        self.timings.clear()
 

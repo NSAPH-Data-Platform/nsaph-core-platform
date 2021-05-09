@@ -6,7 +6,7 @@ import os
 
 NSAPH_LOG = False
 
-def init_logging():
+def init_logging(with_thread_id = False):
     global NSAPH_LOG
     if NSAPH_LOG:
         return
@@ -33,7 +33,10 @@ def init_logging():
     ]
     for h in handlers:
         h.setLevel(logging.DEBUG)
-        h.setFormatter(logging.Formatter("%(message)s"))
+        if with_thread_id:
+            h.setFormatter(logging.Formatter("%(thread)d: %(message)s"))
+        else:
+            h.setFormatter(logging.Formatter("%(message)s"))
     logging.basicConfig(level=logging.DEBUG, handlers = handlers)
     NSAPH_LOG = True
     return NSAPH_LOG

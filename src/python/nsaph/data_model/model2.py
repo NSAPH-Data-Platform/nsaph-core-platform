@@ -11,44 +11,6 @@ from nsaph.data_model.utils import DataReader
 from nsaph.db import Connection
 
 
-
-
-
-def test_init(argv):
-    if len(argv) > 1:
-        path_to_csv = argv[1]
-    else:
-        path_to_csv = "data/medicaid/maxdata_demographics.csv.gz"
-    src = Path(__file__).parents[3]
-    registry_path = os.path.join(src, "yml", "medicaid.yaml")
-    domain = Domain(registry_path, "medicaid")
-    domain.init()
-    for index in domain.indices:
-        print(index)
-    with Connection("database.ini", "nsaph2 local") as connection, DataReader(path_to_csv) as reader:
-        cursor = connection.cursor()
-        domain.create(cursor)
-        inserter = Inserter(domain, "demographics", reader, cursor)
-        inserter.import_file(os.path.basename(path_to_csv), log_step=100000)
-        connection.commit()
-
-
-def test_step2(argv):
-    if len(argv) > 1:
-        path_to_fst = argv[1]
-    else:
-        path_to_fst = "data/medicaid/medicaid_mortality_2001.fst"
-    src = Path(__file__).parents[3]
-    registry_path = os.path.join(src, "yml", "medicaid.yaml")
-    domain = Domain(registry_path, "medicaid")
-    domain.init()
-    with Connection("database.ini", "nsaph2") as connection, DataReader(path_to_fst) as reader:
-        cursor = connection.cursor()
-        inserter = Inserter(domain, "enrollments_year", reader, cursor, page_size=100)
-        inserter.import_file(os.path.basename(path_to_fst), limit=None, log_step=10000)
-        connection.commit()
-
-
 def print_ddl (domain):
     for ddl in domain.ddl:
         print(ddl)
@@ -76,15 +38,21 @@ def run():
         page = 1000 if arguments.page is None else arguments.page
         log_step = 1000000 if arguments.log is None else arguments.log
 
-    with Connection(arguments.db, arguments.connection) as connection:
-        connection.autocommit = arguments.autocommit
+    connections = [Connection(arguments.db, arguments.connection).connect() for _ in range(arguments.threads)]
+    try:
+        for connection in connections:
+            connection.autocommit = arguments.autocommit
         if arguments.reset:
-            tables = domain.drop(table, connection)
-            domain.create(connection, tables)
+            tables = domain.drop(table, connections[0])
+            domain.create(connections[0], tables)
         with DataReader(arguments.data, buffer_size=arguments.buffer) as reader:
-            inserter = Inserter(domain, table, reader, connection, page_size=page)
-            inserter.import_file(os.path.basename(arguments.data), limit=arguments.limit, log_step=log_step)
-        connection.commit()
+            inserter = Inserter(domain, table, reader, connections, page_size=page)
+            inserter.import_file(limit=arguments.limit, log_step=log_step)
+        for connection in connections:
+            connection.commit()
+    finally:
+        for connection in connections:
+            connection.close()
 
 
 def args():
@@ -115,6 +83,7 @@ def args():
     parser.add_argument("--log", type=int, help="Explicit interval for logging")
     parser.add_argument("--limit", type=int, help="Load at most specified number of records")
     parser.add_argument("--buffer", type=int, help="Buffer size for converting fst files")
+    parser.add_argument("--threads", type=int, help="Number fo threads writing into the database", default=1)
 
     arguments = parser.parse_args()
     return arguments

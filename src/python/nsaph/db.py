@@ -96,7 +96,7 @@ class Connection:
     def get_database_types(self):
         if not self.types:
             sql = "SELECT oid, typname from pg_catalog.pg_type"
-            cursor = self.connection.connection()
+            cursor = self.connection.connections()
             cursor.execute(sql)
             rows = cursor.fetchall()
             self.types = {

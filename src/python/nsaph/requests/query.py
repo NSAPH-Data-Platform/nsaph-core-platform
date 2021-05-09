@@ -40,7 +40,7 @@ class Query:
     def prepare(self):
         connection = self.connection.connect()
         self.metadata = self.connection.get_database_types()
-        self.cursor = connection.connection()
+        self.cursor = connection.connections()
         self.sql = generate(self.registry, self.request)
 
     def __enter__(self):
