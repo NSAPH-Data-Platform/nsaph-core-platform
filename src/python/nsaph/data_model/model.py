@@ -185,7 +185,7 @@ class Table:
         if extraction_method:
             self.force_manual = True
 
-    def make_column(self, name, type, sql, cursor, index=False, include=None):
+    def make_column(self, name, type, sql, cursor, index=False, include_in_index=None):
         ddl = "ALTER TABLE {table} ADD {column} {type}"\
             .format(table = self.table, column = name, type = type)
         logging.info(ddl)
@@ -194,8 +194,8 @@ class Table:
         cursor.execute(sql)
         if index:
             idx, ddl = self.get_index_ddl(column=name, method=HASH)
-            if include:
-                ddl += " include({})".format(include)
+            if include_in_index:
+                ddl += " include({})".format(include_in_index)
             logging.info(ddl)
             cursor.execute(ddl)
 
@@ -208,6 +208,16 @@ class Table:
         self.make_column(column, "VARCHAR", sql, cursor, True)
 
     def make_iso_column(self, anchor, cursor, include = None):
+        """
+        Add US State ISO 3166-2 code
+        Source: https://simplemaps.com/data/us-cities
+
+        :param anchor: existing column to use to calculate state iso code
+        :param cursor: Database cursor
+        :param include: Additional data (column) to include in index on the new column
+        :return:
+        """
+
         column = "state_iso"
         if anchor.lower() == "state_name":
             e = "(SELECT iso FROM us_states " \
@@ -221,7 +231,7 @@ class Table:
             e = "(SELECT iso FROM us_iso WHERE us_iso.{} = {}.{} LIMIT 1)"\
                 .format(us_iso_column, self.table, anchor)
         sql = SET_COLUMN.format(table=self.table, column=column, expression=e)
-        self.make_column(column, "VARCHAR", sql, cursor, True)
+        self.make_column(column, "VARCHAR", sql, cursor, index=True, include_in_index=include)
 
     def parse_fips12(self, cursor):
         column = "fips5"
