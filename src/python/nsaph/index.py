@@ -5,7 +5,7 @@ import time
 
 from nsaph import init_logging
 from nsaph.db import Connection
-from nsaph.model import Table, INDEX_REINDEX, INDEX_INCREMENTAL
+from nsaph.data_model.model import Table, INDEX_REINDEX, INDEX_INCREMENTAL
 
 SQL12 = """
     SELECT 

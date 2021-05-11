@@ -5,7 +5,7 @@ from nsaph.analyze import analyze
 from nsaph.create import create_table
 from nsaph.index import build_indices
 from nsaph.db import Connection
-from nsaph.model import INDEX_REINDEX
+from nsaph.data_model.model import INDEX_REINDEX
 
 
 def ingest(args: list, force: bool = False):

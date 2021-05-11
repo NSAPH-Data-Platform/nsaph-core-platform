@@ -11,7 +11,8 @@ from timeit import default_timer as timer
 from sortedcontainers import SortedDict
 from psycopg2.extras import execute_values
 
-from nsaph.data_model.utils import split, DataReader
+from nsaph.data_model.domain import Domain
+from nsaph.data_model.utils import split, DataReader, regex
 from nsaph.fips import fips_dict
 from util.executors import BlockingThreadPoolExecutor
 
@@ -50,7 +51,7 @@ class Inserter:
 
     def prepare(self, name, table):
         self.tables.append(self.Table(name, table))
-        if table["children"]:
+        if "children" in table:
             for child_table in table["children"]:
                 child_table_def = table["children"][child_table]
                 if child_table_def.get("hard_linked"):
@@ -128,12 +129,15 @@ class Inserter:
                         msg = str(x)
                         logging.error("Error {}; while executing: {} with {:d} records"
                                       .format(msg, table.insert, len(records)))
-                        self.drilldown(cursor, table.insert, records)
+                        self.drilldown(connection, table.insert, records)
         with self.write_lock:
             self.pushed_rows += batch.rows
 
     @staticmethod
-    def drilldown(cursor, sql: str, records: list):
+    def drilldown(connection, sql: str, records: list):
+        if not connection.autocommit:
+            connection.rollback()
+        cursor = connection.cursor()
         if not records:
             raise Exception("Empty records array for " + sql)
         n = len(records[0])
@@ -226,6 +230,7 @@ class Inserter:
             self.pk = None
             self.insert = None
             self.range = None
+            self.arrays = dict()
             self.prepare(table)
 
         def prepare(self, table: dict):
@@ -278,14 +283,27 @@ class Inserter:
                             break
                 if not source:
                     raise Exception("Source was not found for column {}".format(name))
-                source_index = self.reader.columns.index(source)
-                self.mapping[source_index] = name
+                if Domain.is_array(column):
+                    r = regex(source)
+                    i0 = len(self.reader.columns)
+                    i1 = 0
+                    for i, clmn in enumerate(self.reader.columns):
+                        if r.fullmatch(clmn):
+                            self.mapping[i] = name
+                            i0 = min(i0, i)
+                            i1 = max(i1, i)
+                    self.arrays[i0] = i1
+                else:
+                    source_index = self.reader.columns.index(source)
+                    self.mapping[source_index] = name
             inverse_mapping = {
                 item[1]: item[0] for item in self.mapping.items()
             }
             for c in self.computes.values():
                 parameters = [
-                    inverse_mapping[p] for p in c["parameters"]
+                    inverse_mapping[p] for p in c.get("parameters", [])
+                ] + [
+                    self.reader.columns.index(p) for p in c.get("columns", [])
                 ]
                 arguments = ["empty"] + [
                     "row[{:d}]".format(p) for p in parameters
@@ -293,7 +311,11 @@ class Inserter:
                 code = c["code"].format(*arguments)
                 c["eval"] = code
             self.pk = {i for i in self.mapping if self.mapping[i] in primary_key}
-            cc = [self.mapping[i] for i in self.mapping]
+            cc = []
+            for i in self.mapping:
+                name = self.mapping[i]
+                if name not in cc:
+                    cc.append(name)
             cc.extend(self.computes.keys())
             if self.range:
                 cc.append(self.range[0])
@@ -314,15 +336,27 @@ class Inserter:
             return [record]
 
         def map(self, row, record):
+            array = None
+            array_end = None
             for i in self.mapping:
+                if i in self.arrays:
+                    array = []
+                    array_end = self.arrays[i]
+                is_end = array_end == i
                 value = row[i]
                 if not value:
                     if i in self.pk:
                         return False
                     else:
-                        record.append(None)
-                else:
+                        value = None
+                if array is None:
                     record.append(value)
+                else:
+                    array.append(value)
+                    if is_end:
+                        record.append(array)
+                        array = None
+                        array_end = None
             return True
 
         def read_multi(self, row) -> Optional[list]:

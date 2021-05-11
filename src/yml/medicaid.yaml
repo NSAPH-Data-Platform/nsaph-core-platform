@@ -41,7 +41,7 @@ medicaid:
             - fips5:
                 source:
                   type: "compute"
-                  parameters:
+                  parameters: # parameters refer to column names in the table, while columns refer to column names in the source
                     - state
                     - residence_county
                   code: "fips_dict[{1}] * 1000 + int({2})"
@@ -109,16 +109,41 @@ medicaid:
                 - month
               children:
                 admissions:
+                  description: "https://resdac.org/cms-data/files/max-ip/data-documentation"
                   parent:
                     source: "YEAR(admission_date)$MONTH(admission_date)"
                   columns:
+                    - year:
+                        type: "INT"
+                        source:
+                          type: "generated"
+                          code: "GENERATED ALWAYS AS (EXTRACT (YEAR FROM admission_date)) STORED"
+                    - month:
+                        type: "INT"
+                        source:
+                          type: "generated"
+                          code: "GENERATED ALWAYS AS (EXTRACT (MONTH FROM admission_date)) STORED"
                     - admission_date:
                         type: "DATE"
-                        original: "ADMSN_DT"
+                        source:
+                          type: "compute"
+                          columns: # parameters refer to column names in the table, while columns refer to column names in the source
+                            - "ADMSN_DT"
+                          code: "datetime.strptime({1}, '%Y%m%d').date()"
                     - discharge_date:
                         type: "DATE"
-                        source: "SRVC_END_DT"
+                        source:
+                          type: "compute"
+                          columns: # parameters refer to column names in the table, while columns refer to column names in the source
+                            - "SRVC_END_DT"
+                          code: "datetime.strptime({1}, '%Y%m%d').date()"
                     - diagnosis:
-                        type: "VARCHAR[10]"
+                        type: "VARCHAR(12)[10]"
                         source: "DIAG_CD_*"
+                  primary_key:
+                    - bene_id
+                    - year
+                    - admission_date
+                    - discharge_date
+
 

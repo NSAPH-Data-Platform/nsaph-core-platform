@@ -3,8 +3,8 @@ from typing import Optional
 
 from nsaph_utils.utils.io_utils import as_dict
 
-from nsaph.data_model.utils import basename, split, DataReader
-from nsaph.model import index_method, INDEX_NAME_PATTERN, INDEX_DDL_PATTERN
+from nsaph.data_model.utils import basename, split
+from nsaph.data_model.model import index_method, INDEX_NAME_PATTERN, INDEX_DDL_PATTERN
 
 
 class Domain:
@@ -84,6 +84,7 @@ class Domain:
     def ddl_for_node(self, node, parent = None) -> None:
         table, definition = node
         columns = definition["columns"]
+        cnames = {split(column)[0] for column in columns}
         features = []
         table = self.fqn(table)
         fk = None
@@ -98,7 +99,7 @@ class Domain:
                 .format(name=fk_name, columns=fk_column_list, parent=self.fqn(ptable))
             for column in pdef["columns"]:
                 c, _ = split(column)
-                if c in fk_columns:
+                if c in fk_columns and c not in cnames:
                     columns.append(column)
 
         features.extend([self.column_spec(column) for column in columns])

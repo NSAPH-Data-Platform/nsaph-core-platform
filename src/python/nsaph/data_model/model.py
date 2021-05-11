@@ -9,6 +9,7 @@ import sys
 import traceback
 from typing import Dict, Optional
 
+from nsaph.data_model.utils import regex
 from nsaph.reader import CSVFileWrapper, name, fopen, SpecialValues
 
 
@@ -27,14 +28,6 @@ INDEX_NAME_PATTERN = "{table}_{column}_idx"
 BTREE = "btree"
 #HASH = "hash"
 HASH = BTREE  # problem building huge hash indices
-
-def regex(pattern: str):
-    pattern = 'A' + pattern.replace('.', '_') + 'Z'
-    x = pattern.split('*')
-    y = [re.escape(s) for s in x]
-    regexp = ".*".join(y)[1:-1]
-    return re.compile(regexp)
-
 
 index_columns = {
     "date":BTREE,

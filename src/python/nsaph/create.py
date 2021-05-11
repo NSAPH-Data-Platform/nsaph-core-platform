@@ -1,7 +1,7 @@
 import argparse
 
 from nsaph import init_logging
-from nsaph.model import Table
+from nsaph.data_model.model import Table
 from nsaph.db import Connection
 from nsaph.reader import name, get_entries
 

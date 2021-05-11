@@ -1,3 +1,5 @@
+import re
+
 from nsaph_utils.utils.pyfst import FSTReader
 from nsaph_utils.utils.io_utils import fopen
 import csv
@@ -78,3 +80,11 @@ class DataReader:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.to_close.close()
+
+
+def regex(pattern: str):
+    pattern = 'A' + pattern.replace('.', '_') + 'Z'
+    x = pattern.split('*')
+    y = [re.escape(s) for s in x]
+    regexp = ".*".join(y)[1:-1]
+    return re.compile(regexp)

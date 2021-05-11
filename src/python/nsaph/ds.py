@@ -3,7 +3,7 @@ import os
 import yaml
 
 from nsaph.md import parse
-from nsaph.model import Table
+from nsaph.data_model.model import Table
 
 
 def create(table: Table, readme: str = None):

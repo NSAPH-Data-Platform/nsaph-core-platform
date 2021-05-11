@@ -4,7 +4,7 @@ import os
 from nsaph import init_logging
 from nsaph.ds import create_datasource_def
 from nsaph.reader import get_entries, get_readme
-from nsaph.model import Table
+from nsaph.data_model.model import Table
 
 
 def analyze(path: str, metadata_path: str=None, columns=None, column_map=None):
