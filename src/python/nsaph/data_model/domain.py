@@ -7,6 +7,30 @@ from nsaph.data_model.utils import basename, split
 from nsaph.data_model.model import index_method, INDEX_NAME_PATTERN, INDEX_DDL_PATTERN
 
 
+VALIDATION_INSERT = "INSERT INTO {target} VALUES (NEW.*);"
+VALIDATION_PROC = """
+CREATE OR REPLACE FUNCTION {schema}.validate_{source}() RETURNS TRIGGER AS ${schema}_{source}_validation$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT FROM {parent_table}
+            WHERE
+                {parent_columns} 
+        ) THEN
+            {action}
+            RETURN NULL;
+        END IF;
+        RETURN NEW;
+    END;
+ 
+${schema}_{source}_validation$ LANGUAGE plpgsql;
+"""
+
+VALIDATION_TRIGGER = """
+    CREATE TRIGGER {schema}_{name}_validation BEFORE INSERT ON {table}
+        FOR EACH ROW EXECUTE FUNCTION {schema}.validate_{name}();
+"""
+
+
 class Domain:
     CREATE = "CREATE TABLE {name}"
     def __init__(self, spec, name):
@@ -36,6 +60,9 @@ class Domain:
             self.ddl = ["CREATE SCHEMA IF NOT EXISTS {};".format(self.schema)]
         else:
             self.ddl = []
+        for s in self.spec[self.domain]:
+            if s.startswith("schema."):
+                self.ddl.append("CREATE SCHEMA IF NOT EXISTS {};".format(self.spec[self.domain][s]))
         tables = self.spec[self.domain]["tables"]
         nodes = {t: tables[t] for t in tables}
         for node in nodes:
@@ -82,18 +109,20 @@ class Domain:
         return tables
 
     def ddl_for_node(self, node, parent = None) -> None:
-        table, definition = node
+        table_basename, definition = node
         columns = definition["columns"]
         cnames = {split(column)[0] for column in columns}
         features = []
-        table = self.fqn(table)
+        table = self.fqn(table_basename)
         fk = None
+        ptable = None
+        fk_columns = None
         if parent is not None:
             ptable, pdef = parent
             if "primary_key" not in pdef:
                 raise Exception("Parent table {} must define primary key".format(ptable))
             fk_columns = pdef["primary_key"]
-            fk_name = "{}_to_{}".format(basename(table), ptable)
+            fk_name = "{}_to_{}".format(table_basename, ptable)
             fk_column_list = ", ".join(fk_columns)
             fk = "CONSTRAINT {name} FOREIGN KEY ({columns}) REFERENCES {parent} ({columns})"\
                 .format(name=fk_name, columns=fk_column_list, parent=self.fqn(ptable))
@@ -114,6 +143,31 @@ class Domain:
 
         create_table = (self.CREATE + " (\n\t{features}\n);").format(name=table, features=",\n\t".join(features))
         self.ddl.append(create_table)
+        if "invalid.records" in definition:
+            validation = definition["invalid.records"]
+            action = validation["action"].lower()
+            t2 = None
+            spec = self.spec[self.domain]
+            if action == "insert":
+                target = validation["target"]
+                if "schema" in target:
+                    ts = target["schema"]
+                    if ts[0] == '$':
+                        ts = spec[ts[1:]]
+                else:
+                    ts = spec["schema"]
+                if "table" in target:
+                    tt = target["table"]
+                    if tt[0] == '$':
+                        tt = spec[tt[1:]]
+                else:
+                    tt = table_basename
+                t2 = "{}.{}".format(ts, tt)
+                ff = [f for f in features if "CONSTRAINT" not in f]
+                create_table = (self.CREATE + " (\n\t{features}\n);").format(name=t2, features=",\n\t".join(ff))
+                self.ddl.append(create_table)
+            self.add_fk_validation(table, action, t2, ptable, fk_columns)
+
 
         for column in columns:
             if not self.need_index(column):
@@ -221,3 +275,19 @@ class Domain:
             if not connection.autocommit:
                 connection.commit()
             logging.info("Schema and all tables for domain {} have been created".format(self.domain))
+
+    def add_fk_validation(self, table, action, target, pt, cc):
+        if action == "insert":
+            action = VALIDATION_INSERT.format(target=target)
+        elif action == "ignore":
+            action = ""
+        else:
+            raise Exception("Invalid action on validation for table {}: {}".format(table, action))
+        columns = ["NEW.{c} = {c}".format(c=c) for c in cc]
+        condition = "\n\t\t\t\tAND ".join(columns)
+        t = basename(table)
+        sql = VALIDATION_PROC.format(schema=self.schema, source=t, action=action,
+                                     parent_table=self.fqn(pt), parent_columns=condition)
+        self.ddl.append(sql)
+        sql = VALIDATION_TRIGGER.format(schema=self.schema, name=t, table=table).strip()
+        self.ddl.append(sql)

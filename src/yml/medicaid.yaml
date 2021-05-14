@@ -2,6 +2,7 @@ medicaid:
   reference: "https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/dominici_data_pipelines/-/blob/master/medicaid/reports/schema.yml"
   index: "unless excluded"
   schema: "medicaid"
+  schema.invalid: "medicaid_invalid"
   tables:
     demographics:
       columns:
@@ -109,9 +110,12 @@ medicaid:
                 - month
               children:
                 admissions:
+                  invalid.records:
+                    action: "INSERT"
+                    #action: "IGNORE"
+                    target:
+                      schema: $schema.invalid
                   description: "https://resdac.org/cms-data/files/max-ip/data-documentation"
-                  parent:
-                    source: "YEAR(admission_date)$MONTH(admission_date)"
                   columns:
                     - year:
                         type: "INT"
