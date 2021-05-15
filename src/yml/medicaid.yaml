@@ -2,7 +2,7 @@ medicaid:
   reference: "https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/dominici_data_pipelines/-/blob/master/medicaid/reports/schema.yml"
   index: "unless excluded"
   schema: "medicaid"
-  schema.invalid: "medicaid_invalid"
+  schema.audit: "medicaid_audit"
   tables:
     demographics:
       columns:
@@ -114,7 +114,7 @@ medicaid:
                     action: "INSERT"
                     #action: "IGNORE"
                     target:
-                      schema: $schema.invalid
+                      schema: $schema.audit
                   description: "https://resdac.org/cms-data/files/max-ip/data-documentation"
                   columns:
                     - year:

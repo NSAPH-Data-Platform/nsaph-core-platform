@@ -7,27 +7,32 @@ from nsaph.data_model.utils import basename, split
 from nsaph.data_model.model import index_method, INDEX_NAME_PATTERN, INDEX_DDL_PATTERN
 
 
-VALIDATION_INSERT = """INSERT INTO {target} 
-                ({columns}) 
-                VALUES ({values});"""
+AUDIT_INSERT = """INSERT INTO {target} 
+                ({columns}, REASON) 
+                VALUES ({values}, '{reason}');"""
+
 VALIDATION_PROC = """
 CREATE OR REPLACE FUNCTION {schema}.validate_{source}() RETURNS TRIGGER AS ${schema}_{source}_validation$
 -- Validate foreign key for {schema}.{source}
     BEGIN
+        IF ({condition_pk}) THEN
+            {action_pk}
+            RETURN NULL;
+        END IF;
         IF NOT EXISTS (
             SELECT FROM {parent_table}
             WHERE
-                {parent_columns} 
+                {condition_fk} 
         ) THEN
-            {action}
+            {action_fk}
             RETURN NULL;
         END IF;
         IF EXISTS (
             SELECT FROM {schema}.{source}
             WHERE
-                {pk} 
+                {condition_dup} 
         ) THEN
-            {action}
+            {action_dup}
             RETURN NULL;
         END IF;
         RETURN NEW;
@@ -186,6 +191,8 @@ class Domain:
             t2 = self.spillover_table(table_basename, definition)
             if t2:
                 ff = [f for f in features if "CONSTRAINT" not in f and "PRIMARY KEY" not in f]
+                ff.append("REASON VARCHAR(16)")
+                ff.append("recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ")
                 create_table = (self.CREATE + " (\n\t{features}\n);").format(name=t2, features=",\n\t".join(ff))
                 self.ddl.append(create_table)
             self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
@@ -303,7 +310,7 @@ class Domain:
                 connection.commit()
             logging.info("Schema and all tables for domain {} have been created".format(self.domain))
 
-    def add_fk_validation(self, table, pk, action, target, columns, pt, pt_columns):
+    def add_fk_validation(self, table, pk, action, target, columns, pt, fk_columns):
         if action == "insert":
             cc = []
             for c in columns:
@@ -311,18 +318,27 @@ class Domain:
                 if not self.is_generated(definition):
                     cc.append(name)
             vv = ["NEW.{}".format(c) for c in cc]
-            action = VALIDATION_INSERT.format(target=target, columns=','.join(cc), values=','.join(vv))
+            actions = [
+                AUDIT_INSERT.format(target=target, columns=','.join(cc), values=','.join(vv), reason=r)
+                for r in ["DUPLICATE", "FOREIGN KEY", "PRIMARY KEY"]
+            ]
         elif action == "ignore":
-            action = ""
+            actions = ["", "", ""]
         else:
             raise Exception("Invalid action on validation for table {}: {}".format(table, action))
         conditions = [
             "\n\t\t\t\tAND ".join(["NEW.{c} = {c}".format(c=c) for c in constraint])
-            for constraint in [pk, pt_columns]
+            for constraint in [pk, fk_columns]
         ]
+        conditions.append("\n\t\t\t\tOR ".join(["NEW.{c} IS NULL ".format(c=c) for c in pk]))
+        # OR NEW.{c} = ''
         t = basename(table)
-        sql = VALIDATION_PROC.format(schema=self.schema, source=t, action=action, pk=conditions[0],
-                                     parent_table=self.fqn(pt), parent_columns=conditions[1])
+
+        sql = VALIDATION_PROC.format(schema=self.schema, source=t, parent_table=self.fqn(pt),
+                                     condition_dup = conditions[0], action_dup = actions[0],
+                                     condition_fk = conditions[1], action_fk = actions[1],
+                                     condition_pk = conditions[2], action_pk = actions[2],
+        )
         self.ddl.append(sql)
         sql = VALIDATION_TRIGGER.format(schema=self.schema, name=t, table=table).strip()
         self.ddl.append(sql)

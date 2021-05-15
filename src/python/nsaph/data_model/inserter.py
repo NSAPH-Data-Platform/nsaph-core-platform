@@ -231,6 +231,9 @@ class Inserter:
             self.insert = None
             self.range = None
             self.arrays = dict()
+            self.audit = None
+            if "invalid.records" in table:
+                self.audit = table["invalid.records"]
             self.prepare(table)
 
         def prepare(self, table: dict):
@@ -344,7 +347,7 @@ class Inserter:
                     array_end = self.arrays[i]
                 is_end = array_end == i
                 value = row[i]
-                if not value:
+                if not value and self.audit is None:
                     if i in self.pk:
                         return False
                     else:
