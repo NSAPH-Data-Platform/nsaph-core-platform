@@ -7,14 +7,25 @@ from nsaph.data_model.utils import basename, split
 from nsaph.data_model.model import index_method, INDEX_NAME_PATTERN, INDEX_DDL_PATTERN
 
 
-VALIDATION_INSERT = "INSERT INTO {target} VALUES (NEW.*);"
+VALIDATION_INSERT = """INSERT INTO {target} 
+                ({columns}) 
+                VALUES ({values});"""
 VALIDATION_PROC = """
 CREATE OR REPLACE FUNCTION {schema}.validate_{source}() RETURNS TRIGGER AS ${schema}_{source}_validation$
+-- Validate foreign key for {schema}.{source}
     BEGIN
         IF NOT EXISTS (
             SELECT FROM {parent_table}
             WHERE
                 {parent_columns} 
+        ) THEN
+            {action}
+            RETURN NULL;
+        END IF;
+        IF EXISTS (
+            SELECT FROM {schema}.{source}
+            WHERE
+                {pk} 
         ) THEN
             {action}
             RETURN NULL;
@@ -95,6 +106,9 @@ class Domain:
         if "children" in t:
             for child in t["children"]:
                 result.extend(self.find_dependent(child))
+        t2 = self.spillover_table(table, t)
+        if t2:
+            result.append(t2)
         return result
 
     def drop(self, table, connection) -> list:
@@ -107,6 +121,28 @@ class Domain:
             if not connection.autocommit:
                 connection.commit()
         return tables
+
+    def spillover_table(self, table, definition):
+        if "invalid.records" in definition:
+            validation = definition["invalid.records"]
+            action = validation["action"].lower()
+            spec = self.spec[self.domain]
+            if action == "insert":
+                target = validation["target"]
+                if "schema" in target:
+                    ts = target["schema"]
+                    if ts[0] == '$':
+                        ts = spec[ts[1:]]
+                else:
+                    ts = spec["schema"]
+                if "table" in target:
+                    tt = target["table"]
+                    if tt[0] == '$':
+                        tt = spec[tt[1:]]
+                else:
+                    tt = table
+                return "{}.{}".format(ts, tt)
+        return None
 
     def ddl_for_node(self, node, parent = None) -> None:
         table_basename, definition = node
@@ -133,6 +169,7 @@ class Domain:
 
         features.extend([self.column_spec(column) for column in columns])
 
+        pk_columns = None
         if "primary_key" in definition:
             pk_columns = definition["primary_key"]
             pk = "PRIMARY KEY ({})".format(", ".join(pk_columns))
@@ -146,27 +183,12 @@ class Domain:
         if "invalid.records" in definition:
             validation = definition["invalid.records"]
             action = validation["action"].lower()
-            t2 = None
-            spec = self.spec[self.domain]
-            if action == "insert":
-                target = validation["target"]
-                if "schema" in target:
-                    ts = target["schema"]
-                    if ts[0] == '$':
-                        ts = spec[ts[1:]]
-                else:
-                    ts = spec["schema"]
-                if "table" in target:
-                    tt = target["table"]
-                    if tt[0] == '$':
-                        tt = spec[tt[1:]]
-                else:
-                    tt = table_basename
-                t2 = "{}.{}".format(ts, tt)
-                ff = [f for f in features if "CONSTRAINT" not in f]
+            t2 = self.spillover_table(table_basename, definition)
+            if t2:
+                ff = [f for f in features if "CONSTRAINT" not in f and "PRIMARY KEY" not in f]
                 create_table = (self.CREATE + " (\n\t{features}\n);").format(name=t2, features=",\n\t".join(ff))
                 self.ddl.append(create_table)
-            self.add_fk_validation(table, action, t2, ptable, fk_columns)
+            self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
 
 
         for column in columns:
@@ -255,9 +277,14 @@ class Domain:
 
     @classmethod
     def matches(cls, create_statement, list_of_tables) -> bool:
+        create_statement = create_statement.strip()
         for t in list_of_tables:
             if create_statement.startswith(cls.CREATE.format(name=t)):
                 return True
+            for create in ["CREATE TRIGGER", "CREATE OR REPLACE FUNCTION"]:
+                if create_statement.startswith(create) and t in create_statement:
+                    return True
+
         return False
 
     def create(self, connection, list_of_tables = None):
@@ -276,18 +303,26 @@ class Domain:
                 connection.commit()
             logging.info("Schema and all tables for domain {} have been created".format(self.domain))
 
-    def add_fk_validation(self, table, action, target, pt, cc):
+    def add_fk_validation(self, table, pk, action, target, columns, pt, pt_columns):
         if action == "insert":
-            action = VALIDATION_INSERT.format(target=target)
+            cc = []
+            for c in columns:
+                name, definition = split(c)
+                if not self.is_generated(definition):
+                    cc.append(name)
+            vv = ["NEW.{}".format(c) for c in cc]
+            action = VALIDATION_INSERT.format(target=target, columns=','.join(cc), values=','.join(vv))
         elif action == "ignore":
             action = ""
         else:
             raise Exception("Invalid action on validation for table {}: {}".format(table, action))
-        columns = ["NEW.{c} = {c}".format(c=c) for c in cc]
-        condition = "\n\t\t\t\tAND ".join(columns)
+        conditions = [
+            "\n\t\t\t\tAND ".join(["NEW.{c} = {c}".format(c=c) for c in constraint])
+            for constraint in [pk, pt_columns]
+        ]
         t = basename(table)
-        sql = VALIDATION_PROC.format(schema=self.schema, source=t, action=action,
-                                     parent_table=self.fqn(pt), parent_columns=condition)
+        sql = VALIDATION_PROC.format(schema=self.schema, source=t, action=action, pk=conditions[0],
+                                     parent_table=self.fqn(pt), parent_columns=conditions[1])
         self.ddl.append(sql)
         sql = VALIDATION_TRIGGER.format(schema=self.schema, name=t, table=table).strip()
         self.ddl.append(sql)

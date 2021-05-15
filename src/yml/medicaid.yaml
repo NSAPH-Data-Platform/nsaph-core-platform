@@ -146,7 +146,6 @@ medicaid:
                         source: "DIAG_CD_*"
                   primary_key:
                     - bene_id
-                    - year
                     - admission_date
                     - discharge_date
 
