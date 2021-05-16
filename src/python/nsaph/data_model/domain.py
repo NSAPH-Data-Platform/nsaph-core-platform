@@ -20,7 +20,7 @@ CREATE OR REPLACE FUNCTION {schema}.validate_{source}() RETURNS TRIGGER AS ${sch
             RETURN NULL;
         END IF;
         IF NOT EXISTS (
-            SELECT FROM {parent_table}
+            SELECT FROM {parent_table} as t
             WHERE
                 {condition_fk} 
         ) THEN
@@ -28,7 +28,7 @@ CREATE OR REPLACE FUNCTION {schema}.validate_{source}() RETURNS TRIGGER AS ${sch
             RETURN NULL;
         END IF;
         IF EXISTS (
-            SELECT FROM {schema}.{source}
+            SELECT FROM {schema}.{source} as t
             WHERE
                 {condition_dup} 
         ) THEN
@@ -272,6 +272,16 @@ class Domain:
             return False
         return "generated" == column["source"]["type"].lower()
 
+    def extract_generation_code(self, column, other_columns, qualifier):
+        code = column["source"]["code"]
+        pos1 = code.lower().index("as") + len("as")
+        pos2 = code.lower().index("stored")
+        expression = code[pos1:pos2].strip()
+        for col in other_columns:
+            n, c = split(col)
+            expression = expression.replace(n, "{}.{}".format(qualifier, n))
+        return expression
+
     def column_spec(self, column) -> str:
         name, column = split(column)
         t = column.get("type", "VARCHAR")
@@ -311,6 +321,10 @@ class Domain:
             logging.info("Schema and all tables for domain {} have been created".format(self.domain))
 
     def add_fk_validation(self, table, pk, action, target, columns, pt, fk_columns):
+        columns_as_dict = {}
+        for c in columns:
+            name, definition = split(c)
+            columns_as_dict[name] = definition
         if action == "insert":
             cc = []
             for c in columns:
@@ -326,10 +340,17 @@ class Domain:
             actions = ["", "", ""]
         else:
             raise Exception("Invalid action on validation for table {}: {}".format(table, action))
-        conditions = [
-            "\n\t\t\t\tAND ".join(["NEW.{c} = {c}".format(c=c) for c in constraint])
-            for constraint in [pk, fk_columns]
-        ]
+        conditions = []
+        for constraint in [pk, fk_columns]:
+            cols = []
+            for c in constraint:
+                column = columns_as_dict[c]
+                if self.is_generated(column):
+                    exp = self.extract_generation_code(column, columns, "NEW")
+                    cols.append("{exp} = t.{c}".format(exp=exp,c=c))
+                else:
+                    cols.append("NEW.{c} = t.{c}".format(c=c))
+            conditions.append("\n\t\t\t\tAND ".join(cols))
         conditions.append("\n\t\t\t\tOR ".join(["NEW.{c} IS NULL ".format(c=c) for c in pk]))
         # OR NEW.{c} = ''
         t = basename(table)

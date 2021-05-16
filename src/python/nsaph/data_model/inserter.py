@@ -347,8 +347,8 @@ class Inserter:
                     array_end = self.arrays[i]
                 is_end = array_end == i
                 value = row[i]
-                if not value and self.audit is None:
-                    if i in self.pk:
+                if not value:
+                    if i in self.pk and self.audit is None:
                         return False
                     else:
                         value = None
