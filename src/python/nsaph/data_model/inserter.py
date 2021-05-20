@@ -89,8 +89,10 @@ class Inserter:
         self.stamp_time("start")
         if self.capacity > 1:
             max_tasks = self.capacity * 2 + 1
-            with BlockingThreadPoolExecutor(max_queue_size=max_tasks, max_workers=self.capacity + 1) as executor:
-                l = self._loop(executor, limit, log_step)
+            with BlockingThreadPoolExecutor(max_queue_size=max_tasks,
+                                            max_workers=self.capacity + 1,
+                                            timeout=14400) as executor:
+                l: int = self._loop(executor, limit, log_step)
                 executor.wait()
         else:
             l = self._loop(None, limit, log_step)
