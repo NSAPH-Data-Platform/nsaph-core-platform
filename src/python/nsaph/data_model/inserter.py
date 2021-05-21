@@ -32,22 +32,29 @@ class Inserter:
         self.page_size = page_size
         self.ready = False
         self.reader = reader
-        if isinstance(connections, list):
-            self.connections = ResourcePool(connections)
-            self.capacity = len(connections)
-        else:
-            self.connections = ResourcePool([connections])
-            self.capacity = 1
         self.domain = domain
         self.write_lock = threading.Lock()
         self.read_lock = threading.Lock()
         table = domain.find(root_table_name)
         self.prepare(root_table_name, table)
+        if isinstance(connections, list):
+            has_triggers = any([table.audit for table in self.tables])
+            if has_triggers and len(connections) > 1:
+                logging.warning("One of the tables uses triggers, only one connection can be used")
+                self.connections = ResourcePool(connections[0:1])
+                self.capacity = 2
+            else:
+                self.connections = ResourcePool(connections)
+                self.capacity = len(connections)
+        else:
+            self.connections = ResourcePool([connections])
+            self.capacity = 1
         self.timings = dict()
         self.timestamps = dict()
         self.current_row = 0
         self.pushed_rows = 0
         self.last_logged_row = 0
+        self.in_wait_state = False
 
     def prepare(self, name, table):
         self.tables.append(self.Table(name, table))
@@ -92,8 +99,11 @@ class Inserter:
             with BlockingThreadPoolExecutor(max_queue_size=max_tasks,
                                             max_workers=self.capacity + 1,
                                             timeout=14400) as executor:
+                self.in_wait_state = False
                 l: int = self._loop(executor, limit, log_step)
-                executor.wait()
+                self.in_wait_state = True
+                logging.info("Main loop has finished. Waiting for inserter threads to finish")
+                executor.wait_for_completion()
         else:
             l = self._loop(None, limit, log_step)
         logging.info("Total records imported from {}: {:d}".format(self.reader.path, l))
@@ -124,9 +134,21 @@ class Inserter:
         with self.connections.get_resource() as connection:
             for table in self.tables:
                 records = batch[table]
+                if len(records) < 1:
+                    logging.error("Trying to execute an empty batch")
+                    continue
                 with connection.cursor() as cursor, self.timer("store"):
                     try:
+                        if self.in_wait_state:
+                            ts = str(datetime.now())
+                            tid = threading.get_ident()
+                            logging.info("{} - {:d}. Sending last Batch[{:d}] to the database."
+                                         .format(ts, tid, len(records)))
                         execute_values(cursor, table.insert, records, page_size=len(records))
+                        if self.in_wait_state:
+                            ts = str(datetime.now())
+                            tid = threading.get_ident()
+                            logging.info("{} - {:d}. Last Batch has been executed.".format(ts, tid))
                     except Exception as x:
                         msg = str(x)
                         logging.error("Error {}; while executing: {} with {:d} records"
@@ -180,8 +202,9 @@ class Inserter:
             rts = "{} = {}".format(" + ".join(rtl), rts)
             sts = "{} = {}".format(" + ".join(stl), sts)
         with self.write_lock:
-            self.last_logged_row = self.pushed_rows
-            self.stamp_time("last_logged")
+            if (t1 - now) > 120:
+                self.last_logged_row = self.pushed_rows
+                self.stamp_time("last_logged")
             path = os.path.basename(self.reader.path)
             logging.info(
                 "Records imported from {}: {:d} => {:d}; rate: {:f} rec/sec; read: {:d}% / store: {:d}%"

@@ -43,8 +43,11 @@ def run():
         for connection in connections:
             connection.autocommit = arguments.autocommit
         if arguments.reset:
-            tables = domain.drop(table, connections[0])
-            domain.create(connections[0], tables)
+            connection = connections[0]
+            tables = domain.drop(table, connection)
+            domain.create(connection, tables)
+            if not connection.autocommit:
+                connection.commit()
         with DataReader(arguments.data, buffer_size=arguments.buffer) as reader:
             inserter = Inserter(domain, table, reader, connections, page_size=page)
             inserter.import_file(limit=arguments.limit, log_step=log_step)
