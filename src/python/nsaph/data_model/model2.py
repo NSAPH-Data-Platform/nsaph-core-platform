@@ -26,6 +26,8 @@ def get_domain(arguments):
 
 def run():
     arguments = args()
+    
+    init_logging()
     domain = get_domain(arguments)
     if not arguments.table:
         print_ddl(domain)
@@ -93,7 +95,6 @@ def args():
 
 
 if __name__ == '__main__':
-    init_logging()
     run()
     #test_step2(sys.argv)
     #print_ddl()
