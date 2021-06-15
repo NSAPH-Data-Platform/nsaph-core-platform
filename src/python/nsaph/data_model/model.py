@@ -11,13 +11,9 @@ from typing import Dict, Optional
 
 from nsaph.data_model.utils import regex
 from nsaph.reader import CSVFileWrapper, name, fopen, SpecialValues
+from nsaph.pg_keywords import *
 
 
-INDEX_REINDEX = "reindex"
-INDEX_INCREMENTAL = "incremental"
-PG_INT_TYPE = "INT"
-PG_BIGINT_TYPE = "BIGINT"
-PG_NUMERIC_TYPE = "NUMERIC"
 PG_MAXINT = 2147483647
 
 METADATA_TYPE_KEY = "type"
@@ -205,7 +201,7 @@ class Table:
         c = "format('%3s', county_code)"
         e = "replace({} || {}, ' ', '0')".format(s, c)
         sql = SET_COLUMN.format(table=self.table, column=column, expression=e)
-        self.make_column(column, "VARCHAR", sql, cursor, True)
+        self.make_column(column, PG_STR_TYPE, sql, cursor, True)
 
     def make_iso_column(self, anchor, cursor, include = None):
         """
@@ -231,13 +227,13 @@ class Table:
             e = "(SELECT iso FROM us_iso WHERE us_iso.{} = {}.{} LIMIT 1)"\
                 .format(us_iso_column, self.table, anchor)
         sql = SET_COLUMN.format(table=self.table, column=column, expression=e)
-        self.make_column(column, "VARCHAR", sql, cursor, index=True, include_in_index=include)
+        self.make_column(column, PG_STR_TYPE, sql, cursor, index=True, include_in_index=include)
 
     def parse_fips12(self, cursor):
         column = "fips5"
         e = "CAST(substring(fips12, 1, 5) AS INTEGER)"
         sql = SET_COLUMN.format(table=self.table, column=column, expression=e)
-        # self.make_column(column, "VARCHAR", sql, cursor, True)
+        # self.make_column(column, PG_STR_TYPE, sql, cursor, True)
         self.make_column(column, "INTEGER", sql, cursor, True)
 
     def make_int_column(self, cursor, source: str, target:str, index: bool):
@@ -356,7 +352,7 @@ class Table:
                 if date.fullmatch(v):
                     t = "DATE"
                 elif v2 == '"{}"'.format(v):
-                    t = "VARCHAR"
+                    t = PG_STR_TYPE
                     self.quoted_values = True
                 elif SpecialValues.is_untyped(v):
                     t = "0"
@@ -373,7 +369,7 @@ class Table:
                     elif integer.fullmatch(v):
                         t = PG_INT_TYPE
                     else:
-                        t = "VARCHAR"
+                        t = PG_STR_TYPE
                 if t == "0":
                     continue
                 if t in [PG_INT_TYPE]:
@@ -382,7 +378,7 @@ class Table:
                     c_type = t
                 elif c_type == PG_NUMERIC_TYPE and t == PG_INT_TYPE:
                     continue
-                elif c_type == "VARCHAR" and t in [PG_INT_TYPE, PG_NUMERIC_TYPE]:
+                elif c_type == PG_STR_TYPE and t in [PG_INT_TYPE, PG_NUMERIC_TYPE]:
                     continue
                 elif c_type == PG_INT_TYPE and t == PG_NUMERIC_TYPE:
                     c_type = t
@@ -403,7 +399,7 @@ class Table:
             if c_type == "0":
                 c_type = PG_NUMERIC_TYPE
             if not c_type:
-                c_type = "VARCHAR"
+                c_type = PG_STR_TYPE
             self.types.append(c_type)
         return
 
@@ -453,7 +449,7 @@ class Table:
                 for i in range(0, len(self.types)):
                     if SpecialValues.is_missing(row[i]):
                         row[i] = "NULL"
-                    elif self.types[i] in ["VARCHAR", "DATE", "TIMESTAMP", "TIME"]:
+                    elif self.types[i] in [PG_STR_TYPE, PG_DATE_TYPE, PG_TS_TYPE, PG_TIME_TYPE]:
                         row[i] = "'{}'".format(row[i].replace("'", "''"))
                     elif self.types[i] in [PG_INT_TYPE, PG_BIGINT_TYPE,
                                            PG_NUMERIC_TYPE] and not row[i]:
