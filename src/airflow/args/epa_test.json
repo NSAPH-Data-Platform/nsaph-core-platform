@@ -4,6 +4,9 @@
     "year": "2003:2006",
     "parameter_code": "42602",
     "aggregation": "annual",
+    "db_connection_params": "/opt/airflow/project/temp/database.ini",
+    "db_name": "nsaph2",
+    "PYTHONPATH": "/opt/airflow/project/src/python",
     "force": true
   }
 }
