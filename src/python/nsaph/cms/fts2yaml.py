@@ -38,6 +38,7 @@ class ColumnReader:
             f = constructor.conv(i)
             self.attributes.append(ColumnAttribute(c, c+l, f))
             c += l + 1
+        self.attributes[-1].end = None
 
     def read(self, line):
         attrs = [a.arg(line) for a in self.attributes]
@@ -122,23 +123,39 @@ class MedicaidFTSColumn:
                 return "{}({:d})".format(PG_STR_TYPE, w)
             if scale is not None:
                 return "{}({:d},{:d})".format(PG_NUMERIC_TYPE, w, scale)
-            return "{}({:d})".format(PG_INT_TYPE, w)
+            return "{}".format(PG_INT_TYPE)
         if t == "DATE":
             return PG_DATE_TYPE
         raise Exception("Unexpected column type: {}".format(t))
 
 
 class MedicaidFTS:
-    def __init__(self, name, pattern):
-        self.name = name
-        self.pattern = pattern
+    def __init__(self, type_of_data: str):
+        """
+
+        :param type_of_data: Can be either `ps` for personal summary or
+            `ip` for inpatient admissions data
+        """
+
+        type_of_data = type_of_data.lower()
+        assert type_of_data in ["ps", "ip"]
+        self.name = type_of_data
+        self.pattern = "**/maxdata_{}_*.fts".format(type_of_data)
         self.columns = None
-        self.pk = ["BENE_ID", "STATE_CD", "MAX_YR_DT"]
+        self.pk = ["MSIS_ID", "STATE_CD", "MAX_YR_DT"]
+        self.indices = self.pk + [
+            "BENE_ID",
+            "EL_DOB",
+            "EL_AGE_GRP_CD",
+            "EL_SEX_CD",
+            "EL_DOD"
+        ]
 
     def init(self):
         files = glob.glob(self.pattern)
         for file in files:
             self.read_file(file)
+        return self
 
     def read_file(self, f):
         with fopen(f) as fts:
@@ -179,14 +196,22 @@ class MedicaidFTS:
             if columns[i] != self.columns[i]:
                 raise Exception("Reconciliation required: {}, column: {}".format(f, columns[i]))
 
+    def column_to_dict(self, c: MedicaidFTSColumn) -> dict:
+        d = {
+            "type": c.to_sql_type(),
+            "description": c.label
+        }
+        if c.column in self.indices:
+            d["index"] = True
+        return d
+
     def to_dict(self):
         table = dict()
         table[self.name] = dict()
-        table[self.name]["columns"] = [{
-            c.column: {
-                "type": c.to_sql_type(),
-                "description": c.label
-            }} for c in self.columns
+        table[self.name]["columns"] = [
+            {
+                c.column: self.column_to_dict(c)
+            } for c in self.columns
         ]
         table[self.name]["primary_key"] = self.pk
         return table
@@ -198,6 +223,6 @@ class MedicaidFTS:
 
 
 if __name__ == '__main__':
-    source = MedicaidFTS("beneficiaries", "**/maxdata_ps_*.fts")
+    source = MedicaidFTS("ps")
     source.print_yaml()
 

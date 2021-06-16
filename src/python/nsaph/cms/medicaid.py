@@ -15,3 +15,34 @@ Admissions:     /data/incoming/rce/ci3_health_data/medicaid/cvd/1999_2012/desouz
 
 Sample user request: https://github.com/NSAPH/data_requests/tree/master/request_projects/feb2021_jenny_medicaid_resp
 '''
+import os
+from pathlib import Path
+
+import yaml
+
+from nsaph.cms.fts2yaml import MedicaidFTS
+
+
+def create_yaml():
+    name = "cms"
+    domain = {
+        name: {
+            "reference": "https://resdac.org/getting-started-cms-data",
+            "schema": name,
+            "index": "explicit",
+            "quoting": 3,
+            "header": False,
+            "tables": {
+            }
+        }
+    }
+    for x in ["ps", "ip"]:
+        domain[name]["tables"].update(MedicaidFTS(x).init().to_dict())
+    return yaml.dump(domain)
+
+
+if __name__ == '__main__':
+    src = Path(__file__).parents[3]
+    registry_path = os.path.join(src, "yml", "cms.yaml")
+    with open(registry_path, "wt") as f:
+        f.write(create_yaml())

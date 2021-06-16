@@ -85,6 +85,31 @@ class Domain:
             self.ddl_for_node((node, nodes[node]))
         return
 
+    def list_columns(self, table):
+        t = self.spec[self.domain]["tables"][table]
+        cc = [list(c.keys())[0] for c in t["columns"]]
+        return cc
+
+    def has(self, key: str) -> bool:
+        keys = key.split('/')
+        s = self.spec[self.domain]
+        for k in keys:
+            if k in s:
+                s = s[k]
+            else:
+                return False
+        return True
+
+    def get(self, key: str) -> Optional[str]:
+        keys = key.split('/')
+        s = self.spec[self.domain]
+        for k in keys:
+            if k in s:
+                s = s[k]
+            else:
+                return None
+        return s
+
     def fqn(self, table):
         if self.schema:
             return self.schema + '.' + table
@@ -308,7 +333,7 @@ class Domain:
         with connection.cursor() as cursor:
             if list_of_tables:
                 statements = [
-                    s for s in self.ddl if self.matches(s, list_of_tables)
+                    s for s in self.ddl if self.matches(s, list_of_tables) or s.startswith("CREATE SCHEMA")
                 ]
             else:
                 statements = self.ddl

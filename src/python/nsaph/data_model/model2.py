@@ -1,4 +1,5 @@
 import argparse
+import csv
 import logging
 import os
 import sys
@@ -50,9 +51,18 @@ def run():
             domain.create(connection, tables)
             if not connection.autocommit:
                 connection.commit()
-        with DataReader(arguments.data, buffer_size=arguments.buffer) as reader:
-            inserter = Inserter(domain, table, reader, connections, page_size=page)
-            inserter.import_file(limit=arguments.limit, log_step=log_step)
+        if domain.has("quoting") or domain.has("header"):
+            q = domain.get("quoting")
+            h = domain.get("header")
+            with DataReader(arguments.data, buffer_size=arguments.buffer, quoting=q, has_header=h) as reader:
+                if h is False:
+                    reader.columns = domain.list_columns(table)
+                inserter = Inserter(domain, table, reader, connections, page_size=page)
+                inserter.import_file(limit=arguments.limit, log_step=log_step)
+        else:
+            with DataReader(arguments.data, buffer_size=arguments.buffer) as reader:
+                inserter = Inserter(domain, table, reader, connections, page_size=page)
+                inserter.import_file(limit=arguments.limit, log_step=log_step)
         for connection in connections:
             connection.commit()
     finally:

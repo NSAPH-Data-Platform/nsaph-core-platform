@@ -69,6 +69,23 @@ Environment="HTTPS_PROXY=http://rcproxy.rc.fas.harvard.edu:3128"
 systemctl daemon-reload
 systemctl restart docker
 
+(NSAPHclimate) [root@nsaph-sandbox01 temp]# cat ~/.docker/config.json
+{
+ "proxies":
+ {
+   "default":
+   {
+     "httpProxy": "http://rcproxy.rc.fas.harvard.edu:3128",
+     "httpsProxy": "http://rcproxy.rc.fas.harvard.edu:3128",
+     "noProxy": "localhost,127.0.0.1,172.17.0.1"
+   }
+ }
+}
+
+Important:
+
+1. httpsProxy must use http:// URL, not https://
+2. Must define noProxy for localhost and docker internal network
 
 
 ==================================================
