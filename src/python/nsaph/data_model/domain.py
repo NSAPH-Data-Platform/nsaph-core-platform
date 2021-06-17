@@ -85,10 +85,19 @@ class Domain:
             self.ddl_for_node((node, nodes[node]))
         return
 
-    def list_columns(self, table):
+    def list_columns(self, table) -> list:
         t = self.spec[self.domain]["tables"][table]
         cc = [list(c.keys())[0] for c in t["columns"]]
         return cc
+
+    def has_hard_linked_children(self, table) -> bool:
+        t = self.spec[self.domain]["tables"][table]
+        if "children" in t:
+            children = {c: t["children"][c] for c in t["children"]}
+            for child in children:
+                if child.get("hard_linked"):
+                    return True
+        return False
 
     def has(self, key: str) -> bool:
         keys = key.split('/')

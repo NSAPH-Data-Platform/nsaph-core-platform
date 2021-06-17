@@ -56,7 +56,7 @@ class DataReader:
             self.quoting = quoting
         else:
             self.quoting = csv.QUOTE_NONNUMERIC
-        if has_header:
+        if has_header is not None:
             self.has_header = has_header
         else:
             self.has_header = True

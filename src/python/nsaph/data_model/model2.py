@@ -1,8 +1,5 @@
 import argparse
-import csv
-import logging
 import os
-import sys
 from pathlib import Path
 
 from nsaph import init_logging
@@ -98,7 +95,7 @@ def args():
     parser.add_argument("--log", type=int, help="Explicit interval for logging")
     parser.add_argument("--limit", type=int, help="Load at most specified number of records")
     parser.add_argument("--buffer", type=int, help="Buffer size for converting fst files")
-    parser.add_argument("--threads", type=int, help="Number fo threads writing into the database", default=1)
+    parser.add_argument("--threads", type=int, help="Number of threads writing into the database", default=1)
 
     arguments = parser.parse_args()
     return arguments

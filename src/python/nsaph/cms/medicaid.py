@@ -1,4 +1,8 @@
 '''
+Medicaid Domain for NSPAH
+
+Running this module will create/update data model for CMS data
+
 https://github.com/NSAPH/data_model
 
 Demographics:   /data/incoming/rce/ci3_d_medicaid/processed_data/cms_medicaid-max/data_cms_medicaid-max-demographics_patient
@@ -15,6 +19,7 @@ Admissions:     /data/incoming/rce/ci3_health_data/medicaid/cvd/1999_2012/desouz
 
 Sample user request: https://github.com/NSAPH/data_requests/tree/master/request_projects/feb2021_jenny_medicaid_resp
 '''
+
 import os
 from pathlib import Path
 
