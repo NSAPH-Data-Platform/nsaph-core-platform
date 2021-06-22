@@ -12,6 +12,8 @@ from nsaph.db import Connection
 def print_ddl (domain):
     for ddl in domain.ddl:
         print(ddl)
+    for ddl in domain.indices:
+        print(ddl)
 
 
 def get_domain(arguments):

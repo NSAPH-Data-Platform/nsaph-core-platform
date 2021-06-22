@@ -1,0 +1,134 @@
+epa:
+  reference: "https://nsaph.github.io/pipelines/"
+  schema: "epa"
+  index": "selected"
+  tables:
+    airnow:
+      columns:
+        - FullAQSCode:
+            type: "VARCHAR(12)"
+            index: true
+        - Latitude:
+            type: "FLOAT8"
+        - Longitude:
+            type: "FLOAT8"
+        - date:
+            type: "DATE"
+            source: "UTC"
+        - Parameter:
+            type: "VARCHAR(5)"
+            index: true
+        - Unit:
+            type: "VARCHAR(8)"
+        - Value:
+            type: "FLOAT8"
+        - AQI:
+            type: "FLOAT8"
+        - Category:
+            type: "INT"
+        - SiteName:
+            type: "VARCHAR(256)"
+        - AgencyName:
+            type: "VARCHAR(256)"
+        - IntlAQSCode:
+            type: "VARCHAR(12)"
+        - ZIP:
+            type: "VARCHAR(5)"
+        - STATE:
+            type: "VARCHAR(2)"
+        - FIPS5:
+            type: "VARCHAR(5)"
+        - state_iso:
+            type: "VARCHAR(5)"
+            source:
+              type: "generated"
+              code: "GENERATED ALWAYS AS ('US-' || state) STORED"
+      primary_key:
+        - IntlAQSCode
+        - date
+    aqs_annual:
+      columns:
+        - record:
+            type: "VARCHAR(16)"
+            source: "Record"
+        - state_code:
+            type: "VARCHAR(2)"
+            source: "State Code"
+        - fips3:
+            type: "VARCHAR(5)"
+            source: "County Code"
+        - Parameter_name:
+            type: "VARCHAR(32)"
+            source: "Parameter Name"
+            index: true
+        - Parameter_code:
+            type: "VARCHAR(5)"
+            source: "Parameter Code"
+            index: true
+        - Value:
+            type: "FLOAT8"
+            source: "Arithmetic Mean"
+        - pollutant_standard:
+            type: "VARCHAR(64)"
+            index: true
+            source: "Pollutant Standard"
+        - Standard:
+            type: "VARCHAR(64)"
+            index: true
+            source:
+              type: "compute"
+              parameters: # parameters refer to column names in the table, while columns refer to column names in the source
+                - pollutant_standard
+              code: "'' + {1}"
+        - Unit:
+            type: "VARCHAR(64)"
+            source: "Units of Measure"
+        - Latitude:
+            type: "FLOAT8"
+        - Longitude:
+            type: "FLOAT8"
+        - year:
+            type: INT
+        - Metric_Used:
+            type: "VARCHAR(64)"
+            source: "Metric Used"
+        - Method_Name:
+            type: "VARCHAR(128)"
+            source: "Method Name"
+        - Site:
+            type: "VARCHAR(128)"
+            source: "Local Site Name"
+        - Address:
+            type: "VARCHAR(128)"
+        - State_Name:
+            type: "VARCHAR(64)"
+            source: "State Name"
+        - county:
+            source: "County Name"
+        - city:
+            source: "City Name"
+        - cbsa:
+            source: "CBSA Name"
+        - monitor
+        - event:
+            source: "Event Type"
+        - obs_count:
+            source: "Observation Count"
+        - obs_pct:
+            source: "Observation Percent"
+        - completeness:
+            source: "Completeness Indicator"
+        - valid_day_cnt:
+            source: "Valid Day Count"
+        - req_day_cnt:
+            source: "Required Day Count"
+        - exception_cnt:
+            source: "Exceptional Data Count"
+        - nulls:
+            source: "Null Data Count"
+        - last_changed_on:
+            type: "DATE"
+            source: "Date of Last Change"
+      primary_key:
+        - record
+
