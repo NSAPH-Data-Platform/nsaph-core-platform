@@ -2,7 +2,7 @@
 
 cwlVersion: v1.1
 class: CommandLineTool
-baseCommand: [/opt/anaconda3/envs/NSAPHclimate/bin/Rscript, /opt/projects/nsaph/src/r/download_epa.R]
+baseCommand: [Rscript, /dependencies/data-platform/src/r/download_epa.R]
 
 requirements:
   EnvVarRequirement:

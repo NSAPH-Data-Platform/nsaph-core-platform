@@ -248,6 +248,23 @@ Right:
 [root@lish ~]# ldd /usr/pgsql-13/bin/psql 
 	libpq.so.5 => /usr/pgsql-13/lib/libpq.so.5 (0x00007efeb84b4000)
 ```
+                           
+### PostgreSQL Extensions
+
+First, install modules:
+
+    yum install postgresql13-contrib    
+
+Then, create exetnsions required to import the dump:
+In psql:
+
+    CREATE EXTENSION fuzzystrmatch;
+    CREATE EXTENSION pg_stat_statements;
+    CREATE EXTENSION pg_trgm;
+    CREATE EXTENSION pgcrypto;
+    CREATE EXTENSION uuid-ossp;
+    CREATE EXTENSION "uuid-ossp";
+    
 
 ## Nginx
 

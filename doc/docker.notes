@@ -1,0 +1,4 @@
+Example of test command:
+
+cwl-runner /dependencies/data-platform/src/cwl/import_epa.cwl --csv_name ozone_monitor_annual.csv --parameter 44201 --db_connection_params /dependencies/database.ini  --year 1997
+
