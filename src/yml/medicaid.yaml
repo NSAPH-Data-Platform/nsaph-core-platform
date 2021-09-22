@@ -4,7 +4,7 @@ medicaid:
   schema: "medicaid"
   schema.audit: "medicaid_audit"
   tables:
-    demographics:
+    demographics: # should be renamed to `patients`
       columns:
         - bene_id:
             type: "VARCHAR"
@@ -20,11 +20,8 @@ medicaid:
       primary_key:
         - bene_id
       children:
-        enrollments_year:
+        enrollments_year: # Should be renamed to enrollments
           columns:
-#            - 'bene_id$year':
-#                type: "VARCHAR"
-#                description: "Composite key for the table"
             - year:
                 type: "INT"
                 source: "MAX_YR_DT"
@@ -60,7 +57,7 @@ medicaid:
             - year
             - state
           children:
-            enrollments_month:
+            enrollments_month: # Should be renamed to eligibility
               hard_linked: true
               columns:
 #                - 'bene_id$year$month':

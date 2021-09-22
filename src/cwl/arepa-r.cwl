@@ -2,7 +2,7 @@
 
 cwlVersion: v1.1
 class: CommandLineTool
-baseCommand: [python, -m, nsaph.analyze]
+baseCommand: [/opt/anaconda3/envs/NSAPHclimate/bin/Rscript, /opt/projects/nsaph/src/r/download_epa.R]
 
 requirements:
   EnvVarRequirement:
