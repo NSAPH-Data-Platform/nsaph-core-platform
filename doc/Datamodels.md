@@ -41,6 +41,8 @@ The following parameters can be defined fro domain:
 |tables | yes | list of table definitions |
 |description | no | description of this domain to be included in auto-generated documentation
 |reference | no | URL with external documentation
+|header | no | Boolean value, passed to CSV loader. Describes input source rather than data model itself
+|quoting| no | Numeric value, passed to CSV loader. Describes input source rather than data model itself (QUOTE_MINIMAL=0, QUOTE_ALL=1, QUOTE_NONNUMERIC=2, QUOTE_NONE=3) 
 
 ## Table 
 
@@ -136,3 +138,30 @@ The main class responsible for the generation of DDL is
      of [model](../src/python/nsaph/data_model/model.py)) module
 * **unless excluded** Indices are only created for all columns 
   not explicitly excluded
+
+## Ingesting Data 
+
+The following command ingests data into a table and all hard-linked
+child tables:
+
+    usage: python -u -m nsaph.data_model.model2 [-h] [--domain DOMAIN] 
+                [--table TABLE] [--data DATA]
+                [--reset] [--autocommit] [--db DB] [--connection CONNECTION]
+                [--page PAGE] [--log LOG] [--limit LIMIT] [--buffer BUFFER]
+                [--threads THREADS]
+
+    optional arguments:
+    -h, --help              show this help message and exit
+    --domain DOMAIN         Name of the domain
+    --table TABLE, -t TABLE Name of the table to load data into
+    --data DATA             Path to a data file or directory
+    --reset                 Force recreating table(s) if it/they already exist
+    --autocommit            Use autocommit
+    --db DB                 Path to a database connection parameters file
+    --connection CONNECTION Section in the database connection parameters file
+    --page PAGE             Explicit page size for the database
+    --log LOG               Explicit interval for logging
+    --limit LIMIT           Load at most specified number of records
+    --buffer BUFFER         Buffer size for converting fst files
+    --threads THREADS       Number of threads writing into the database
+

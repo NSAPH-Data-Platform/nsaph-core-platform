@@ -1,7 +1,7 @@
 '''
 Medicaid Domain for NSPAH
 
-Running this module will create/update data model for CMS data
+Running this module will create/update data model for raw CMS data
 
 https://github.com/NSAPH/data_model
 
@@ -46,8 +46,17 @@ def create_yaml():
     return yaml.dump(domain)
 
 
-if __name__ == '__main__':
+def update_model():
     src = Path(__file__).parents[3]
     registry_path = os.path.join(src, "yml", "cms.yaml")
+    # output_path = "."
+    # registry_path = os.path.join(output_path, "yml", "cms.yaml")
     with open(registry_path, "wt") as f:
         f.write(create_yaml())
+
+
+
+
+
+if __name__ == '__main__':
+    update_model()

@@ -1,4 +1,5 @@
 import codecs
+import glob
 import gzip
 import io
 import logging
@@ -6,6 +7,7 @@ import tarfile
 import datetime
 import os
 import zipfile
+from typing import Tuple, List, Callable
 
 
 class SpecialValues:
@@ -55,7 +57,7 @@ def is_readme(name: str) -> bool:
     return False
 
 
-def get_entries(path: str):
+def get_entries(path: str) -> Tuple[List,Callable]:
     entries = []
     f = lambda e: e
     if path.endswith(".tar") or path.endswith(".tgz") or path.endswith(
@@ -65,7 +67,7 @@ def get_entries(path: str):
             e for e in tfile.getmembers()
                 if e.isfile() and not is_readme(e.name)
         ]
-        f = lambda e: tfile.extractfile(e)
+        f = lambda e: codecs.getreader("utf-8")(tfile.extractfile(e))
     elif path.endswith(".zip"):
         zfile = zipfile.ZipFile(path)
         entries = [
@@ -73,7 +75,10 @@ def get_entries(path: str):
         ]
         f = lambda e: io.TextIOWrapper(zfile.open(e))
     elif os.path.isdir(path):
-        pass
+        entries = [
+            filename for filename in glob.iglob(path + '**/**', recursive=True)
+            if os.path.isfile(filename) and not is_readme(filename)
+        ]
     else:
         entries.append(path)
     return entries, f

@@ -2,6 +2,7 @@ import glob
 
 import yaml
 
+from nsaph import ORIGINAL_FILE_COLUMN
 from nsaph.reader import fopen
 from nsaph.pg_keywords import *
 
@@ -148,7 +149,8 @@ class MedicaidFTS:
             "EL_DOB",
             "EL_AGE_GRP_CD",
             "EL_SEX_CD",
-            "EL_DOD"
+            "EL_DOD",
+            ORIGINAL_FILE_COLUMN
         ]
 
     def init(self):
@@ -184,6 +186,15 @@ class MedicaidFTS:
                 break
             column = column_reader.read(line)
             columns.append(column)
+        column = MedicaidFTSColumn(
+            order=len(columns) + 1,
+            column=ORIGINAL_FILE_COLUMN,
+            c_type="CHAR",
+            c_format="128",
+            c_width=128,
+            label="RESDAC original file name"
+        )
+        columns.append(column)
 
         if not self.columns:
             self.columns = columns
@@ -203,6 +214,10 @@ class MedicaidFTS:
         }
         if c.column in self.indices:
             d["index"] = True
+        if c.column == ORIGINAL_FILE_COLUMN:
+            d["source"] = {
+                "type": "file"
+            }
         return d
 
     def to_dict(self):

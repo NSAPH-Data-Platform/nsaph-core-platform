@@ -1,5 +1,6 @@
 # Handling Medicaid data
 
+## Introduction
 The database schema is described in 
 [medicaid.yml](../src/yml/medicaid.yaml)
 file. 
@@ -37,3 +38,24 @@ https://github.com/NSAPH/data_requests/blob/master/request_projects/dec2019_medi
 
 Sample user request: https://github.com/NSAPH/data_requests/tree/master/request_projects/feb2021_jenny_medicaid_resp
 '''
+
+## Examples of ingestion of processed data:
+
+All paths are on `nsaph-sandbox01.rc.fas.harvard.edu`
+
+### Demographics:
+
+    python -u -m nsaph.model2 /data/incoming/rce/ci3_d_medicaid/processed_data/cms_medicaid-max/csv/maxdata_demographics.csv.gz
+
+### Enrollments (yearly) and Eligibility (monthly)
+
+    nohup python -u -m nsaph.data_model.model2 --data /data/incoming/rce/ci3_d_medicaid/processed_data/cms_medicaid-max/data_cms_medicaid-max-ps_patient-year/medicaid_mortality_2005.fst -t enrollments_year --threads 4 --page 5000 &
+
+### Admissions
+
+    for f in /data/incoming/rce/ci3_d_medicaid/processed_data/cms_medicaid-max/data_cms_medicaid-max-ip_patient-admission-date/maxdata_*_ip_${year}.fst ; do 
+	    date
+	    echo $f
+	    python -u -m nsaph.data_model.model2 --data $f  -t admissions --page 5000 --log 10000 --threads 2
+    done
+

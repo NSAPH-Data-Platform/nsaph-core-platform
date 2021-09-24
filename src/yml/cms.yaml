@@ -423,6 +423,12 @@ cms:
       - UB_92_REV_CD_UNITS_23:
           description: UB-92 revenue code units (23rd)
           type: INT
+      - FILE:
+          description: RESDAC original file name
+          index: true
+          source:
+            type: file
+          type: VARCHAR(128)
       primary_key:
       - MSIS_ID
       - STATE_CD
@@ -2510,6 +2516,12 @@ cms:
       - TMSIS_ELG_GRP_LTST:
           description: Medicaid Eligibility Group Most Recent Code
           type: VARCHAR(2)
+      - FILE:
+          description: RESDAC original file name
+          index: true
+          source:
+            type: file
+          type: VARCHAR(128)
       primary_key:
       - MSIS_ID
       - STATE_CD
