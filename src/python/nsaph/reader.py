@@ -58,8 +58,6 @@ def is_readme(name: str) -> bool:
 
 
 def get_entries(path: str) -> Tuple[List,Callable]:
-    entries = []
-    f = lambda e: e
     if path.endswith(".tar") or path.endswith(".tgz") or path.endswith(
             ".tar.gz"):
         tfile = tarfile.open(path)
@@ -79,8 +77,13 @@ def get_entries(path: str) -> Tuple[List,Callable]:
             filename for filename in glob.iglob(path + '**/**', recursive=True)
             if os.path.isfile(filename) and not is_readme(filename)
         ]
+        f = lambda e: fopen(e, "rt")
+    elif os.path.isfile(path):
+        entries = [path]
+        f = lambda e: fopen(e, "rt")
     else:
-        entries.append(path)
+        entries = [path]
+        f = lambda e: e
     return entries, f
 
 
