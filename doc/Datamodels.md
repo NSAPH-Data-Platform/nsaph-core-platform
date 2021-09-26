@@ -154,8 +154,15 @@ child tables:
     -h, --help              show this help message and exit
     --domain DOMAIN         Name of the domain
     --table TABLE, -t TABLE Name of the table to load data into
-    --data DATA             Path to a data file or directory
+    --data DATA             Path to a data file or directory. Can be a single CSV,
+                            gzipped CSV or FST file or a directory recursively
+                            containing CSV files. Can also be a tar, tar.gz (or
+                            tgz) or zip archive containing CSV files
+    --pattern PATTERN       pattern for files in a directory or an archive, e.g.
+                            "**/maxdata_*_ps_*.csv"
     --reset                 Force recreating table(s) if it/they already exist
+    --incremental           Commit every file and skip over files that have
+                            already been ingested
     --autocommit            Use autocommit
     --db DB                 Path to a database connection parameters file
     --connection CONNECTION Section in the database connection parameters file

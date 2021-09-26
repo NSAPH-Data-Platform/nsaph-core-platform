@@ -149,10 +149,13 @@ def args():
                         help="Name of the table to load data into",
                         required=False)
     parser.add_argument("--data",
-                        help="Path to a data file or directory",
+                        help="Path to a data file or directory. Can be a "
+                             + "single CSV, gzipped CSV or FST file or a directory recursively "
+                             + "containing CSV files. Can also be a tar, tar.gz (or tgz) or zip archive "
+                             + "containing CSV files",
                         required=False)
     parser.add_argument("--pattern",
-                        help="pattern for files in a directory or an archive")
+                        help="pattern for files in a directory or an archive, e.g. \"**/maxdata_*_ps_*.csv\"")
     parser.add_argument("--reset", action='store_true',
                         help="Force recreating table(s) if it/they already exist")
     parser.add_argument("--incremental", action='store_true',
