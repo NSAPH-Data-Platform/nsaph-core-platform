@@ -101,7 +101,7 @@ if __name__ == '__main__':
     parser.add_argument("--force", action='store_true',
                         help="Force reindexing if index already exists")
     parser.add_argument("--incremental", "-i", action='store_true',
-                        help="Force reindexing if index already exists")
+                        help="Skip over indices that already exist")
     parser.add_argument("--db",
                         help="Path to a database connection parameters file",
                         default="database.ini",

@@ -79,6 +79,7 @@ class DataReader:
     def open_csv(self, path, f= lambda s: fopen(s, "rt")):
         self.to_close = f(path)
         self.reader = csv.reader(self.to_close, quoting=self.quoting)
+        # self.reader = csv.reader((line.replace('\0',' ') for line in self.to_close), quoting=self.quoting)
         if self.has_header:
             header = next(self.reader)
             self.columns = header

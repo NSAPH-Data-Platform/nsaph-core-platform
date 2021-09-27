@@ -59,6 +59,7 @@ class Domain:
         else:
             self.schema = None
         self.indices = []
+        self.indices_by_table = dict()
         self.ddl = []
         self.conucrrent_indices = False
         index_policy = self.spec[self.domain].get("index")
@@ -235,7 +236,11 @@ class Domain:
         for column in columns:
             if not self.need_index(column):
                 continue
-            self.indices.append(self.get_index_ddl(table, column))
+            ddl = self.get_index_ddl(table, column)
+            self.indices.append(ddl)
+            if table not in self.indices_by_table:
+                self.indices_by_table[table] = []
+            self.indices_by_table[table].append(ddl)
 
         if "children" in definition:
             children = {t: definition["children"][t] for t in definition["children"]}
