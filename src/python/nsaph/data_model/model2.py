@@ -112,6 +112,7 @@ def run():
                     logging.exception("Exception: " + entry_to_path(entry))
                     for connection in connections:
                         connection.rollback()
+                    logging.info("Rolled back and skipped: " + entry_to_path(entry))
                 else:
                     raise x
         for connection in connections:
