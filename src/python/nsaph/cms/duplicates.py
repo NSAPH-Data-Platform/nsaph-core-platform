@@ -53,6 +53,7 @@ import gzip
 import json
 import os.path
 from argparse import ArgumentParser
+from datetime import date, timedelta
 from typing import Dict
 
 from nsaph_utils.utils.io_utils import fopen
@@ -192,11 +193,34 @@ class DuplicatesExplorer:
                 }
         return report
 
+    def analyze_inconsistent_age(self):
+        self.init()
+        report = self.find_duplicate_dates("el_dob")
+        max_delta = timedelta()
+        max_bene = None
+        num_age = 0
+        for bene_id in report:
+            dates = sorted([date.fromisoformat(d) for d in report[bene_id]["range"] if d != "None"])
+            if len(dates) < 2:
+                continue
+            delta = dates[-1] - dates[0]
+            if delta.days > 365:
+                num_age += 1
+            if delta > max_delta:
+                max_delta = delta
+                max_bene = bene_id
+        print("Max delta is {} for bene_id {}".format(str(max_delta), max_bene))
+        print("Beneficiaries with difference in age more than 1 year: {:d}".format(num_age))
+
+
 
 def run():
     arguments = args()
     explorer = DuplicatesExplorer(arguments)
-    explorer.report()
+    if arguments.action == "age":
+        explorer.analyze_inconsistent_age()
+    else:
+        explorer.report()
 
 
 def args():
@@ -214,6 +238,8 @@ def args():
                         default="cms_ps_duplicates.json.gz",
                         required=False)
     parser.add_argument("--reset", action='store_true',
+                        help="Force recreating duplicate report if it already exists")
+    parser.add_argument("--action", default="report",
                         help="Force recreating duplicate report if it already exists")
 
 
