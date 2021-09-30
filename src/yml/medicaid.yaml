@@ -15,22 +15,26 @@ medicaid:
         - bene_id
         - dob:
             source: "MIN(el_dob)"
+            identifyer: true
         - dod:
             source: "MAX(el_dod)"
+            identifyer: true
         - race_ethnicity_code:
             description: "https://resdac.org/cms-data/variables/raceethnicity-msis"
             source: "string_agg(distinct el_race_ethncy_cd, ',')"
+            identifyer: true
         - sex:
             source: "string_agg(distinct el_sex_cd, ',')"
+            identifyer: true
         - duplicates:
-            source: "COUNT(*)"
+            source: "COUNT(distinct el_dob, el_dod, el_race_ethncy_cd, el_sex_cd)"
             description: "number of duplciate records for the beneficiary"
         - dob_latest:
             source: |
               CASE
                 WHEN MAX(el_dob) <> MIN(el_dob) THEN  MAX(el_dob)
               END
-        -dod_earliest:
+        - dod_earliest:
             source: |
               CASE
                 WHEN MIN(el_dod) <> MAX(el_dod) THEN MIN(el_dod)
