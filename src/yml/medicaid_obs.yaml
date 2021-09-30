@@ -4,39 +4,23 @@ medicaid:
   schema: "medicaid"
   schema.audit: "medicaid_audit"
   tables:
-    beneficiaries:
-      index: explicit
-      create:
-        type: materialized view
-        from: cms.ps
-        where: bene_id is not null
-        group by: bene_id
+    demographics: # should be renamed to `patients`
       columns:
-        - bene_id
+        - bene_id:
+            type: "VARCHAR"
         - dob:
-            source: "MIN(el_dob)"
+            type: "DATE"
         - dod:
-            source: "MAX(el_dod)"
+            type: "DATE"
         - race_ethnicity_code:
+            type: "INT"
             description: "https://resdac.org/cms-data/variables/raceethnicity-msis"
-            source: "string_agg(distinct el_race_ethncy_cd, ',')"
-        - sex:
-            source: "string_agg(distinct el_sex_cd, ',')"
-        - duplicates:
-            source: "COUNT(*)"
-            description: "number of duplciate records for the beneficiary"
-        - dob_latest:
-            source: |
-              CASE
-                WHEN MAX(el_dob) <> MIN(el_dob) THEN  MAX(el_dob)
-              END
-        -dod_earliest:
-            source: |
-              CASE
-                WHEN MIN(el_dod) <> MAX(el_dod) THEN MIN(el_dod)
-              END
+            source: "race_cd"
+        - sex: "VARCHAR(1)"
+      primary_key:
+        - bene_id
       children:
-        enrollments:
+        enrollments_year: # Should be renamed to enrollments
           columns:
             - year:
                 type: "INT"
@@ -73,7 +57,7 @@ medicaid:
             - year
             - state
           children:
-            eligibility: # Should be renamed to eligibility
+            enrollments_month: # Should be renamed to eligibility
               hard_linked: true
               columns:
 #                - 'bene_id$year$month':

@@ -32,6 +32,7 @@ cms:
           type: VARCHAR(1)
       - EL_RACE_ETHNCY_CD:
           description: Race/ethnicity (from MSIS)
+          index: true
           type: VARCHAR(1)
       - RACE_CODE_1:
           description: Race - White (from MSIS)
@@ -474,6 +475,7 @@ cms:
           type: VARCHAR(1)
       - EL_RACE_ETHNCY_CD:
           description: Race/ethnicity (from MSIS)
+          index: true
           type: VARCHAR(1)
       - RACE_CODE_1:
           description: Race - White (from MSIS)

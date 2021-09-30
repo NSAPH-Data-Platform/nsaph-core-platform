@@ -50,6 +50,7 @@ The following parameters can be defined for a table:
 
 | Parameter | Required? | Description |
 |-----------|-----------|-------------|
+|type | no | view / table |
 |hard_linked | no | Denotes that the table is an integral part of parent table rather than a separate table with a many-to-one relationship to the parent table|
 |columns | yes | list of column definitions |
 |primary_key | yes | list of column names included in the table primary key |

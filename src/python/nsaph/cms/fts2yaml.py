@@ -150,6 +150,7 @@ class MedicaidFTS:
             "EL_AGE_GRP_CD",
             "EL_SEX_CD",
             "EL_DOD",
+            "EL_RACE_ETHNCY_CD",
             ORIGINAL_FILE_COLUMN
         ]
 
