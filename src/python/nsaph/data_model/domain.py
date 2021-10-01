@@ -1,5 +1,6 @@
 import logging
-from typing import Optional
+import re
+from typing import Optional, Dict, List
 
 from nsaph_utils.utils.io_utils import as_dict
 
@@ -44,6 +45,16 @@ ${schema}_{source}_validation$ LANGUAGE plpgsql;
 VALIDATION_TRIGGER = """
     CREATE TRIGGER {schema}_{name}_validation BEFORE INSERT ON {table}
         FOR EACH ROW EXECUTE FUNCTION {schema}.validate_{name}();
+"""
+
+
+CREATE_VIEW = """
+CREATE {OBJECT} {name} AS
+SELECT
+{features}
+FROM {source}
+WHERE {id} IS NOT NULL
+GROUP BY {id};
 """
 
 
@@ -138,29 +149,34 @@ class Domain:
                 return d
         return None
 
-    def find_dependent(self, table: str) -> list:
+    def find_dependent(self, table: str) -> Dict:
         t = self.find(table)
         if t is None:
             raise LookupError("Table {} does not exist in domain {}".format(table, self.domain))
-        result = [self.fqn(table)]
+        result = {self.fqn(table): self.find(table)}
         if "children" in t:
             for child in t["children"]:
-                result.extend(self.find_dependent(child))
+                result.update(self.find_dependent(child))
         t2 = self.spillover_table(table, t)
         if t2:
-            result.append(t2)
+            result[t2] = ""
         return result
 
     def drop(self, table, connection) -> list:
         tables = self.find_dependent(table)
         with connection.cursor() as cursor:
             for t in tables:
-                sql = "DROP TABLE IF EXISTS {} CASCADE".format(t)
+                obj = self.find(t)
+                if "create" in obj:
+                    kind = obj["create"]["type"]
+                else:
+                    kind = "TABLE"
+                sql = "DROP {TABLE} IF EXISTS {} CASCADE".format(t, TABLE=kind)
                 logging.info(sql)
                 cursor.execute(sql)
             if not connection.autocommit:
                 connection.commit()
-        return tables
+        return [t for t in tables]
 
     def spillover_table(self, table, definition):
         if "invalid.records" in definition:
@@ -193,6 +209,14 @@ class Domain:
         fk = None
         ptable = None
         fk_columns = None
+        create = None
+        object_type = None
+        is_view = False
+        if "create" in definition:
+            create = definition["create"]
+            if "type" in create:
+                object_type = create["type"]
+                is_view = "view" in object_type.lower()
         if parent is not None:
             ptable, pdef = parent
             if "primary_key" not in pdef:
@@ -207,10 +231,13 @@ class Domain:
                 if c in fk_columns and c not in cnames:
                     columns.append(column)
 
-        features.extend([self.column_spec(column) for column in columns])
+        if is_view:
+            features = [self.view_column_spec(column, definition) for column in columns]
+        else:
+            features.extend([self.column_spec(column) for column in columns])
 
         pk_columns = None
-        if "primary_key" in definition:
+        if "primary_key" in definition and not is_view:
             pk_columns = definition["primary_key"]
             pk = "PRIMARY KEY ({})".format(", ".join(pk_columns))
             features.append(pk)
@@ -218,7 +245,23 @@ class Domain:
         if fk:
             features.append(fk)
 
-        create_table = (self.CREATE + " (\n\t{features}\n);").format(name=table, features=",\n\t".join(features))
+        if is_view:
+            #     CREATE {OBJECT} {name} AS
+            #     SELECT
+            #     {features}
+            #     FROM {source}
+            #     WHERE {id} IS NOT NULL
+            #     GROUP BY {id}
+            create_table = CREATE_VIEW.format(
+                OBJECT=object_type,
+                name=table,
+                features = ",\n\t\t".join(features),
+                source=create["from"],
+                id=create["group by"]
+            )
+            definition["primary_key"] = create["group by"]
+        else:
+            create_table = (self.CREATE + " (\n\t{features}\n);").format(name=table, features=",\n\t".join(features))
         self.ddl.append(create_table)
         if "invalid.records" in definition:
             validation = definition["invalid.records"]
@@ -231,7 +274,6 @@ class Domain:
                 create_table = (self.CREATE + " (\n\t{features}\n);").format(name=t2, features=",\n\t".join(ff))
                 self.ddl.append(create_table)
             self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
-
 
         for column in columns:
             if not self.need_index(column):
@@ -246,6 +288,9 @@ class Domain:
             children = {t: definition["children"][t] for t in definition["children"]}
             for child in children:
                 self.ddl_for_node((child, children[child]), parent=node)
+
+    def ddl_for_view(self, node):
+        pass
 
     def need_index(self, column) -> bool:
         if self.index_policy == "all":
@@ -330,6 +375,37 @@ class Domain:
             code = column["source"]["code"]
             return "{} {} {}".format(name, t, code)
         return "{} {}".format(name, t)
+
+    def view_column_spec(self, column, table) -> str:
+        name, column = split(column)
+        if "source" in column:
+            sql = column["source"]
+            sql = sql.replace('\n', "\n\t\t")
+            if "{identifiers}" in sql.lower():
+                idf = self.list_identifiers(table)
+                s = "({})".format(', '.join(idf))
+                sql = sql.format(identifiers=s)
+            sql += " AS {}".format(name)
+            return sql
+        return name
+
+    @staticmethod
+    def list_identifiers(table):
+        identifiers = []
+        for (name, definition) in [split(column) for column in table["columns"]]:
+            if definition.get("identifier") != True:
+                continue
+            if "source" in definition:
+                s = definition["source"]
+                source_column = re.search(r'\((.*?)[)|,]',s).group(1)
+                source_column = source_column.lower().replace("distinct", "").strip()
+                if source_column:
+                    identifiers.append(source_column)
+                else:
+                    identifiers.append(s)
+            else:
+                identifiers.append(name)
+        return identifiers
 
     @classmethod
     def matches(cls, create_statement, list_of_tables) -> bool:

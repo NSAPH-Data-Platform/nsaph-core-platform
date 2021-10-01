@@ -5,30 +5,28 @@ medicaid:
   schema.audit: "medicaid_audit"
   tables:
     beneficiaries:
-      index: explicit
       create:
         type: materialized view
         from: cms.ps
-        where: bene_id is not null
         group by: bene_id
       columns:
         - bene_id
         - dob:
             source: "MIN(el_dob)"
-            identifyer: true
+            identifier: true
         - dod:
             source: "MAX(el_dod)"
-            identifyer: true
+            identifier: true
         - race_ethnicity_code:
             description: "https://resdac.org/cms-data/variables/raceethnicity-msis"
             source: "string_agg(distinct el_race_ethncy_cd, ',')"
-            identifyer: true
+            identifier: true
         - sex:
             source: "string_agg(distinct el_sex_cd, ',')"
-            identifyer: true
+            identifier: true
         - duplicates:
-            source: "COUNT(distinct el_dob, el_dod, el_race_ethncy_cd, el_sex_cd)"
-            description: "number of duplciate records for the beneficiary"
+            source: "COUNT(distinct {identifiers})"
+            description: "number of duplicate records for the beneficiary"
         - dob_latest:
             source: |
               CASE
