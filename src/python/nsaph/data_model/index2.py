@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 
 from nsaph import init_logging
-from nsaph.data_model.common import common_args, get_domain
+from nsaph.common import common_args, get_domain
 from nsaph.data_model.model import INDEX_REINDEX, INDEX_INCREMENTAL
 from nsaph.db import Connection
 from nsaph.index import print_stat

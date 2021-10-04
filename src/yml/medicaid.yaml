@@ -39,29 +39,29 @@ medicaid:
               END
       children:
         enrollments:
+          create:
+            type: materialized view
+            from: cms.ps
+            group by:
+              - max_yr_dt
+              - state_cd
           columns:
             - year:
-                type: "INT"
-                source: "MAX_YR_DT"
+                source: max_yr_dt
             - state:
-                type: "VARCHAR(2)"
-                source: "STATE_CD"
+                source: state_cd
             - state_iso:
-                type: "VARCHAR(5)"
-                source:
-                  type: "generated"
-                  code: "GENERATED ALWAYS AS ('US-' || state) STORED"
+                source: "('US-' || state_cd) "
             - residence_county:
-                type: "VARCHAR(3)"
-                source: "EL_RSDNC_CNTY_CD_LTST"
+                source: "MAX(el_rsdnc_cnty_cd_ltst)"
+            - residence_counties:
+                source: "string_agg(distinct el_rsdnc_cnty_cd_ltst, ',')"
             - fips5:
-                source:
-                  type: "compute"
-                  parameters: # parameters refer to column names in the table, while columns refer to column names in the source
-                    - state
-                    - residence_county
-                  code: "fips_dict[{1}] * 1000 + int({2})"
-            - zip
+                source: "(SELECT fips2 FROM us_states as s WHERE s.state_cd = cms.ps.state_cd) || MAX(el_rsdnc_cnty_cd_ltst)"
+            - zip:
+                source: "MAX(el_rsdnc_zip_cd_ltst)"
+            - zips:
+                source: "string_agg(distinct el_rsdnc_zip_cd_ltst, ',')"
             - months_eligible:
                 type: "INT"
             - months_dual_eligible:
@@ -70,10 +70,6 @@ medicaid:
                 type: "INT"
             - dead:
                 type: "BOOLEAN"
-          primary_key:
-            - bene_id
-            - year
-            - state
           children:
             eligibility: # Should be renamed to eligibility
               hard_linked: true

@@ -4,7 +4,7 @@ import os
 from typing import List, Tuple, Callable, Any
 
 from nsaph import init_logging, ORIGINAL_FILE_COLUMN
-from nsaph.data_model.common import common_args, print_ddl, get_domain
+from nsaph.common import common_args, print_ddl, get_domain
 from nsaph.data_model.domain import Domain
 from nsaph.data_model.inserter import Inserter
 from nsaph.data_model.utils import DataReader, entry_to_path

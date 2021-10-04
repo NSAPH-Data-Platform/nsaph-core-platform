@@ -5,7 +5,7 @@ from typing import List
 import h5py
 import numpy
 
-from nsaph.db import ResultSet
+from nsaph.db import ResultSetDeprecated
 from nsaph.requests.query import Query
 
 
@@ -60,7 +60,7 @@ def append(datasets: List, row):
     return
 
 
-def map2ds(rs: ResultSet, groups: list) -> List:
+def map2ds(rs: ResultSetDeprecated, groups: list) -> List:
     datasets = {}
     for i in range(0, len(rs.header)):
         h = rs.header[i]
@@ -89,7 +89,7 @@ def store(parent, name:str, datasets: list, attrs):
         dataset.clear()
 
 
-def export(request: dict, rs: ResultSet, path: str):
+def export(request: dict, rs: ResultSetDeprecated, path: str):
     name = os.path.basename(path).split('.')[0]
     groups = None
     if "package" in request:

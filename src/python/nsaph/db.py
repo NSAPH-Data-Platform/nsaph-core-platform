@@ -134,7 +134,7 @@ def test_connection ():
     logging.info('Database connection closed.')
 
 
-class ResultSet:
+class ResultSetDeprecated:
     SIZE = 10000
 
     def __init__(self, cursor, metadata: dict):

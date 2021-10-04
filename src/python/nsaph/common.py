@@ -36,8 +36,19 @@ def print_ddl (domain):
 
 
 def get_domain(arguments):
-    src = Path(__file__).parents[3]
+    src = Path(__file__).parents[2]
     registry_path = os.path.join(src, "yml", arguments.domain + ".yaml")
     domain = Domain(registry_path, arguments.domain)
     domain.init()
     return domain
+
+
+def get_resource(name: str):
+    root = Path(__file__).parents[3]
+    path = name.split('.')
+    resource_path = os.path.join(root, "resources")
+    for d in path[:-1]:
+        resource_path = os.path.join(resource_path, d)
+    if not os.path.isdir(resource_path):
+        os.makedirs(resource_path)
+    return os.path.join(resource_path, path[-1])
