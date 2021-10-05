@@ -53,10 +53,12 @@ CREATE {OBJECT} {name} AS
 SELECT
 {features}
 FROM {source}
+"""
+
+CREATE_VIEW_GROUP_BY = """
 WHERE {id} IS NOT NULL
 GROUP BY {id};
 """
-
 
 class Domain:
     CREATE = "CREATE TABLE {name}"
@@ -237,30 +239,41 @@ class Domain:
             features.extend([self.column_spec(column) for column in columns])
 
         pk_columns = None
-        if "primary_key" in definition and not is_view:
-            pk_columns = definition["primary_key"]
-            pk = "PRIMARY KEY ({})".format(", ".join(pk_columns))
-            features.append(pk)
-
-        if fk:
-            features.append(fk)
 
         if is_view:
             #     CREATE {OBJECT} {name} AS
             #     SELECT
             #     {features}
             #     FROM {source}
+            #     -------------------
             #     WHERE {id} IS NOT NULL
             #     GROUP BY {id}
+
             create_table = CREATE_VIEW.format(
                 OBJECT=object_type,
                 name=table,
                 features = ",\n\t\t".join(features),
-                source=create["from"],
-                id=create["group by"]
+                source=create["from"]
             )
-            definition["primary_key"] = create["group by"]
+            if "group by" in create:
+                create_table += CREATE_VIEW_GROUP_BY.format(id=create["group by"])
+                reverse_map = {
+                    cdef["source"]: c
+                    for c, cdef in [split(column) for column in columns]
+                    if cdef and "source" in cdef
+                }
+                definition["primary_key"] = [
+                    reverse_map[c] if c in reverse_map else c
+                    for c in create["group by"]
+                ]
         else:
+            if "primary_key" in definition:
+                pk_columns = definition["primary_key"]
+                pk = "PRIMARY KEY ({})".format(", ".join(pk_columns))
+                features.append(pk)
+
+            if fk:
+                features.append(fk)
             create_table = (self.CREATE + " (\n\t{features}\n);").format(name=table, features=",\n\t".join(features))
         self.ddl.append(create_table)
         if "invalid.records" in definition:

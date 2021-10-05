@@ -8,7 +8,8 @@ medicaid:
       create:
         type: materialized view
         from: cms.ps
-        group by: bene_id
+        group by:
+          - bene_id
       columns:
         - bene_id
         - dob:
@@ -38,11 +39,73 @@ medicaid:
                 WHEN MIN(el_dod) <> MAX(el_dod) THEN MIN(el_dod)
               END
       children:
+        monthly:
+          create:
+            type: materialized view
+            from: cms.ps
+          columns:
+            - bene_id
+            - msis_id
+            - year:
+                source: max_yr_dt
+            - state:
+                source: state_cd
+            - month:
+                source: "unnest(ARRAY[1,2,3,4,5,6,7,8,9,10,11,12])"
+            - max_elg_cd:
+                source: |
+                  unnest(ARRAY[
+                    max_elg_cd_mo_1,
+                    max_elg_cd_mo_2,
+                    max_elg_cd_mo_3,
+                    max_elg_cd_mo_4,
+                    max_elg_cd_mo_5,
+                    max_elg_cd_mo_6,
+                    max_elg_cd_mo_7,
+                    max_elg_cd_mo_8,
+                    max_elg_cd_mo_9,
+                    max_elg_cd_mo_10,
+                    max_elg_cd_mo_11,
+                    max_elg_cd_mo_12
+                  ])
+            - el_mdcr_ben:
+                source: |
+                  unnest(ARRAY[
+                    el_mdcr_ben_mo_1,
+                    el_mdcr_ben_mo_2,
+                    el_mdcr_ben_mo_3,
+                    el_mdcr_ben_mo_4,
+                    el_mdcr_ben_mo_5,
+                    el_mdcr_ben_mo_6,
+                    el_mdcr_ben_mo_7,
+                    el_mdcr_ben_mo_8,
+                    el_mdcr_ben_mo_9,
+                    el_mdcr_ben_mo_10,
+                    el_mdcr_ben_mo_11,
+                    el_mdcr_ben_mo_12
+                  ])
+            - el_mdcr_dual:
+                source: |
+                  unnest(ARRAY[
+                    el_mdcr_dual_mo_1,
+                    el_mdcr_dual_mo_2,
+                    el_mdcr_dual_mo_3,
+                    el_mdcr_dual_mo_4,
+                    el_mdcr_dual_mo_5,
+                    el_mdcr_dual_mo_6,
+                    el_mdcr_dual_mo_7,
+                    el_mdcr_dual_mo_8,
+                    el_mdcr_dual_mo_9,
+                    el_mdcr_dual_mo_10,
+                    el_mdcr_dual_mo_11,
+                    el_mdcr_dual_mo_12
+                  ])
         enrollments:
           create:
             type: materialized view
             from: cms.ps
             group by:
+              - bene_id
               - max_yr_dt
               - state_cd
           columns:
