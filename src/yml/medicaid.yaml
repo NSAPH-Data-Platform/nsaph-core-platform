@@ -103,7 +103,12 @@ medicaid:
         enrollments:
           create:
             type: materialized view
-            from: cms.ps
+            from: |
+              cms.ps as ps
+                JOIN medicaid.monthly as m
+                  ON ps.bene_id = m.bene_id
+                  and ps.max_yr_dt = m.year
+                  and ps.state_cd = m.state
             group by:
               - bene_id
               - max_yr_dt
@@ -120,7 +125,7 @@ medicaid:
             - residence_counties:
                 source: "string_agg(distinct el_rsdnc_cnty_cd_ltst, ',')"
             - fips5:
-                source: "(SELECT fips2 FROM us_states as s WHERE s.state_cd = cms.ps.state_cd) || MAX(el_rsdnc_cnty_cd_ltst)"
+                source: "(SELECT fips2 FROM public.us_states as s WHERE s.state_id = ps.state_cd) || MAX(el_rsdnc_cnty_cd_ltst)"
             - zip:
                 source: "MAX(el_rsdnc_zip_cd_ltst)"
             - zips:
