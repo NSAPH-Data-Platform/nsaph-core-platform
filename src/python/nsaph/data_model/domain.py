@@ -51,12 +51,12 @@ VALIDATION_TRIGGER = """
 CREATE_VIEW = """
 CREATE {OBJECT} {name} AS
 SELECT
-{features}
+    {features}
 FROM {source}
 """
 
 CREATE_VIEW_GROUP_BY = """
-WHERE {id} IS NOT NULL
+WHERE {not_null}
 GROUP BY {id};
 """
 
@@ -234,7 +234,7 @@ class Domain:
                     columns.append(column)
 
         if is_view:
-            features = [self.view_column_spec(column, definition) for column in columns]
+            features = [self.view_column_spec(column, definition, table) for column in columns]
         else:
             features.extend([self.column_spec(column) for column in columns])
 
@@ -252,20 +252,24 @@ class Domain:
             create_table = CREATE_VIEW.format(
                 OBJECT=object_type,
                 name=table,
-                features = ",\n\t\t".join(features),
+                features = ",\n\t".join(features),
                 source=create["from"]
             )
             if "group by" in create:
-                create_table += CREATE_VIEW_GROUP_BY.format(id=create["group by"])
+                group_by = ','.join(create["group by"])
+                not_null = " AND ".join(["{} IS NOT NULL".format(c) for c in create["group by"]])
+                create_table += CREATE_VIEW_GROUP_BY.format(id=group_by, not_null=not_null)
                 reverse_map = {
                     cdef["source"]: c
                     for c, cdef in [split(column) for column in columns]
-                    if cdef and "source" in cdef
+                    if cdef and "source" in cdef and isinstance(cdef["source"], str)
                 }
                 definition["primary_key"] = [
                     reverse_map[c] if c in reverse_map else c
                     for c in create["group by"]
                 ]
+            else:
+                create_table = create_table.strip() + ';'
         else:
             if "primary_key" in definition:
                 pk_columns = definition["primary_key"]
@@ -301,9 +305,6 @@ class Domain:
             children = {t: definition["children"][t] for t in definition["children"]}
             for child in children:
                 self.ddl_for_node((child, children[child]), parent=node)
-
-    def ddl_for_view(self, node):
-        pass
 
     def need_index(self, column) -> bool:
         if self.index_policy == "all":
@@ -389,11 +390,16 @@ class Domain:
             return "{} {} {}".format(name, t, code)
         return "{} {}".format(name, t)
 
-    def view_column_spec(self, column, table) -> str:
+    def view_column_spec(self, column, table, table_fqn) -> str:
         name, column = split(column)
         if "source" in column:
-            sql = column["source"]
-            sql = sql.replace('\n', "\n\t\t")
+            if isinstance(column["source"], str):
+                sql = column["source"]
+            elif isinstance(column["source"], dict):
+                sql = self.view_column_joined(column["source"], table)
+            else:
+                raise SyntaxError("Invalid source definition for column {}.{}".format(table_fqn, name))
+            sql = sql.strip().replace('\n', "\n\t\t")
             if "{identifiers}" in sql.lower():
                 idf = self.list_identifiers(table)
                 s = "({})".format(', '.join(idf))
@@ -401,6 +407,35 @@ class Domain:
             sql += " AS {}".format(name)
             return sql
         return name
+
+    def find_mapped_column_name(self, column1, table2) -> str:
+        tdef = self.find(table2)
+        for c in tdef["columns"]:
+            cname, cdef = split(c)
+            if "source" in cdef:
+                if cdef["source"] == column1:
+                    return cname
+        return column1
+
+    def view_column_joined(self, source, table) -> str:
+        select = source["select"]
+        joined_table = source["from"]
+        t2 = self.fqn(joined_table)
+        create = table["create"]
+        t1 = create["from"]
+        conditions = []
+        if "group by" in create:
+            for c1 in create["group by"]:
+                c2 = self.find_mapped_column_name(c1, joined_table)
+                condition = "{t1}.{c1} = {t2}.{c2}".format(t1=t1, t2=t2, c1=c1, c2=c2)
+                conditions.append(condition)
+        if "where" in source:
+            conditions.append(source["where"])
+        sql = "(\nSELECT \n\t{what} \nFROM {table}".format(what = select, table = t2)
+        if conditions:
+            sql += "\nWHERE {condition}".format(condition = "\n\tAND ".join(conditions))
+        sql += "\n)"
+        return sql
 
     @staticmethod
     def list_identifiers(table):
