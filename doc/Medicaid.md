@@ -75,16 +75,35 @@ those assigned to a null value), it will not change. When a new MAX PS file is r
 attempts to reassign those with missing BENE_IDs.
 
 
-                                          
-'''flow
-st=>start: Start
-fts2yaml=>operation: Parse FTS and generate YAML Schema
-ps2db=>operation: Import Patient Summary files
-ben=>operation: Create Beneficiaries View 
-e=>:end
-
-st->fts2yaml->ps2db->ben->e
-'''
+    ┌────────────────────────────────────┐
+    │ Parse FTS and generate YAML Schema │
+    └─────────────────┬──────────────────┘
+                      │
+    ┌─────────────────▼──────────────────┐
+    │  Import Patient Summary (ps) Files │
+    └─────────────────┬──────────────────┘    
+                      │
+    ┌─────────────────▼──────────────────┐
+    │  Create Beneficiaries View         │
+    └─────────────────┬──────────────────┘    
+                      │
+    ┌─────────────────▼──────────────────┐
+    │  Create Intermediate monthly view  │
+    └─────────────────┬──────────────────┘    
+                      │
+    ┌─────────────────▼──────────────────┐
+    │  Create Enrollments View           │
+    └─────────────────┬──────────────────┘    
+                      │
+    ┌─────────────────▼──────────────────┐
+    │  Create Eligibility View           │
+    └─────────────────┬──────────────────┘    
+                      │
+    ┌─────────────────▼──────────────────┐
+    │  Import Inpatient (ip) data into   │
+    │    admissions table                │
+    └────────────────────────────────────┘    
+                                      
 
 
 '''
