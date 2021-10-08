@@ -160,7 +160,26 @@ described by a YAML request definition.
 Module [query](src/python/nsaph/requests/query.py) generates SQL query
 from a YAML request definition.
 
+##### nsaph.cms
 
+This sub-package contains modules to generate YAML schema for CMS
+data from FTS files provided with CMS medicaid and medicare 
+export (raw data).
+
+Module [fts2yaml](src/python/nsaph/cms/fts2yaml.py) is a generic
+parser for FTS format for both Medicaid and Medicare.
+
+File transfer summary (FTS) document contains information about 
+the data extract. These are plain text files containing
+information such as the number of
+columns in the data extract, number of rows and the size of the
+data file. The FTS document provides the
+starting positions, the length and the generic format of 
+each of the column (such as character, numeric or date)  
+
+Module [medicaid](src/python/nsaph/cms/medicaid.py) generates YAML 
+schema for CMS medicaid and places it into the registry described 
+in [YAML Files](#yaml-files) section.
 
 
 ### YAML files
@@ -169,7 +188,7 @@ are included in **_nsaph_** package because they are used by
 different utilities and thus, expected to be stored in 
 a specific location.
 
-Besides data model files, there are YAML files for:
+Beside data model files, there are YAML files for:
 
 * Conda environments, required for NSAPH pipelines. Unless we
   will be able to create a single environment that accomodate 
