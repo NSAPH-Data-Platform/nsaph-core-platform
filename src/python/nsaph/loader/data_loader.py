@@ -8,16 +8,55 @@ Input (aka source) files can be either in FST or in CSV format
 """
 import os
 from pathlib import Path
-from typing import List
+import logging
 
 from psycopg2.extensions import connection
 
-from nsaph import init_logging
+from typing import List, Tuple, Callable, Any
+
+from nsaph import init_logging, ORIGINAL_FILE_COLUMN
 from nsaph.data_model.domain import Domain
 from nsaph.data_model.inserter import Inserter
 from nsaph.data_model.utils import DataReader
 from nsaph.db import Connection
-from nsaph.loader.conf import Config, Parallelization
+from nsaph.loader.conf import LoaderConfig, Parallelization
+
+
+def is_dir(path: str) -> bool:
+    return (path.endswith(".tar")
+            or path.endswith(".tgz")
+            or path.endswith(".tar.gz")
+            or path.endswith(".zip")
+            or os.path.isdir(path)
+    )
+
+
+def get_files(arguments) -> List[Tuple[Any,Callable]]:
+    path = arguments.data
+    if not is_dir(path):
+        return [path]
+    logging.info("Looking for relevant entries.")
+    entries, f = get_entries(path)
+    if not arguments.pattern:
+        return [(e,f) for e in entries]
+    objects = []
+    for e in entries:
+        if isinstance(e, str):
+            name = e
+        else:
+            name = e.name
+        if fnmatch.fnmatch(name, arguments.pattern):
+            objects.append((e, f))
+    return objects
+
+
+def has_been_ingested(file:str, connection, table):
+    sql = "SELECT 1 FROM {} WHERE {} = '{}' LIMIT 1".format(table, ORIGINAL_FILE_COLUMN, file)
+    logging.debug(sql)
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+        exists = len([r for r in cursor]) > 0
+    return exists
 
 
 class DataLoader:
@@ -33,9 +72,9 @@ class DataLoader:
         domain.init()
         return domain
 
-    def __init__(self, context: Config = None):
+    def __init__(self, context: LoaderConfig = None):
         if not context:
-            context = Config(__doc__).instantiate()
+            context = LoaderConfig(__doc__).instantiate()
         self.context = context
         if context.domain:
             self.domain = self.get_domain(context.domain)
@@ -100,6 +139,22 @@ class DataLoader:
         finally:
             for c in connections:
                 c.close()
+
+    def import_data(self, connections: List[Connection],
+                    data, table, buffer, page, log_step, limit):
+        if self.domain.has("quoting") or domain.has("header"):
+            q = self.domain.get("quoting")
+            h = self.domain.get("header")
+            with DataReader(data, buffer_size=buffer, quoting=q, has_header=h) as reader:
+                if h is False:
+                    reader.columns = domain.list_columns(table)
+                inserter = Inserter(domain, table, reader, connections, page_size=page)
+                inserter.import_file(limit=limit, log_step=log_step)
+        else:
+            with DataReader(data, buffer_size=buffer) as reader:
+                inserter = Inserter(domain, table, reader, connections, page_size=page)
+                inserter.import_file(limit=limit, log_step=log_step)
+
 
 
 if __name__ == '__main__':
