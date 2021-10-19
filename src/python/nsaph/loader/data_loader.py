@@ -129,8 +129,10 @@ class DataLoader:
                     name = e
                 else:
                     name = e.name
-                if fnmatch.fnmatch(name, self.context.pattern):
-                    objects.append((e, f))
+                for pattern in self.context.pattern:
+                    if fnmatch.fnmatch(name, pattern):
+                        objects.append((e, f))
+                        break
         return objects
 
     def has_been_ingested(self, file:str, table):
