@@ -56,3 +56,7 @@ class CommonConfig(Context):
         self.db = None
         self.connection = None
         super().__init__(subclass, doc)
+        self._attrs += [
+            attr[1:] for attr in CommonConfig.__dict__
+            if attr[0] == '_' and attr[1] != '_'
+        ]

@@ -116,6 +116,7 @@ class LoaderConfig(CommonConfig):
         self.incremental = None
         super().__init__(LoaderConfig, doc)
 
+
     def validate(self, attr, value):
         value = super().validate(attr, value)
         if attr == self._parallelization.name:
