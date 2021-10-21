@@ -17,7 +17,10 @@ def select(pattern: str, destination: str, threshold: float):
         if not name.endswith('.gz'):
             name += ".gz"
         dest = os.path.basename(os.path.dirname(f))
-        dest = os.path.join(destination, dest, name)
+        dest = os.path.join(destination, dest)
+        if not os.path.isdir(dest):
+            os.makedirs(dest)
+        dest = os.path.join(dest, name)
         print("{} ==> {}".format(f, dest))
 
         with fopen(f, "rt") as src, gzip.open(dest, "wt") as output:
