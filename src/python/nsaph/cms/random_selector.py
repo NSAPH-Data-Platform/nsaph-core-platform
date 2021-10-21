@@ -36,5 +36,5 @@ def select(pattern: str, destination: str, threshold: float):
 
 
 if __name__ == '__main__':
-    select("*/*.csv*", "random_data", 0.02)
+    select("data/*/*.csv*", "random_data", 0.02)
 
