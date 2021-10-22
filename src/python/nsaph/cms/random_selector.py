@@ -21,6 +21,9 @@ def select(pattern: str, destination: str, threshold: float):
         if not os.path.isdir(dest):
             os.makedirs(dest)
         dest = os.path.join(dest, name)
+        if os.path.isfile(dest):
+            print("Skipping: {}".format(f))
+            continue
         print("{} ==> {}".format(f, dest))
 
         with fopen(f, "rt") as src, gzip.open(dest, "wt") as output:
