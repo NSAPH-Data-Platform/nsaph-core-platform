@@ -9,7 +9,7 @@ import yaml
 from nsaph_utils.utils.io_utils import as_dict
 
 from nsaph import init_logging
-from nsaph.db import Connection, ResultSet
+from nsaph.db import Connection, ResultSetDeprecated
 
 
 def fqn(t):
@@ -35,7 +35,7 @@ class Query:
 
     def execute(self):
         self.cursor.execute(self.sql)
-        return ResultSet(cursor=self.cursor, metadata=self.metadata)
+        return ResultSetDeprecated(cursor=self.cursor, metadata=self.metadata)
 
     def prepare(self):
         connection = self.connection.connect()

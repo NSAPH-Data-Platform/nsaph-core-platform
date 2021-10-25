@@ -61,6 +61,7 @@ class BlockingThreadPoolExecutor(ThreadPoolExecutor):
             "{}. Tasks in the queue: done: {:d}; running: {:d}; waiting: {:d}"
                 .format(str(datetime.datetime.now()), d, r, w)
         )
+        self.log_timestamp = datetime.datetime.now()
 
     def wait(self, n: int):
         while len(self.tasks) > n:

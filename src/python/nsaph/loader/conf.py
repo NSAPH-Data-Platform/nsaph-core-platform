@@ -13,6 +13,8 @@ database schema.
 from enum import Enum
 from nsaph_utils.utils.context import Context, Argument, Cardinality
 
+from nsaph.loader.common import CommonConfig
+
 
 class Parallelization(Enum):
     lines = "lines"
@@ -20,30 +22,24 @@ class Parallelization(Enum):
     none = "none"
 
 
-class Config(Context):
+class LoaderConfig(CommonConfig):
     """
         Configurator class
     """
 
-    _domain = Argument("domain",
-        help = "Name of the domain",
-        type = str,
-        required = True,
-        cardinality = Cardinality.single,
-        valid_values = None
-    )
-
-    _table = Argument("table",
-        help = "Name of the table to load data into",
+    _data = Argument("data",
+        help = "Path to a data file or directory. Can be a "
+                + "single CSV, gzipped CSV or FST file or a directory recursively "
+                + "containing CSV files. Can also be a tar, tar.gz (or tgz) or zip archive "
+                + "containing CSV files",
         type = str,
         required = False,
-        aliases = ["t"],
-        default = None,
-        cardinality = Cardinality.single
+        cardinality = Cardinality.multiple
     )
 
-    _data = Argument("data",
-        help = "Path to a data file or directory",
+    _pattern = Argument("pattern",
+        help = "pattern for files in a directory or an archive, "
+               + "e.g. \"**/maxdata_*_ps_*.csv\"",
         type = str,
         required = False,
         cardinality = Cardinality.multiple
@@ -56,25 +52,11 @@ class Config(Context):
         cardinality = Cardinality.single
     )
 
-    _autocommit = Argument("autocommit",
-          help = "Use autocommit",
-          type = bool,
-          default = False,
-          cardinality = Cardinality.single
-    )
-
-    _db = Argument("db",
-        help = "Path to a database connection parameters file",
-        type = str,
-        default = "database.ini",
-        cardinality = Cardinality.single
-    )
-
-    _connection = Argument(
-        "connection",
-        help = "Section in the database connection parameters file",
-        type = str,
-        default = "nsaph2",
+    _incremental = Argument("incremental",
+        help = "Commit every file and skip over files that "
+               + "have already been ingested",
+        type = bool,
+        default = False,
         cardinality = Cardinality.single
     )
 
@@ -122,20 +104,18 @@ class Config(Context):
     )
 
     def __init__(self, doc):
-        self.domain = None
-        self.table = None
         self.data = None
-        self.autocommit = None
         self.reset = None
-        self.db = None
-        self.connection = None
         self.page = None
         self.log = None
         self.limit = None
         self.buffer = None
         self.threads = None
         self.parallelization = None
-        super().__init__(Config, doc)
+        self.pattern = None
+        self.incremental = None
+        super().__init__(LoaderConfig, doc)
+
 
     def validate(self, attr, value):
         value = super().validate(attr, value)

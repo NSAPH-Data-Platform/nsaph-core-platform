@@ -8,16 +8,47 @@ Input (aka source) files can be either in FST or in CSV format
 """
 import os
 from pathlib import Path
-from typing import List
+import logging
+import fnmatch
 
 from psycopg2.extensions import connection
 
-from nsaph import init_logging
+from typing import List, Tuple, Callable, Any
+
+from nsaph import init_logging, ORIGINAL_FILE_COLUMN
 from nsaph.data_model.domain import Domain
 from nsaph.data_model.inserter import Inserter
-from nsaph.data_model.utils import DataReader
+from nsaph.data_model.utils import DataReader, entry_to_path
 from nsaph.db import Connection
-from nsaph.loader.conf import Config, Parallelization
+from nsaph.loader.conf import LoaderConfig, Parallelization
+from nsaph.reader import get_entries
+
+
+def is_dir(path: str) -> bool:
+    """
+    Determine if a certain path specification refers
+        to a collection of files or a single entry.
+        Examples of collections are folders (directories)
+        and archives
+
+    :param path: path specification
+    :return: True if specification refers to a collection of files
+    """
+
+    return (path.endswith(".tar")
+            or path.endswith(".tgz")
+            or path.endswith(".tar.gz")
+            or path.endswith(".zip")
+            or os.path.isdir(path)
+    )
+
+
+def is_yaml_or_json(path: str) -> bool:
+    path = path.lower()
+    for ext in [".yml", ".yaml", ".json"]:
+        if path.endswith(ext) or path.endswith(ext + ".gz"):
+            return True
+    return  False
 
 
 class DataLoader:
@@ -26,28 +57,46 @@ class DataLoader:
     """
 
     @staticmethod
-    def get_domain(name):
-        src = Path(__file__).parents[3]
-        registry_path = os.path.join(src, "yml", name + ".yaml")
+    def get_domain(name: str, registry: str = None) -> Domain:
+        src = None
+        registry_path = None
+        if registry:
+            if is_yaml_or_json(registry):
+                registry_path = registry
+            elif not is_dir(registry):
+                raise ValueError("{} - is not a valid registry path")
+            elif os.path.isdir(registry):
+                src = registry
+            else:
+                raise NotImplementedError("Not Implemented: registry in an archive")
+        if not src:
+            src = Path(__file__).parents[3]
+        if not registry_path:
+            registry_path = os.path.join(src, "yml", name + ".yaml")
         domain = Domain(registry_path, name)
         domain.init()
         return domain
 
-    def __init__(self, context: Config = None):
+    def __init__(self, context: LoaderConfig = None):
+        init_logging()
         if not context:
-            context = Config(__doc__).instantiate()
+            context = LoaderConfig(__doc__).instantiate()
         self.context = context
-        if context.domain:
-            self.domain = self.get_domain(context.domain)
+        self.domain = self.get_domain(context.domain, context.registry)
         self.table = context.table
         self.page = context.page
         self.log_step = context.log
-        nc = len(self.domain.list_columns(self.table))
-        if self.domain.has_hard_linked_children(self.table) or nc > 20:
-            if self.page is None:
-                self.page = 100
-            if self.log_step is None:
-                self.log_step = 10000
+        self._connections = None
+        if self.context.incremental and self.context.autocommit:
+            raise ValueError("Incompatible arguments: autocommit is "
+                             + "incompatible with incremental loading")
+        if self.table:
+            nc = len(self.domain.list_columns(self.table))
+            if self.domain.has_hard_linked_children(self.table) or nc > 20:
+                if self.page is None:
+                    self.page = 100
+                if self.log_step is None:
+                    self.log_step = 10000
         else:
             if self.page is None:
                 self.page = 1000
@@ -59,51 +108,154 @@ class DataLoader:
         for ddl in self.domain.ddl:
             print(ddl)
 
-    def get_connection(self) -> connection:
+    def _connect(self) -> connection:
         c = Connection(self.context.db, self.context.connection).connect()
         if self.context.autocommit is not None:
             c.autocommit = self.context.autocommit
         return c
 
+    def is_parallel(self) -> bool:
+        if self.context.threads < 2:
+            return False
+        if self.context.parallelization == Parallelization.none:
+            return False
+        return True
+
     def get_connections(self) -> List[connection]:
-        if self.context.threads < 2 or self.context.parallelization == Parallelization.none:
-            return [self.get_connection()]
-        return [self.get_connection() for _ in range(self.context.threads)]
+        if self._connections is None:
+            if self.is_parallel():
+                self._connections = [
+                    self._connect() for _ in range(self.context.threads)
+                ]
+            else:
+                self._connections = [self._connect()]
+        return self._connections
+
+    def get_connection(self):
+        return self.get_connections()[0]
+
+    def get_files(self) -> List[Tuple[Any,Callable]]:
+        objects = []
+        for path in self.context.data:
+            if not is_dir(path):
+                objects.append(path)
+                continue
+            logging.info("Looking for relevant entries in {}.".format(path))
+            entries, f = get_entries(path)
+            if not self.context.pattern:
+                objects += [(e,f) for e in entries]
+                continue
+            for e in entries:
+                if isinstance(e, str):
+                    name = e
+                else:
+                    name = e.name
+                for pattern in self.context.pattern:
+                    if fnmatch.fnmatch(name, pattern):
+                        objects.append((e, f))
+                        break
+        return objects
+
+    def has_been_ingested(self, file:str, table):
+        tfqn = self.domain.fqn(table)
+        sql = "SELECT 1 FROM {} WHERE {} = '{}' LIMIT 1"\
+            .format(tfqn, ORIGINAL_FILE_COLUMN, file)
+        logging.debug(sql)
+        with self.get_connection().cursor() as cursor:
+            cursor.execute(sql)
+            exists = len([r for r in cursor]) > 0
+        return exists
 
     def reset(self):
         if not self.context.reset:
             return
-        with self.get_connection() as connection:
-            tables = self.domain.drop(self.table, connection)
-            self.domain.create(connection, tables)
+        with self._connect() as connxn:
+            tables = self.domain.drop(self.table, connxn)
+            self.domain.create(connxn, tables)
 
-    def get_data_reader(self, path):
-        if self.domain.has("quoting") or self.domain.has("header"):
-            q = self.domain.get("quoting")
-            h = self.domain.get("header")
-            reader = DataReader(path, buffer_size=self.context.buffer, quoting=q, has_header=h)
-            if h is False:
-                reader.columns = self.domain.list_columns(self.table)
-            return reader
-        return DataReader(path, buffer_size=self.context.buffer)
+    def run(self):
+        if not self.context.table:
+            self.print_ddl()
+            return
+        if self.context.reset:
+            self.reset()
+        self.load()
+        return
 
-    def load_data(self):
+    def commit(self):
+        if not self.context.autocommit:
+            for cxn in self._connections:
+                cxn.commit()
+        return
+
+    def rollback(self):
+        for cxn in self._connections:
+            cxn.rollback()
+        return
+
+    def close(self):
+        if self._connections is None:
+            return
+        for cxn in self._connections:
+            cxn.close()
+        self._connections = None
+        return
+
+    def load(self):
         self.reset()
         connections = self.get_connections()
         try:
-            for path in self.context.data:
-                with self.get_data_reader(path) as reader:
-                    inserter = Inserter(self.domain, self.table, reader, connections, page_size=self.page)
-                    inserter.import_file(limit=self.context.limit, log_step=self.log_step)
-            for c in connections:
-                c.commit()
+            logging.info("Processing: " + '; '.join(self.context.data))
+            for entry in self.get_files():
+                try:
+                    if self.context.incremental:
+                        ff = os.path.basename(entry_to_path(entry))
+                        logging.info("Checking if {} has been already ingested.".format(ff))
+                        exists = self.has_been_ingested(ff, self.context.table)
+                        if exists:
+                            logging.warning("Skipping already imported file " + ff)
+                            continue
+                    logging.info("Importing: " + entry_to_path(entry))
+                    self.import_data_from_file(data_file=entry)
+                    if self.context.incremental:
+                        self.commit()
+                        logging.info("Committed: " + entry_to_path(entry))
+                except Exception as x:
+                    if self.context.incremental:
+                        logging.exception("Exception: " + entry_to_path(entry))
+                        self.rollback()
+                        logging.info("Rolled back and skipped: " + entry_to_path(entry))
+                    else:
+                        raise x
+            self.commit()
         finally:
-            for c in connections:
-                c.close()
+            self.close()
+
+    def import_data_from_file(self, data_file):
+        table = self.context.table
+        buffer = self.context.buffer
+        limit = self.context.limit
+        connections = self.get_connections()
+        if self.domain.has("quoting") or self.domain.has("header"):
+            q = self.domain.get("quoting")
+            h = self.domain.get("header")
+        else:
+            q = None
+            h = None
+        with DataReader(data_file, buffer_size=buffer, quoting=q, has_header=h) as reader:
+            if h is False:
+                reader.columns = self.domain.list_columns(table)
+            inserter = Inserter(
+                self.domain,
+                table,
+                reader,
+                connections,
+                page_size=self.page
+            )
+            inserter.import_file(limit=limit, log_step=self.log_step)
+        return
 
 
 if __name__ == '__main__':
-    init_logging()
     loader = DataLoader()
-    #loader.print_ddl()
-    loader.load_data()
+    loader.run()

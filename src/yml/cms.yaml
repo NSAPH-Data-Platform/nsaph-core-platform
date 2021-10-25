@@ -32,6 +32,7 @@ cms:
           type: VARCHAR(1)
       - EL_RACE_ETHNCY_CD:
           description: Race/ethnicity (from MSIS)
+          index: true
           type: VARCHAR(1)
       - RACE_CODE_1:
           description: Race - White (from MSIS)
@@ -423,6 +424,12 @@ cms:
       - UB_92_REV_CD_UNITS_23:
           description: UB-92 revenue code units (23rd)
           type: INT
+      - FILE:
+          description: RESDAC original file name
+          index: true
+          source:
+            type: file
+          type: VARCHAR(128)
       primary_key:
       - MSIS_ID
       - STATE_CD
@@ -468,6 +475,7 @@ cms:
           type: VARCHAR(1)
       - EL_RACE_ETHNCY_CD:
           description: Race/ethnicity (from MSIS)
+          index: true
           type: VARCHAR(1)
       - RACE_CODE_1:
           description: Race - White (from MSIS)
@@ -2510,6 +2518,12 @@ cms:
       - TMSIS_ELG_GRP_LTST:
           description: Medicaid Eligibility Group Most Recent Code
           type: VARCHAR(2)
+      - FILE:
+          description: RESDAC original file name
+          index: true
+          source:
+            type: file
+          type: VARCHAR(128)
       primary_key:
       - MSIS_ID
       - STATE_CD

@@ -1,27 +1,59 @@
-import argparse
+import fnmatch
+import logging
 import os
-from pathlib import Path
+from typing import List, Tuple, Callable, Any
 
-from nsaph import init_logging
+from nsaph import init_logging, ORIGINAL_FILE_COLUMN
+from nsaph.common import common_args, print_ddl, get_domain
 from nsaph.data_model.domain import Domain
 from nsaph.data_model.inserter import Inserter
-from nsaph.data_model.utils import DataReader
+from nsaph.data_model.utils import DataReader, entry_to_path
 from nsaph.db import Connection
+from nsaph.reader import get_entries
 
 
-def print_ddl (domain):
-    for ddl in domain.ddl:
-        print(ddl)
-    for ddl in domain.indices:
-        print(ddl)
+def is_dir(path: str) -> bool:
+    return (path.endswith(".tar")
+            or path.endswith(".tgz")
+            or path.endswith(".tar.gz")
+            or path.endswith(".zip")
+            or os.path.isdir(path)
+    )
 
 
-def get_domain(arguments):
-    src = Path(__file__).parents[3]
-    registry_path = os.path.join(src, "yml", arguments.domain + ".yaml")
-    domain = Domain(registry_path, arguments.domain)
-    domain.init()
-    return domain
+def get_files(arguments) -> List[Tuple[Any,Callable]]:
+    path = arguments.data
+    if not is_dir(path):
+        return [path]
+    logging.info("Looking for relevant entries.")
+    entries, f = get_entries(path)
+    if not arguments.pattern:
+        return [(e,f) for e in entries]
+    objects = []
+    for e in entries:
+        if isinstance(e, str):
+            name = e
+        else:
+            name = e.name
+        if fnmatch.fnmatch(name, arguments.pattern):
+            objects.append((e, f))
+    return objects
+
+
+def has_been_ingested(file:str, connection, table):
+    sql = "SELECT 1 FROM {} WHERE {} = '{}' LIMIT 1".format(table, ORIGINAL_FILE_COLUMN, file)
+    logging.debug(sql)
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+        exists = len([r for r in cursor]) > 0
+    return exists
+
+
+def connect(arguments):
+    return [
+        Connection(arguments.db, arguments.connection).connect()
+        for _ in range(arguments.threads)
+    ]
 
 
 def run():
@@ -40,7 +72,7 @@ def run():
         page = 1000 if arguments.page is None else arguments.page
         log_step = 1000000 if arguments.log is None else arguments.log
 
-    connections = [Connection(arguments.db, arguments.connection).connect() for _ in range(arguments.threads)]
+    connections = connect(arguments)
     try:
         for connection in connections:
             connection.autocommit = arguments.autocommit
@@ -50,18 +82,39 @@ def run():
             domain.create(connection, tables)
             if not connection.autocommit:
                 connection.commit()
-        if domain.has("quoting") or domain.has("header"):
-            q = domain.get("quoting")
-            h = domain.get("header")
-            with DataReader(arguments.data, buffer_size=arguments.buffer, quoting=q, has_header=h) as reader:
-                if h is False:
-                    reader.columns = domain.list_columns(table)
-                inserter = Inserter(domain, table, reader, connections, page_size=page)
-                inserter.import_file(limit=arguments.limit, log_step=log_step)
-        else:
-            with DataReader(arguments.data, buffer_size=arguments.buffer) as reader:
-                inserter = Inserter(domain, table, reader, connections, page_size=page)
-                inserter.import_file(limit=arguments.limit, log_step=log_step)
+
+        logging.info("Processing: " + arguments.data)
+        for entry in get_files(arguments):
+            try:
+                if arguments.incremental:
+                    ff = os.path.basename(entry_to_path(entry))
+                    logging.info("Checking if {} has been already ingested.".format(ff))
+                    exists = has_been_ingested(ff, connections[0], domain.fqn(table))
+                    if exists:
+                        logging.warning("Skipping already imported file " + ff)
+                        continue
+                logging.info("Importing: " + entry_to_path(entry))
+                import_data(domain=domain,
+                            connections=connections,
+                            data=entry,
+                            buffer=arguments.buffer,
+                            limit=arguments.limit,
+                            log_step=log_step,
+                            table=table,
+                            page=page
+                )
+                if arguments.incremental:
+                    for connection in connections:
+                        connection.commit()
+                    logging.info("Committed: " + entry_to_path(entry))
+            except Exception as x:
+                if arguments.incremental:
+                    logging.exception("Exception: " + entry_to_path(entry))
+                    for connection in connections:
+                        connection.rollback()
+                    logging.info("Rolled back and skipped: " + entry_to_path(entry))
+                else:
+                    raise x
         for connection in connections:
             connection.commit()
     finally:
@@ -69,30 +122,37 @@ def run():
             connection.close()
 
 
+def import_data(domain: Domain, connections: List[Connection],
+                data, table, buffer, page, log_step, limit):
+    if domain.has("quoting") or domain.has("header"):
+        q = domain.get("quoting")
+        h = domain.get("header")
+        with DataReader(data, buffer_size=buffer, quoting=q, has_header=h) as reader:
+            if h is False:
+                reader.columns = domain.list_columns(table)
+            inserter = Inserter(domain, table, reader, connections, page_size=page)
+            inserter.import_file(limit=limit, log_step=log_step)
+    else:
+        with DataReader(data, buffer_size=buffer) as reader:
+            inserter = Inserter(domain, table, reader, connections, page_size=page)
+            inserter.import_file(limit=limit, log_step=log_step)
+
+
+
 def args():
-    parser = argparse.ArgumentParser (description="Create database for a given domain")
-    parser.add_argument("--domain",
-                        help="Name of the domain",
-                        default="medicaid",
-                        required=False)
-    parser.add_argument("--table", "-t",
-                        help="Name of the table to load data into",
-                        required=False)
+    parser = common_args("Create database for a given domain")
     parser.add_argument("--data",
-                        help="Path to a data file or directory",
+                        help="Path to a data file or directory. Can be a "
+                             + "single CSV, gzipped CSV or FST file or a directory recursively "
+                             + "containing CSV files. Can also be a tar, tar.gz (or tgz) or zip archive "
+                             + "containing CSV files",
                         required=False)
+    parser.add_argument("--pattern",
+                        help="pattern for files in a directory or an archive, e.g. \"**/maxdata_*_ps_*.csv\"")
     parser.add_argument("--reset", action='store_true',
                         help="Force recreating table(s) if it/they already exist")
-    parser.add_argument("--autocommit", action='store_true',
-                        help="Use autocommit")
-    parser.add_argument("--db",
-                        help="Path to a database connection parameters file",
-                        default="database.ini",
-                        required=False)
-    parser.add_argument("--connection",
-                        help="Section in the database connection parameters file",
-                        default="nsaph2",
-                        required=False)
+    parser.add_argument("--incremental", action='store_true',
+                        help="Commit every file and skip over files that have already been ingested")
     parser.add_argument("--page", type=int, help="Explicit page size for the database")
     parser.add_argument("--log", type=int, help="Explicit interval for logging")
     parser.add_argument("--limit", type=int, help="Load at most specified number of records")
