@@ -106,6 +106,7 @@ setup(
         'PyYAML>=5.3.1',
         'rdflib>=4.2.2',
         'rdflib-jsonld>=0.5.0',
+        'recommonmark'
         'requests',
         'rpy2>=3.4.4',
         'ruamel.yaml>=0.16.5',
@@ -115,6 +116,9 @@ setup(
         'shellescape>=3.4.1',
         'six>=1.15.0',
         'sortedcontainers',
+        'sphinx',
+        'sphinx-markdown-tables',
+        'sphinx_paramlinks',
         'SQLAlchemy>=1.3.20',
         'SQLAlchemy-JSONField>=0.9.0',
         'SQLAlchemy-Utils>=0.36.8',
