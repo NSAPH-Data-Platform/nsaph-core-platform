@@ -1,4 +1,4 @@
-# Data Modelling fro NSAPH Data Platform 
+# Data Modelling for NSAPH Data Platform 
 **How data models are defined and handled**
 
 ## Introduction
@@ -20,6 +20,8 @@ following domains
 * Gridmet
 
 ## Domain
+
+Handling domains is implemented by the [Domain](../src/) class.
 
 For each domain, its data model is defined by a YAML file in 
 the following directory: [src/yml](../src/yml)

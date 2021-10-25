@@ -18,6 +18,18 @@ class CommonConfig(Context):
         valid_values = None
     )
 
+    _registry = Argument("registry",
+        help = "Path to domain registry. "
+               + "Registry is a directory or an archive "
+               + "containing YAML files with domain "
+               + "definition. Default is to use "
+               + "the built-in registry",
+        type = str,
+        required = False,
+        cardinality = Cardinality.single,
+        valid_values = None
+    )
+
     _table = Argument("table",
         help = "Name of the table to load data into",
         type = str,
@@ -51,11 +63,12 @@ class CommonConfig(Context):
 
     def __init__(self, subclass, doc):
         self.domain = None
+        self.registry = None
         self.table = None
         self.autocommit = None
         self.db = None
         self.connection = None
-        super().__init__(subclass, doc)
+        super().__init__(subclass, doc, include_default = False)
         self._attrs += [
             attr[1:] for attr in CommonConfig.__dict__
             if attr[0] == '_' and attr[1] != '_'

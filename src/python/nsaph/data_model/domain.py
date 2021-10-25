@@ -1,3 +1,11 @@
+"""
+Domain is a Python module dedicated to
+generation of various SQL required for manipulation
+with data in a certain knowledge domain
+
+See 
+"""
+
 import logging
 import re
 from typing import Optional, Dict, List
@@ -60,8 +68,10 @@ WHERE {not_null}
 GROUP BY {id};
 """
 
+
 class Domain:
     CREATE = "CREATE TABLE {name}"
+
     def __init__(self, spec, name):
         self.domain = name
         self.spec = as_dict(spec)

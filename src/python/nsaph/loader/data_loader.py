@@ -43,15 +43,36 @@ def is_dir(path: str) -> bool:
     )
 
 
+def is_yaml_or_json(path: str) -> bool:
+    path = path.lower()
+    for ext in [".yml", ".yaml", ".json"]:
+        if path.endswith(ext) or path.endswith(ext + ".gz"):
+            return True
+    return  False
+
+
 class DataLoader:
     """
     Class for data loader
     """
 
     @staticmethod
-    def get_domain(name):
-        src = Path(__file__).parents[3]
-        registry_path = os.path.join(src, "yml", name + ".yaml")
+    def get_domain(name: str, registry: str = None) -> Domain:
+        src = None
+        registry_path = None
+        if registry:
+            if is_yaml_or_json(registry):
+                registry_path = registry
+            elif not is_dir(registry):
+                raise ValueError("{} - is not a valid registry path")
+            elif os.path.isdir(registry):
+                src = registry
+            else:
+                raise NotImplementedError("Not Implemented: registry in an archive")
+        if not src:
+            src = Path(__file__).parents[3]
+        if not registry_path:
+            registry_path = os.path.join(src, "yml", name + ".yaml")
         domain = Domain(registry_path, name)
         domain.init()
         return domain
@@ -61,7 +82,7 @@ class DataLoader:
         if not context:
             context = LoaderConfig(__doc__).instantiate()
         self.context = context
-        self.domain = self.get_domain(context.domain)
+        self.domain = self.get_domain(context.domain, context.registry)
         self.table = context.table
         self.page = context.page
         self.log_step = context.log

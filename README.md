@@ -166,7 +166,7 @@ This sub-package contains modules to generate YAML schema for CMS
 data from FTS files provided with CMS medicaid and medicare 
 export (raw data).
 
-Module [fts2yaml](src/python/nsaph/cms/fts2yaml.py) is a generic
+Module [fts2yaml](../tools/cms/src/python/fts2yaml.py) is a generic
 parser for FTS format for both Medicaid and Medicare.
 
 File transfer summary (FTS) document contains information about 
@@ -177,7 +177,7 @@ data file. The FTS document provides the
 starting positions, the length and the generic format of 
 each of the column (such as character, numeric or date)  
 
-Module [medicaid](src/python/nsaph/cms/medicaid.py) generates YAML 
+Module [medicaid](../tools/cms/src/python/medicaid.py) generates YAML 
 schema for CMS medicaid and places it into the registry described 
 in [YAML Files](#yaml-files) section.
 

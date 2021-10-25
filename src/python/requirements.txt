@@ -95,6 +95,7 @@ pytzdata==2020.1
 PyYAML==5.3.1
 rdflib==4.2.2
 rdflib-jsonld==0.5.0
+recommonmark
 requests
 rpy2>=3.4.4
 ruamel.yaml==0.16.5
@@ -107,6 +108,9 @@ sortedcontainers
 SQLAlchemy==1.3.20
 SQLAlchemy-JSONField==0.9.0
 SQLAlchemy-Utils==0.36.8
+sphinx
+sphinx-markdown-tables
+sphinx_paramlinks
 swagger-ui-bundle==0.0.8
 tabulate==0.8.7
 tenacity==4.12.0

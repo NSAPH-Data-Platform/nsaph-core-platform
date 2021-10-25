@@ -46,7 +46,7 @@ starting positions, the length and the generic format of
 each of the column (such as character, numeric or date)  
 
 Parsing FTS is done by running module 
-[medicaid](../src/python/nsaph/cms/medicaid.py).
+[medicaid](../../tools/cms/src/python/medicaid.py).
                                                        
     pyhton -m nsaph.cms.medicaid
 
