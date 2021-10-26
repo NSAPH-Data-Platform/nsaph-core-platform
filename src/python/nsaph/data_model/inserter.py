@@ -14,7 +14,7 @@ from psycopg2.extras import execute_values
 from nsaph.data_model.domain import Domain
 from nsaph.data_model.utils import split, DataReader, regex
 from nsaph.fips import fips_dict
-from util.executors import BlockingThreadPoolExecutor
+from nsaph.util.executors import BlockingThreadPoolExecutor
 
 
 def compute(how, row):

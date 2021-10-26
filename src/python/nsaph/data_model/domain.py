@@ -151,8 +151,10 @@ class Domain:
     def find(self, table: str, root = None) -> Optional[dict]:
         if not root:
             tables = self.spec[self.domain]["tables"]
-        else:
+        elif "children" in root:
             tables = root["children"]
+        else:
+            return None
         if table in tables:
             return tables[table]
         for t in tables:
@@ -178,7 +180,7 @@ class Domain:
         tables = self.find_dependent(table)
         with connection.cursor() as cursor:
             for t in tables:
-                obj = self.find(t)
+                obj = tables[t]
                 if "create" in obj:
                     kind = obj["create"]["type"]
                 else:

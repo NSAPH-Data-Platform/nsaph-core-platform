@@ -177,9 +177,15 @@ class DataLoader:
         if not self.context.table:
             self.print_ddl()
             return
+        acted = False
         if self.context.reset:
             self.reset()
-        self.load()
+            acted = True
+        if self.context.data:
+            self.load()
+            acted = True
+        if not acted:
+            raise ValueError("No action has been specified")
         return
 
     def commit(self):
@@ -202,8 +208,6 @@ class DataLoader:
         return
 
     def load(self):
-        self.reset()
-        connections = self.get_connections()
         try:
             logging.info("Processing: " + '; '.join(self.context.data))
             for entry in self.get_files():
