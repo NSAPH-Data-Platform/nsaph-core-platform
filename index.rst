@@ -8,7 +8,7 @@ Welcome to NSAPH Data Platform
 
    README
    doc/Datamodels.md
-   doc/Medicaid.md
+   doc/UserRequests
 
 Indices and tables
 ==================

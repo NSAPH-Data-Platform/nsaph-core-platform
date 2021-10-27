@@ -144,9 +144,9 @@ transparently connect over _**ssh tunnel**_ when required.
 
 ##### nsaph.loader
 
-Incomplete package, a wrapper around the 
-[Universal Data Loader](doc/Datamodels.md). To be completed 
-ASAP.
+A wrapper around the 
+[Universal Data Loader](doc/Datamodels.md). 
+
 
 ##### nsaph.requests
 Package nsaph.requests contains some code that is
@@ -159,28 +159,6 @@ described by a YAML request definition.
 
 Module [query](src/python/nsaph/requests/query.py) generates SQL query
 from a YAML request definition.
-
-##### nsaph.cms
-
-This sub-package contains modules to generate YAML schema for CMS
-data from FTS files provided with CMS medicaid and medicare 
-export (raw data).
-
-Module [fts2yaml](../tools/cms/src/python/fts2yaml.py) is a generic
-parser for FTS format for both Medicaid and Medicare.
-
-File transfer summary (FTS) document contains information about 
-the data extract. These are plain text files containing
-information such as the number of
-columns in the data extract, number of rows and the size of the
-data file. The FTS document provides the
-starting positions, the length and the generic format of 
-each of the column (such as character, numeric or date)  
-
-Module [medicaid](../tools/cms/src/python/medicaid.py) generates YAML 
-schema for CMS medicaid and places it into the registry described 
-in [YAML Files](#yaml-files) section.
-
 
 ### YAML files
 The majority of files are data model definitions. For now, they 

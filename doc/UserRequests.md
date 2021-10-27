@@ -1,12 +1,17 @@
-Exporting data according to a user request
-==========================================
+Preliminary Considerations for Handling User Requests
+=====================================================
+                         
+Introduction
+------------
 
-This document describes a very preliminary format 
-of a potential user request to export and package 
+This document describes some considerations and  
+a very preliminary format 
+of a potential user request. It describes 
+possible implementations of exporting and packaging 
 data.
 
 A very crude and basic 
-[example](https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/nsaph/-/blob/develop/src/yml/example_request.yaml)
+[example](../src/yml/example_request.yaml)
 describes a request to export climate data for a set 
 of places and dates.
 
@@ -40,15 +45,3 @@ Structure
    grouping by state and date. Grouping variables must be 
    included iin the **variables** section.  
 
-Implementation
---------------
-
-Current implementation assumes maintaining a registry of 
-sources (modules). An example of a registry for module 
-gridmet is [here](https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/nsaph/-/blob/develop/src/yml/registry.yaml)
-
-Please note, that this is a very inefficient structure 
-that should be replaced ASAP. Currently, child tables are 
-created for each variable (tmmx, rmax) and for each year.
-Variables should be just columns in a common child table 
-containing data for all years.

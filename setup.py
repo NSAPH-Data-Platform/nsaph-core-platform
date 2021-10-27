@@ -82,6 +82,7 @@ setup(
         'mistune>=0.8.4',
         'mypy-extensions>=0.4.3',
         'natsort>=7.0.1',
+#       'netcdf',
         'networkx>=2.5',
         'nsaph-utils>=0.0.4.0',
         'numpy>=1.19.2',

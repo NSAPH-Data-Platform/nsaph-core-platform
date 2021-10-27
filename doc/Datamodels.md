@@ -21,7 +21,8 @@ following domains
 
 ## Domain
 
-Handling domains is implemented by the [Domain](../src/) class.
+Handling domains is implemented by the 
+[Domain](../src/python/nsaph/data_model/domain.py) class.
 
 For each domain, its data model is defined by a YAML file in 
 the following directory: [src/yml](../src/yml)
