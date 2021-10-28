@@ -307,11 +307,14 @@ class Domain:
         for column in columns:
             if not self.need_index(column):
                 continue
-            ddl = self.get_index_ddl(table, column)
-            self.indices.append(ddl)
-            if table not in self.indices_by_table:
-                self.indices_by_table[table] = []
-            self.indices_by_table[table].append(ddl)
+            ddl, onload = self.get_index_ddl(table, column)
+            if onload:
+                self.ddl.append(ddl)
+            else:
+                self.indices.append(ddl)
+                if table not in self.indices_by_table:
+                    self.indices_by_table[table] = []
+                self.indices_by_table[table].append(ddl)
 
         if "children" in definition:
             children = {t: definition["children"][t] for t in definition["children"]}
@@ -328,7 +331,7 @@ class Domain:
             return index_method(n) is not None
         return False
 
-    def get_index_ddl(self, table, column) -> str:
+    def get_index_ddl(self, table, column) -> (str, bool):
         if self.conucrrent_indices:
             option = "CONCURRENTLY"
         else:
@@ -336,16 +339,19 @@ class Domain:
 
         method = None
         iname = None
+        onload = False
+        cname, column = split(column)
         if "index" in column:
             index = column["index"]
             if isinstance(index, str):
                 iname = index
-            else:
+            elif isinstance(index, dict):
                 if "name" in index:
                     iname = index["name"]
                 if "using" in index:
                     method = index["using"]
-        cname, column = split(column)
+                if "required_before_loading_data" in index:
+                    onload = True
         if method:
             pass
         elif self.is_array(column):
@@ -354,13 +360,13 @@ class Domain:
             method = "BTREE"
         if not iname:
             iname = INDEX_NAME_PATTERN.format(table = table.split('.')[-1], column = cname)
-        return INDEX_DDL_PATTERN.format(
+        return (INDEX_DDL_PATTERN.format(
             option = option,
             name = iname,
             table = table,
             column = cname,
             method = method
-        ) + ";"
+        ) + ";", onload)
 
 
     @staticmethod

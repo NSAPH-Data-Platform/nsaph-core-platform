@@ -252,6 +252,7 @@ class Inserter:
             self.name = parent.domain.fqn(name)
             self.mapping = None
             self.range_columns = None
+            self.no_empty_str = None
             self.computes = None
             self.pk = None
             self.insert = None
@@ -268,6 +269,7 @@ class Inserter:
             columns = table["columns"]
             self.mapping = SortedDict()
             self.computes = SortedDict()
+            self.no_empty_str = set()
             self.range_columns = OrderedDict()
             for c in columns:
                 name, column = split(c)
@@ -329,6 +331,10 @@ class Inserter:
                 else:
                     source_index = self.reader.columns.index(source)
                     self.mapping[source_index] = name
+                    if "type" in column and column["type"].lower()[:4] not in [
+                        "varc", "char", "text"
+                    ]:
+                        self.no_empty_str.add(source_index)
             inverse_mapping = {
                 item[1]: item[0] for item in self.mapping.items()
             }
@@ -386,6 +392,8 @@ class Inserter:
                         return False
                     else:
                         value = None
+                elif isinstance(value, str) and not value.strip():
+                    value = None
                 if array is None:
                     record.append(value)
                 else:
