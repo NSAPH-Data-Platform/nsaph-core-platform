@@ -12,6 +12,8 @@ NSAPH Data Platform
       - [Database Connection Wrapper](#database-connection-wrapper)
       - [nsaph.loader](#nsaphloader)
       - [nsaph.requests](#nsaphrequests)
+      - [nsaph.util](#nsaphutil)
+      - [nsaph.tools](#nsaphtools)
   * [YAML files](#yaml-files)
   * [Resources](#resources)
 

@@ -1,6 +1,13 @@
 Preliminary Considerations for Handling User Requests
 =====================================================
-                         
+
+<!-- toc -->
+
+- [Introduction](#introduction)
+- [Structure](#structure)
+
+<!-- tocstop -->
+
 Introduction
 ------------
 
@@ -43,5 +50,5 @@ Structure
  * **package**.  This section defines how to package the data 
    for the user. In the example we package it as HDF5, 
    grouping by state and date. Grouping variables must be 
-   included iin the **variables** section.  
+   included iin the **variables** section.
 

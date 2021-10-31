@@ -1,6 +1,23 @@
 # Data Modelling for NSAPH Data Platform 
 **How data models are defined and handled**
 
+<!-- toc -->
+
+- [Introduction](#introduction)
+- [Domain](#domain)
+- [Table](#table)
+  * [Invalid Record](#invalid-record)
+- [Column](#column)
+  * [Source](#source)
+  * [Generated columns](#generated-columns)
+  * [Computed Columns](#computed-columns)
+  * [Transposing Columns](#transposing-columns)
+- [Generation of the database schema (DDL)](#generation-of-the-database-schema-ddl)
+- [Indexing Policies](#indexing-policies)
+- [Ingesting Data](#ingesting-data)
+
+<!-- tocstop -->
+
 ## Introduction
 
 Data models consist of database tables, relations between them

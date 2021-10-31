@@ -3,7 +3,7 @@ Welcome to NSAPH Data Platform
 ==========================================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
    :caption: Contents:
 
    README
