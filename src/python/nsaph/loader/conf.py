@@ -24,7 +24,7 @@ class Parallelization(Enum):
 
 class LoaderConfig(CommonConfig):
     """
-        Configurator class
+        Configurator class for data loader
     """
 
     _data = Argument("data",
@@ -122,3 +122,29 @@ class LoaderConfig(CommonConfig):
         if attr == self._parallelization.name:
             return Parallelization(value)
         return value
+
+
+class IndexerConfig(CommonConfig):
+    """
+        Configurator class for index builder
+    """
+
+    _reset = Argument("reset",
+        help = "Force rebuilding indices it/they already exist",
+        type = bool,
+        default = False,
+        cardinality = Cardinality.single
+    )
+
+    _incremental = Argument("incremental",
+        help = "Skip over existing indices",
+        type = bool,
+        default = False,
+        cardinality = Cardinality.single
+    )
+
+    def __init__(self, doc):
+        self.reset = None
+        self.incremental = None
+        super().__init__(IndexerConfig, doc)
+

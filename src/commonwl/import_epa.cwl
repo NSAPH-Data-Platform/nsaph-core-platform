@@ -136,7 +136,7 @@ steps:
       [log]
 
   index:
-    run: index.cwl
+    run: index_obs.cwl
     in:
       PYTHONPATH: PYTHONPATH
       table_def: analyze/table_def

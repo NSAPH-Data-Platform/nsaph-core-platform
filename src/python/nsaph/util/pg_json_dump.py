@@ -2,7 +2,9 @@ import decimal
 import gzip
 import json
 import logging
+import os
 import sys
+from argparse import ArgumentParser
 from contextlib import contextmanager
 from numbers import Number
 from typing import Dict, List
@@ -10,7 +12,7 @@ from psycopg2.extras import RealDictCursor
 from psycopg2.extensions import connection
 
 from nsaph import init_logging
-from nsaph.common import common_args, get_resource
+from nsaph.util.resources import get_resources, get_resource_dir, name2path
 from nsaph.db import Connection
 from nsaph.fips import fips_dict
 
@@ -38,8 +40,8 @@ def fqn(conn: connection, table: str) -> str:
 
 def quote(x):
     if isinstance(x, Number):
-        return x
-    return "'{}'".format(str(x))
+        return str(x)
+    return "'{}'".format(str(x).replace("'", "''"))
 
 
 def flush(cursor, table, rows):
@@ -80,11 +82,33 @@ def export(conn: connection, table: str):
     else:
         corrector = None
     table = fqn(conn, table)
-    resource = get_resource(table)
-    data_path = resource + ".json.gz"
+    resource = os.path.join(
+        get_resource_dir(), name2path(table)
+    )
+    data_path = os.path.join(resource, ".json.gz")
     with gzip.open(data_path, "wt") as fd:
         dump(conn, table, fd, corrector)
     logging.info("Exported table {} to {}.".format(table, data_path))
+
+
+def ensure(conn: connection, table: str):
+    if '.' not in table:
+        table = "public." + table
+    SQL = """
+    SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = '{}'
+    )
+    """
+    sql = SQL.format(table.split('.')[-1])
+    with conn.cursor() as cursor:
+        logging.info(sql)
+        cursor.execute(sql)
+        for row in cursor:
+            if row[0]:
+                logging.info("True")
+                return 
+    import_table(conn=conn, table=table, replace=False)
 
 
 def import_table(conn: connection, table: str, replace = True):
@@ -95,13 +119,13 @@ def import_table(conn: connection, table: str, replace = True):
         with conn.cursor() as cursor:
             logging.info(sql)
             cursor.execute(sql)
-    resource = get_resource(table)
-    ddl_path = resource + '.ddl'
+    resource = get_resources(table)
+    ddl_path = resource['ddl']
     with open(ddl_path) as f:
         ddl = ''.join([
             line for line in f
         ])
-    data_path = resource + ".json.gz"
+    data_path = resource["json.gz"]
     n = 0
     with conn.cursor() as cursor:
         logging.info(ddl)
@@ -121,9 +145,6 @@ def import_table(conn: connection, table: str, replace = True):
     return
 
 
-
-
-
 def add_state_fips(row: Dict):
     if row.get("fips2"):
         return
@@ -141,8 +162,19 @@ def show(conn: connection, table: str):
 
 if __name__ == '__main__':
     init_logging()
-    parser = common_args (description="Build indices")
-    parser.add_argument("--action", help="Action to perform")
+    parser = ArgumentParser (description="Import/Export resources")
+    parser.add_argument("--table", "-t",
+                        help="Name of the table to load data into",
+                        required=False)
+    parser.add_argument("--db",
+                        help="Path to a database connection parameters file",
+                        default="database.ini",
+                        required=False)
+    parser.add_argument("--connection",
+                        help="Section in the database connection parameters file",
+                        default="nsaph2",
+                        required=False)
+    parser.add_argument("--action", help="Action to perform", required=True)
 
     arguments = parser.parse_args()
     action = locals()[arguments.action]

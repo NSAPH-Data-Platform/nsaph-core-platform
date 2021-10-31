@@ -6,9 +6,8 @@ into NSAPH PostgreSQL Database.
 Input (aka source) files can be either in FST or in CSV format
 
 """
-import os
-from pathlib import Path
 import logging
+import os
 import fnmatch
 
 from psycopg2.extensions import connection
@@ -16,74 +15,23 @@ from psycopg2.extensions import connection
 from typing import List, Tuple, Callable, Any
 
 from nsaph import init_logging, ORIGINAL_FILE_COLUMN
-from nsaph.data_model.domain import Domain
 from nsaph.data_model.inserter import Inserter
 from nsaph.data_model.utils import DataReader, entry_to_path
-from nsaph.db import Connection
+from nsaph.loader import LoaderBase
 from nsaph.loader.conf import LoaderConfig, Parallelization
 from nsaph.reader import get_entries
 
 
-def is_dir(path: str) -> bool:
-    """
-    Determine if a certain path specification refers
-        to a collection of files or a single entry.
-        Examples of collections are folders (directories)
-        and archives
-
-    :param path: path specification
-    :return: True if specification refers to a collection of files
-    """
-
-    return (path.endswith(".tar")
-            or path.endswith(".tgz")
-            or path.endswith(".tar.gz")
-            or path.endswith(".zip")
-            or os.path.isdir(path)
-    )
-
-
-def is_yaml_or_json(path: str) -> bool:
-    path = path.lower()
-    for ext in [".yml", ".yaml", ".json"]:
-        if path.endswith(ext) or path.endswith(ext + ".gz"):
-            return True
-    return  False
-
-
-class DataLoader:
+class DataLoader(LoaderBase):
     """
     Class for data loader
     """
 
-    @staticmethod
-    def get_domain(name: str, registry: str = None) -> Domain:
-        src = None
-        registry_path = None
-        if registry:
-            if is_yaml_or_json(registry):
-                registry_path = registry
-            elif not is_dir(registry):
-                raise ValueError("{} - is not a valid registry path")
-            elif os.path.isdir(registry):
-                src = registry
-            else:
-                raise NotImplementedError("Not Implemented: registry in an archive")
-        if not src:
-            src = Path(__file__).parents[3]
-        if not registry_path:
-            registry_path = os.path.join(src, "yml", name + ".yaml")
-        domain = Domain(registry_path, name)
-        domain.init()
-        return domain
-
     def __init__(self, context: LoaderConfig = None):
-        init_logging()
         if not context:
             context = LoaderConfig(__doc__).instantiate()
-        self.context = context
-        self.domain = self.get_domain(context.domain, context.registry)
-        self.table = context.table
+        super().__init__(context)
+        self.context: LoaderConfig = context
         self.page = context.page
         self.log_step = context.log
         self._connections = None
@@ -108,12 +56,6 @@ class DataLoader:
         for ddl in self.domain.ddl:
             print(ddl)
 
-    def _connect(self) -> connection:
-        c = Connection(self.context.db, self.context.connection).connect()
-        if self.context.autocommit is not None:
-            c.autocommit = self.context.autocommit
-        return c
-
     def is_parallel(self) -> bool:
         if self.context.threads < 2:
             return False
@@ -137,7 +79,7 @@ class DataLoader:
     def get_files(self) -> List[Tuple[Any,Callable]]:
         objects = []
         for path in self.context.data:
-            if not is_dir(path):
+            if not self.is_dir(path):
                 objects.append(path)
                 continue
             logging.info("Looking for relevant entries in {}.".format(path))
@@ -171,7 +113,7 @@ class DataLoader:
             return
         with self._connect() as connxn:
             tables = self.domain.drop(self.table, connxn)
-            self.domain.create(connxn, tables)
+            self.domain.create(connxn, [self.table])
 
     def run(self):
         if not self.context.table:

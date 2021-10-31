@@ -5,14 +5,12 @@ class: Workflow
 
 requirements:
   SubworkflowFeatureRequirement: {}
-  StepInputExpressionRequirement: {}
 
 inputs:
   data_file:
     type: File
-    default:
-      class: File
-      location: "/opt/projects/nsaph/data/adi-download.zip"
+  metadata:
+    type: File?
   db_connection_params:
     type: File
     default:
@@ -23,10 +21,16 @@ inputs:
     default: "postgresql"
   PYTHONPATH:
     type: string
-    default: "/opt/projects/nsaph/src/python"
+    default: "/home/nsaph/projects/nsaph/src/python"
   force:
     type: boolean
     default: false
+  increment:
+    type: boolean
+    default: false
+  superset:
+    type: boolean
+    default: True
 
 outputs:
   analysis_log:
@@ -44,9 +48,6 @@ outputs:
   indexing_log:
     type: File
     outputSource: index/log
-  link_log:
-    type: File
-    outputSource: normalize/log
   push_ds_log:
     type: File
     outputSource: push_ds/out
@@ -61,9 +62,8 @@ steps:
     run: analyze.cwl
     in:
       PYTHONPATH: PYTHONPATH
-      data_file:  data_file
-      mapping:
-        valueFrom: "fips:fips12"
+      data_file: data_file
+      metadata: metadata
     out: [table_def, datasource_def, log]
 
   ingest:
@@ -75,36 +75,28 @@ steps:
       db_connection_params: db_connection_params
       db_name: db_name
       force: force
+      increment: increment
     out:
       [log]
 
   index:
-    run: index.cwl
+    run: index_obs.cwl
     in:
       PYTHONPATH: PYTHONPATH
       table_def: analyze/table_def
       db_connection_params: db_connection_params
       db_name: db_name
       force: force
-      depends_on: ingest/log
-    out:
-      [log]
-
-  normalize:
-    run: normalize_adi.cwl
-    in:
-      PYTHONPATH: PYTHONPATH
-      table_def: analyze/table_def
-      db_connection_params: db_connection_params
-      db_name: db_name
+      increment: increment
       depends_on: ingest/log
     out:
       [log]
 
   push_ds:
+    #when: $(inputs.superset)
     run: push_datasource_def.cwl
     in:
       datasource: analyze/datasource_def
-      depends_on: normalize/log
+      depends_on: ingest/log
     out: [out,err]
 

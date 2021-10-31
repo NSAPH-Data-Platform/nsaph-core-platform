@@ -83,6 +83,8 @@ class Domain:
             self.schema = None
         self.indices = []
         self.indices_by_table = dict()
+        self.ddl_by_table = dict()
+        self.common_ddl = []
         self.ddl = []
         self.conucrrent_indices = False
         index_policy = self.spec[self.domain].get("index")
@@ -97,12 +99,17 @@ class Domain:
 
     def init(self) -> None:
         if self.schema:
-            self.ddl = ["CREATE SCHEMA IF NOT EXISTS {};".format(self.schema)]
+            ddl = "CREATE SCHEMA IF NOT EXISTS {};".format(self.schema)
+            self.ddl = [ddl]
+            self.common_ddl.append(ddl)
         else:
             self.ddl = []
         for s in self.spec[self.domain]:
             if s.startswith("schema."):
-                self.ddl.append("CREATE SCHEMA IF NOT EXISTS {};".format(self.spec[self.domain][s]))
+                ddl = "CREATE SCHEMA IF NOT EXISTS {};"\
+                    .format(self.spec[self.domain][s])
+                self.ddl.append(ddl)
+                self.common_ddl.append(ddl)
         tables = self.spec[self.domain]["tables"]
         nodes = {t: tables[t] for t in tables}
         for node in nodes:
@@ -110,16 +117,21 @@ class Domain:
         return
 
     def list_columns(self, table) -> list:
-        t = self.spec[self.domain]["tables"][table]
-        cc = [list(c.keys())[0] for c in t["columns"]]
+        #t = self.spec[self.domain]["tables"][table]
+        t = self.find(table)
+        cc = [
+            list(c.keys())[0] if isinstance(c,dict) else c
+            for c in t["columns"]
+        ]
         return cc
 
     def has_hard_linked_children(self, table) -> bool:
-        t = self.spec[self.domain]["tables"][table]
+        #t = self.spec[self.domain]["tables"][table]
+        t = self.find(table)
         if "children" in t:
             children = {c: t["children"][c] for c in t["children"]}
             for child in children:
-                if child.get("hard_linked"):
+                if children[child].get("hard_linked"):
                     return True
         return False
 
@@ -214,12 +226,17 @@ class Domain:
                 return "{}.{}".format(ts, tt)
         return None
 
+    def append_ddl(self, table: str, ddl: str):
+        self.ddl.append(ddl)
+        self.ddl_by_table[table].append(ddl)
+
     def ddl_for_node(self, node, parent = None) -> None:
         table_basename, definition = node
         columns = definition["columns"]
         cnames = {split(column)[0] for column in columns}
         features = []
         table = self.fqn(table_basename)
+        self.ddl_by_table[table] = []
         fk = None
         ptable = None
         fk_columns = None
@@ -291,7 +308,7 @@ class Domain:
             if fk:
                 features.append(fk)
             create_table = (self.CREATE + " (\n\t{features}\n);").format(name=table, features=",\n\t".join(features))
-        self.ddl.append(create_table)
+        self.append_ddl(table, create_table)
         if "invalid.records" in definition:
             validation = definition["invalid.records"]
             action = validation["action"].lower()
@@ -301,7 +318,7 @@ class Domain:
                 ff.append("REASON VARCHAR(16)")
                 ff.append("recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ")
                 create_table = (self.CREATE + " (\n\t{features}\n);").format(name=t2, features=",\n\t".join(ff))
-                self.ddl.append(create_table)
+                self.append_ddl(table, create_table)
             self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
 
         for column in columns:
@@ -309,7 +326,7 @@ class Domain:
                 continue
             ddl, onload = self.get_index_ddl(table, column)
             if onload:
-                self.ddl.append(ddl)
+                self.append_ddl(table, ddl)
             else:
                 self.indices.append(ddl)
                 if table not in self.indices_by_table:
@@ -488,9 +505,12 @@ class Domain:
     def create(self, connection, list_of_tables = None):
         with connection.cursor() as cursor:
             if list_of_tables:
-                statements = [
-                    s for s in self.ddl if self.matches(s, list_of_tables) or s.startswith("CREATE SCHEMA")
-                ]
+                statements = [ddl for ddl in  self.common_ddl]
+                for t in list_of_tables:
+                    statements += self.ddl_by_table[self.fqn(t)]
+                # statements = [
+                #     s for s in self.ddl if self.matches(s, list_of_tables) or s.startswith("CREATE SCHEMA")
+                # ]
             else:
                 statements = self.ddl
             for statement in statements:
@@ -541,6 +561,6 @@ class Domain:
                                      condition_fk = conditions[1], action_fk = actions[1],
                                      condition_pk = conditions[2], action_pk = actions[2],
         )
-        self.ddl.append(sql)
+        self.append_ddl(table, sql)
         sql = VALIDATION_TRIGGER.format(schema=self.schema, name=t, table=table).strip()
-        self.ddl.append(sql)
+        self.append_ddl(table, sql)
