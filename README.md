@@ -34,7 +34,7 @@ Examples of tools included in this package are:
 * A [utility to link a table to GIS](src/python/nsaph/link_gis.py)
   from a CSV file
 * A [wrapper around database connection to PostgreSQL](#database-connection-wrapper)
-* A [utility to import/export JSONLines](src/python/nsaph/link_gis.py)
+* A [utility to import/export JSONLines](src/python/nsaph/util/pg_json_dump.py)
     files into/from PostgreSQL
 * An [Executor with a bounded queue](src/python/util/executors.py)
 
@@ -68,7 +68,7 @@ See details in [Software Sources](#software-sources) section.
 The directories under sources are:
 
     - airflow
-    - cwl
+    - commonwl
     - html
     - plpgsql
     - python
@@ -84,7 +84,7 @@ Here is a brief overview:
   to the deployment package or the specific pipelines. However,
   this directory is intended to contain Airflow plugins that are
   generic for all NSAPH pipelines
-* **_cwl_** contains reusable workflows, packaged as tools 
+* **_commonwl_** contains reusable workflows, packaged as tools 
     that can and should be used by
     all NSAPH pipelines. Examples of such tools
     are: introspection of CSV files, indexing tables, linking
@@ -160,6 +160,31 @@ described by a YAML request definition.
 Module [query](src/python/nsaph/requests/query.py) generates SQL query
 from a YAML request definition.
 
+##### nsaph.util
+
+Package nsaph.util contains: 
+
+* Support for packaging [resources](#resources)
+  in two modules [resources](src/python/nsaph/util/resources.py) 
+  and [pg_json_dump](src/python/nsaph/util/pg_json_dump.py). The 
+  latter module imports and exports PostgreSQL (pg) tables
+  as JSONLines format.
+* Module [net](src/python/nsaph/util/net.py) contains
+  one method resolving host to `localhost`. This method is
+  required by Airflow.
+* Module [executors](src/python/nsaph/util/executors.py) 
+  implements a  
+  [ThreadPoolExecutor](https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor)
+  with a bounded queue. It is used to prevent out of memory (OOM)
+  errors when processing huge files (to prevent loading
+  the whole file into memory before dispatching it for processing).
+
+##### nsaph.tools
+
+This package contains code that was written to try to extract
+corrupted medicare data for 2015. Ultimately, this attempt
+was unsuccessful.
+
 ### YAML files
 The majority of files are data model definitions. For now, they 
 are included in **_nsaph_** package because they are used by 
@@ -179,7 +204,7 @@ Beside data model files, there are YAML files for:
 
 ### Resources
 
-Resources are organized in teh following way:
+Resources are organized in the following way:
 
     - ${database schema}/
         - ddl file for ${resource1}
@@ -187,10 +212,12 @@ Resources are organized in teh following way:
         - ddl file for ${resource2}
         - content of ${resource2} in JSON Lines format (*.json.gz)
 
-consists of the following components:
+Resources can be packaged when a 
+[wheel](https://pythonwheels.com/) 
+is built. Support for packaging resources during development and
+after a package is deployed is provided by 
+[resources](src/python/nsaph/util/resources.py) module.
 
-* Python code to load data into PostgreSQL
-
-* Support for CWL workflows
-
-* Code for data mdoelling of CMS (Medicaid/Medicare) data
+Another module, [pg_json_dump](src/python/nsaph/util/pg_json_dump.py),
+provides support for packaging tables as resources in JSONLines
+format. This format is used natively by some DBMSs.

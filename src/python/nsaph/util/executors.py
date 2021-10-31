@@ -1,3 +1,18 @@
+"""
+This module implements a
+`ThreadPoolExecutor https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor`_
+with a bounded queue of fixed given capacity. When the queue reaches
+its maximum capacity, it stops accepting new tasks and blocks
+until some tasks are removed from the queue for execution.
+
+This is important when a task contains significant amount of data
+to be processed, for example text to be parsed or ingested into
+a database. Reading files is usually much faster than processing
+them and without blocking, for huge files can lead to out of memory (OOM)
+errors. Using this executor implements parallelization without
+danger of causing OOM.
+"""
+
 import datetime
 import logging
 #import pydevd
