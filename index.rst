@@ -1,5 +1,4 @@
-
-Welcome to NSAPH Data Platform
+NSAPH Core Data Platform
 ==========================================================
 
 .. toctree::
