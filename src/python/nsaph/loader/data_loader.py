@@ -1,9 +1,11 @@
 """
 Domain Data Loader
 
-Intended to load data from a single or a set of column-formatted files
+Provides Command line interface for loading data from a
+single or a set of column-formatted files
 into NSAPH PostgreSQL Database.
-Input (aka source) files can be either in FST or in CSV format
+
+Input (aka source) files can be either in FST or in CSV format.
 
 """
 import logging

@@ -105,15 +105,46 @@ class LoaderConfig(CommonConfig):
 
     def __init__(self, doc):
         self.data = None
+        """
+        Path to a data file or directory. Can be a 
+        single CSV, gzipped CSV or FST file or a directory recursively 
+        containing CSV files. Can also be a tar, tar.gz (or tgz) or zip archive 
+        containing CSV files        
+        """
+
         self.reset = None
+        ''' Force recreating table(s) if it/they already exist '''
+
         self.page = None
+        ''' Explicit page size for the database '''
+
         self.log = None
+        ''' Explicit interval for logging '''
+
         self.limit = None
+        ''' Load at most specified number of records '''
+
         self.buffer = None
+        ''' Buffer size for converting fst files '''
+
         self.threads = None
+        ''' Number of threads writing into the database '''
+
         self.parallelization = None
+        ''' Type of parallelization, if any '''
+
         self.pattern = None
+        """
+        pattern for files in a directory or an archive, 
+        e.g. \"**/maxdata_*_ps_*.csv\"
+        """
+
         self.incremental = None
+        """
+        Commit every file and skip over files that 
+        have already been ingested
+        """
+
         super().__init__(LoaderConfig, doc)
 
 

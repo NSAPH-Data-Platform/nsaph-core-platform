@@ -1,7 +1,6 @@
 ---
 Building a Level 3 VM with PostgreSQL and Apache Superset
 ---
-
 # Add DNS Records
 
 Follow [FAS RC DNS Documentation](https://gitlab-int.rc.fas.harvard.edu/ops/dns)
@@ -293,3 +292,12 @@ We nned to configure nginx to be a proxy server for them. The configuration
 is doen in `location` block. Common options are defined in 
 `local::nginx::proxy: &proxy_pass` and specific proxy settings in 
 `nginx::nginx_locations`
+
+
+
+
+
+
+
+
+

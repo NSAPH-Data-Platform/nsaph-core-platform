@@ -31,7 +31,7 @@ class CommonConfig(Context):
     )
 
     _table = Argument("table",
-        help = "Name of the table to load data into",
+        help = "Name of the table to manipulate",
         type = str,
         required = False,
         aliases = ["t"],
@@ -63,11 +63,29 @@ class CommonConfig(Context):
 
     def __init__(self, subclass, doc):
         self.domain = None
+        ''' Name of the domain '''
+
         self.registry = None
+        """
+        Path to domain registry. 
+        Registry is a directory or an archive 
+        containing YAML files with domain 
+        definition. Default is to use 
+        the built-in registry
+        """
+
         self.table = None
+        ''' Name of the table to manipulate '''
+
         self.autocommit = None
+        ''' Use autocommit '''
+
         self.db = None
+        ''' Path to a database connection parameters file '''
+
         self.connection = None
+        ''' Section in the database connection parameters file '''
+
         super().__init__(subclass, doc, include_default = False)
         self._attrs += [
             attr[1:] for attr in CommonConfig.__dict__

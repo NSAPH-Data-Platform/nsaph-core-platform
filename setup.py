@@ -18,7 +18,7 @@ setup(
     #packages=find_packages(where="src/python"),
     packages=[
         'nsaph', 'nsaph.requests', 'nsaph.data_model', 'nsaph.loader',
-        'nsaph.util', 'nsaph.tools',
+        'nsaph.util',
         'nsaph_resources', 'nsaph_models'
     ],
     package_dir={
@@ -127,6 +127,7 @@ setup(
         'sphinx',
         'sphinx-markdown-tables',
         'sphinx_paramlinks',
+        'sphinx_rtd_theme',
         'SQLAlchemy>=1.3.20',
         'SQLAlchemy-JSONField>=0.9.0',
         'SQLAlchemy-Utils>=0.36.8',

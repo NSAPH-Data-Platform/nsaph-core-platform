@@ -4,16 +4,16 @@ NSAPH Data Platform
 <!-- toc -->
 
 - [Overview](#overview)
+- [Tool Examples](#tool-examples)
 - [Project Structure](#project-structure)
   * [Software Sources](#software-sources)
   * [Python packages](#python-packages)
     + [NSAPH Package](#nsaph-package)
-      - [nsaph.data_model](#nsaphdata_model)
-      - [Database Connection Wrapper](#database-connection-wrapper)
-      - [nsaph.loader](#nsaphloader)
-      - [nsaph.requests](#nsaphrequests)
-      - [nsaph.util](#nsaphutil)
-      - [nsaph.tools](#nsaphtools)
+      - [Subpackage for Data Modelling](#subpackage-for-data-modelling)
+      - [Module Database Connection Wrapper](#module-database-connection-wrapper)
+      - [Loader Subpackage](#loader-subpackage)
+      - [Subpackage to describe and implement user requests [Incomplete]](#subpackage-to-describe-and-implement-user-requests-incomplete)
+      - [Subpackage with miscellaneous utilities](#subpackage-with-miscellaneous-utilities)
   * [YAML files](#yaml-files)
   * [Resources](#resources)
 
@@ -21,14 +21,19 @@ NSAPH Data Platform
 
 ## Overview
 The data platform provides generic infrastructure for NSAPH Data Platform
-It depends on nsaph_util package but, one can say that it augments it
+It depends on nsaph_util package, but it augments it
 with APIs and command line utilities dependent on the infrastructure 
-environment. For instance, its components assume presence of PostgreSQL
+and the environment. For instance, its components assume presence of PostgreSQL
 DBMS (version 13 or later) and CWL runtime environment.
 
+The package is under intensive development, therefore its 
+development branches contain some obsolete modules and utilities.
+The project structure can also be in flux.
+
+## Tool Examples
 Examples of tools included in this package are:
 
-* [Universal Data Loader](doc/Datamodels.md)
+* [Universal Data Loader](src/python/nsaph/loader/data_loader.py)
 * A [utility to monitor progress of long-running database](src/python/nsaph/index.py)
     processes like indexing.
 * A [utility to infer database schema and generate DDL](src/python/nsaph/analyze.py)
@@ -39,10 +44,6 @@ Examples of tools included in this package are:
 * A [utility to import/export JSONLines](src/python/nsaph/util/pg_json_dump.py)
     files into/from PostgreSQL
 * An [Executor with a bounded queue](src/python/util/executors.py)
-
-The package is under intensive development, therefore its 
-development branches contain some obsolete modules and utilities.
-The project structure can also be in flux.
 
 ## Project Structure
 
@@ -106,8 +107,11 @@ Here is a brief overview:
 #### NSAPH Package
 
 This is the main package containing the majority of the code.
+Modules and subpackages included in `nsaph` package are described below.
 
-##### nsaph.data_model
+##### Subpackage for Data Modelling 
+
+* `nsaph.data_model`
 
 Implements version 2 of the data modelling toolkit. 
 
@@ -137,21 +141,35 @@ In other words, DataReader provides uniform interface
 to reading columnar files in two (potentially more)
 different formats.
 
-##### Database Connection Wrapper
+##### Module Database Connection Wrapper
+
+* `nsaph.db`
 
 Module [db](src/python/nsaph/db.py) is a PostgreSQL
 connection wrapper. It reads connection parameters from
 an `ini` file and connects to the database. It can
 transparently connect over _**ssh tunnel**_ when required.
 
-##### nsaph.loader
+##### Loader Subpackage
 
-A wrapper around the 
-[Universal Data Loader](doc/Datamodels.md). 
+* `nsaph.loader`
+
+A set of utilities to manipulate data.
+
+Module [data_loader](src/python/nsaph/loader/data_loader.py) 
+Implements parallel loading data into a PostgreSQL database.
+It is also responsible for loading DDL and creation of view, 
+both virtual and materialized.
+
+Module [index_builder](src/python/nsaph/loader/index_builder.py)
+is a utility to build indices and monitor the build progress.
 
 
-##### nsaph.requests
-Package nsaph.requests contains some code that is
+##### Subpackage to describe and implement user requests [Incomplete]
+
+* `nsaph.requests`
+
+Package `nsaph.requests` contains some code that is
 intended to be used for fulfilling user requests. Its 
 development is currently put on hold.
 
@@ -162,9 +180,11 @@ described by a YAML request definition.
 Module [query](src/python/nsaph/requests/query.py) generates SQL query
 from a YAML request definition.
 
-##### nsaph.util
+##### Subpackage with miscellaneous utilities
 
-Package nsaph.util contains: 
+* `nsaph.util`
+
+Package `nsaph.util` contains: 
 
 * Support for packaging [resources](#resources)
   in two modules [resources](src/python/nsaph/util/resources.py) 
@@ -180,12 +200,6 @@ Package nsaph.util contains:
   with a bounded queue. It is used to prevent out of memory (OOM)
   errors when processing huge files (to prevent loading
   the whole file into memory before dispatching it for processing).
-
-##### nsaph.tools
-
-This package contains code that was written to try to extract
-corrupted medicare data for 2015. Ultimately, this attempt
-was unsuccessful.
 
 ### YAML files
 The majority of files are data model definitions. For now, they 
