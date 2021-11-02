@@ -13,6 +13,8 @@ database schema.
 from enum import Enum
 from nsaph_utils.utils.context import Context, Argument, Cardinality
 
+from nsaph.loader.common import CommonConfig
+
 
 class Parallelization(Enum):
     lines = "lines"
@@ -20,30 +22,24 @@ class Parallelization(Enum):
     none = "none"
 
 
-class Config(Context):
+class LoaderConfig(CommonConfig):
     """
-        Configurator class
+        Configurator class for data loader
     """
-
-    _domain = Argument("domain",
-        help = "Name of the domain",
-        type = str,
-        required = True,
-        cardinality = Cardinality.single,
-        valid_values = None
-    )
-
-    _table = Argument("table",
-        help = "Name of the table to load data into",
-        type = str,
-        required = False,
-        aliases = ["t"],
-        default = None,
-        cardinality = Cardinality.single
-    )
 
     _data = Argument("data",
-        help = "Path to a data file or directory",
+        help = "Path to a data file or directory. Can be a "
+                + "single CSV, gzipped CSV or FST file or a directory recursively "
+                + "containing CSV files. Can also be a tar, tar.gz (or tgz) or zip archive "
+                + "containing CSV files",
+        type = str,
+        required = False,
+        cardinality = Cardinality.multiple
+    )
+
+    _pattern = Argument("pattern",
+        help = "pattern for files in a directory or an archive, "
+               + "e.g. \"**/maxdata_*_ps_*.csv\"",
         type = str,
         required = False,
         cardinality = Cardinality.multiple
@@ -56,25 +52,11 @@ class Config(Context):
         cardinality = Cardinality.single
     )
 
-    _autocommit = Argument("autocommit",
-          help = "Use autocommit",
-          type = bool,
-          default = False,
-          cardinality = Cardinality.single
-    )
-
-    _db = Argument("db",
-        help = "Path to a database connection parameters file",
-        type = str,
-        default = "database.ini",
-        cardinality = Cardinality.single
-    )
-
-    _connection = Argument(
-        "connection",
-        help = "Section in the database connection parameters file",
-        type = str,
-        default = "nsaph2",
+    _incremental = Argument("incremental",
+        help = "Commit every file and skip over files that "
+               + "have already been ingested",
+        type = bool,
+        default = False,
         cardinality = Cardinality.single
     )
 
@@ -122,23 +104,78 @@ class Config(Context):
     )
 
     def __init__(self, doc):
-        self.domain = None
-        self.table = None
         self.data = None
-        self.autocommit = None
+        """
+        Path to a data file or directory. Can be a 
+        single CSV, gzipped CSV or FST file or a directory recursively 
+        containing CSV files. Can also be a tar, tar.gz (or tgz) or zip archive 
+        containing CSV files        
+        """
+
         self.reset = None
-        self.db = None
-        self.connection = None
+        ''' Force recreating table(s) if it/they already exist '''
+
         self.page = None
+        ''' Explicit page size for the database '''
+
         self.log = None
+        ''' Explicit interval for logging '''
+
         self.limit = None
+        ''' Load at most specified number of records '''
+
         self.buffer = None
+        ''' Buffer size for converting fst files '''
+
         self.threads = None
+        ''' Number of threads writing into the database '''
+
         self.parallelization = None
-        super().__init__(Config, doc)
+        ''' Type of parallelization, if any '''
+
+        self.pattern = None
+        """
+        pattern for files in a directory or an archive, 
+        e.g. \"**/maxdata_*_ps_*.csv\"
+        """
+
+        self.incremental = None
+        """
+        Commit every file and skip over files that 
+        have already been ingested
+        """
+
+        super().__init__(LoaderConfig, doc)
+
 
     def validate(self, attr, value):
         value = super().validate(attr, value)
         if attr == self._parallelization.name:
             return Parallelization(value)
         return value
+
+
+class IndexerConfig(CommonConfig):
+    """
+        Configurator class for index builder
+    """
+
+    _reset = Argument("reset",
+        help = "Force rebuilding indices it/they already exist",
+        type = bool,
+        default = False,
+        cardinality = Cardinality.single
+    )
+
+    _incremental = Argument("incremental",
+        help = "Skip over existing indices",
+        type = bool,
+        default = False,
+        cardinality = Cardinality.single
+    )
+
+    def __init__(self, doc):
+        self.reset = None
+        self.incremental = None
+        super().__init__(IndexerConfig, doc)
+

@@ -1,5 +1,14 @@
+"""
+Domain is a Python module dedicated to
+generation of various SQL required for manipulation
+with data in a certain knowledge domain
+
+See 
+"""
+
 import logging
-from typing import Optional
+import re
+from typing import Optional, Dict, List
 
 from nsaph_utils.utils.io_utils import as_dict
 
@@ -47,8 +56,22 @@ VALIDATION_TRIGGER = """
 """
 
 
+CREATE_VIEW = """
+CREATE {OBJECT} {name} AS
+SELECT
+    {features}
+FROM {source}
+"""
+
+CREATE_VIEW_GROUP_BY = """
+WHERE {not_null}
+GROUP BY {id};
+"""
+
+
 class Domain:
     CREATE = "CREATE TABLE {name}"
+
     def __init__(self, spec, name):
         self.domain = name
         self.spec = as_dict(spec)
@@ -59,6 +82,9 @@ class Domain:
         else:
             self.schema = None
         self.indices = []
+        self.indices_by_table = dict()
+        self.ddl_by_table = dict()
+        self.common_ddl = []
         self.ddl = []
         self.conucrrent_indices = False
         index_policy = self.spec[self.domain].get("index")
@@ -73,12 +99,17 @@ class Domain:
 
     def init(self) -> None:
         if self.schema:
-            self.ddl = ["CREATE SCHEMA IF NOT EXISTS {};".format(self.schema)]
+            ddl = "CREATE SCHEMA IF NOT EXISTS {};".format(self.schema)
+            self.ddl = [ddl]
+            self.common_ddl.append(ddl)
         else:
             self.ddl = []
         for s in self.spec[self.domain]:
             if s.startswith("schema."):
-                self.ddl.append("CREATE SCHEMA IF NOT EXISTS {};".format(self.spec[self.domain][s]))
+                ddl = "CREATE SCHEMA IF NOT EXISTS {};"\
+                    .format(self.spec[self.domain][s])
+                self.ddl.append(ddl)
+                self.common_ddl.append(ddl)
         tables = self.spec[self.domain]["tables"]
         nodes = {t: tables[t] for t in tables}
         for node in nodes:
@@ -86,16 +117,21 @@ class Domain:
         return
 
     def list_columns(self, table) -> list:
-        t = self.spec[self.domain]["tables"][table]
-        cc = [list(c.keys())[0] for c in t["columns"]]
+        #t = self.spec[self.domain]["tables"][table]
+        t = self.find(table)
+        cc = [
+            list(c.keys())[0] if isinstance(c,dict) else c
+            for c in t["columns"]
+        ]
         return cc
 
     def has_hard_linked_children(self, table) -> bool:
-        t = self.spec[self.domain]["tables"][table]
+        #t = self.spec[self.domain]["tables"][table]
+        t = self.find(table)
         if "children" in t:
             children = {c: t["children"][c] for c in t["children"]}
             for child in children:
-                if child.get("hard_linked"):
+                if children[child].get("hard_linked"):
                     return True
         return False
 
@@ -127,8 +163,10 @@ class Domain:
     def find(self, table: str, root = None) -> Optional[dict]:
         if not root:
             tables = self.spec[self.domain]["tables"]
-        else:
+        elif "children" in root:
             tables = root["children"]
+        else:
+            return None
         if table in tables:
             return tables[table]
         for t in tables:
@@ -137,29 +175,34 @@ class Domain:
                 return d
         return None
 
-    def find_dependent(self, table: str) -> list:
+    def find_dependent(self, table: str) -> Dict:
         t = self.find(table)
         if t is None:
             raise LookupError("Table {} does not exist in domain {}".format(table, self.domain))
-        result = [self.fqn(table)]
+        result = {self.fqn(table): self.find(table)}
         if "children" in t:
             for child in t["children"]:
-                result.extend(self.find_dependent(child))
+                result.update(self.find_dependent(child))
         t2 = self.spillover_table(table, t)
         if t2:
-            result.append(t2)
+            result[t2] = ""
         return result
 
     def drop(self, table, connection) -> list:
         tables = self.find_dependent(table)
         with connection.cursor() as cursor:
             for t in tables:
-                sql = "DROP TABLE IF EXISTS {} CASCADE".format(t)
+                obj = tables[t]
+                if "create" in obj:
+                    kind = obj["create"]["type"]
+                else:
+                    kind = "TABLE"
+                sql = "DROP {TABLE} IF EXISTS {} CASCADE".format(t, TABLE=kind)
                 logging.info(sql)
                 cursor.execute(sql)
             if not connection.autocommit:
                 connection.commit()
-        return tables
+        return [t for t in tables]
 
     def spillover_table(self, table, definition):
         if "invalid.records" in definition:
@@ -183,15 +226,28 @@ class Domain:
                 return "{}.{}".format(ts, tt)
         return None
 
+    def append_ddl(self, table: str, ddl: str):
+        self.ddl.append(ddl)
+        self.ddl_by_table[table].append(ddl)
+
     def ddl_for_node(self, node, parent = None) -> None:
         table_basename, definition = node
         columns = definition["columns"]
         cnames = {split(column)[0] for column in columns}
         features = []
         table = self.fqn(table_basename)
+        self.ddl_by_table[table] = []
         fk = None
         ptable = None
         fk_columns = None
+        create = None
+        object_type = None
+        is_view = False
+        if "create" in definition:
+            create = definition["create"]
+            if "type" in create:
+                object_type = create["type"]
+                is_view = "view" in object_type.lower()
         if parent is not None:
             ptable, pdef = parent
             if "primary_key" not in pdef:
@@ -206,19 +262,53 @@ class Domain:
                 if c in fk_columns and c not in cnames:
                     columns.append(column)
 
-        features.extend([self.column_spec(column) for column in columns])
+        if is_view:
+            features = [self.view_column_spec(column, definition, table) for column in columns]
+        else:
+            features.extend([self.column_spec(column) for column in columns])
 
         pk_columns = None
-        if "primary_key" in definition:
-            pk_columns = definition["primary_key"]
-            pk = "PRIMARY KEY ({})".format(", ".join(pk_columns))
-            features.append(pk)
 
-        if fk:
-            features.append(fk)
+        if is_view:
+            #     CREATE {OBJECT} {name} AS
+            #     SELECT
+            #     {features}
+            #     FROM {source}
+            #     -------------------
+            #     WHERE {id} IS NOT NULL
+            #     GROUP BY {id}
 
-        create_table = (self.CREATE + " (\n\t{features}\n);").format(name=table, features=",\n\t".join(features))
-        self.ddl.append(create_table)
+            create_table = CREATE_VIEW.format(
+                OBJECT=object_type,
+                name=table,
+                features = ",\n\t".join(features),
+                source=create["from"]
+            )
+            if "group by" in create:
+                group_by = ','.join(create["group by"])
+                not_null = " AND ".join(["{} IS NOT NULL".format(c) for c in create["group by"]])
+                create_table += CREATE_VIEW_GROUP_BY.format(id=group_by, not_null=not_null)
+                reverse_map = {
+                    cdef["source"]: c
+                    for c, cdef in [split(column) for column in columns]
+                    if cdef and "source" in cdef and isinstance(cdef["source"], str)
+                }
+                definition["primary_key"] = [
+                    reverse_map[c] if c in reverse_map else c
+                    for c in create["group by"]
+                ]
+            else:
+                create_table = create_table.strip() + ';'
+        else:
+            if "primary_key" in definition:
+                pk_columns = definition["primary_key"]
+                pk = "PRIMARY KEY ({})".format(", ".join(pk_columns))
+                features.append(pk)
+
+            if fk:
+                features.append(fk)
+            create_table = (self.CREATE + " (\n\t{features}\n);").format(name=table, features=",\n\t".join(features))
+        self.append_ddl(table, create_table)
         if "invalid.records" in definition:
             validation = definition["invalid.records"]
             action = validation["action"].lower()
@@ -228,14 +318,20 @@ class Domain:
                 ff.append("REASON VARCHAR(16)")
                 ff.append("recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ")
                 create_table = (self.CREATE + " (\n\t{features}\n);").format(name=t2, features=",\n\t".join(ff))
-                self.ddl.append(create_table)
+                self.append_ddl(table, create_table)
             self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
-
 
         for column in columns:
             if not self.need_index(column):
                 continue
-            self.indices.append(self.get_index_ddl(table, column))
+            ddl, onload = self.get_index_ddl(table, column)
+            if onload:
+                self.append_ddl(table, ddl)
+            else:
+                self.indices.append(ddl)
+                if table not in self.indices_by_table:
+                    self.indices_by_table[table] = []
+                self.indices_by_table[table].append(ddl)
 
         if "children" in definition:
             children = {t: definition["children"][t] for t in definition["children"]}
@@ -252,7 +348,7 @@ class Domain:
             return index_method(n) is not None
         return False
 
-    def get_index_ddl(self, table, column) -> str:
+    def get_index_ddl(self, table, column) -> (str, bool):
         if self.conucrrent_indices:
             option = "CONCURRENTLY"
         else:
@@ -260,16 +356,19 @@ class Domain:
 
         method = None
         iname = None
+        onload = False
+        cname, column = split(column)
         if "index" in column:
             index = column["index"]
             if isinstance(index, str):
                 iname = index
-            else:
+            elif isinstance(index, dict):
                 if "name" in index:
                     iname = index["name"]
                 if "using" in index:
                     method = index["using"]
-        cname, column = split(column)
+                if "required_before_loading_data" in index:
+                    onload = True
         if method:
             pass
         elif self.is_array(column):
@@ -278,13 +377,13 @@ class Domain:
             method = "BTREE"
         if not iname:
             iname = INDEX_NAME_PATTERN.format(table = table.split('.')[-1], column = cname)
-        return INDEX_DDL_PATTERN.format(
+        return (INDEX_DDL_PATTERN.format(
             option = option,
             name = iname,
             table = table,
             column = cname,
             method = method
-        ) + ";"
+        ) + ";", onload)
 
 
     @staticmethod
@@ -326,6 +425,71 @@ class Domain:
             return "{} {} {}".format(name, t, code)
         return "{} {}".format(name, t)
 
+    def view_column_spec(self, column, table, table_fqn) -> str:
+        name, column = split(column)
+        if "source" in column:
+            if isinstance(column["source"], str):
+                sql = column["source"]
+            elif isinstance(column["source"], dict):
+                sql = self.view_column_joined(column["source"], table)
+            else:
+                raise SyntaxError("Invalid source definition for column {}.{}".format(table_fqn, name))
+            sql = sql.strip().replace('\n', "\n\t\t")
+            if "{identifiers}" in sql.lower():
+                idf = self.list_identifiers(table)
+                s = "({})".format(', '.join(idf))
+                sql = sql.format(identifiers=s)
+            sql += " AS {}".format(name)
+            return sql
+        return name
+
+    def find_mapped_column_name(self, column1, table2) -> str:
+        tdef = self.find(table2)
+        for c in tdef["columns"]:
+            cname, cdef = split(c)
+            if "source" in cdef:
+                if cdef["source"] == column1:
+                    return cname
+        return column1
+
+    def view_column_joined(self, source, table) -> str:
+        select = source["select"]
+        joined_table = source["from"]
+        t2 = self.fqn(joined_table)
+        create = table["create"]
+        t1 = create["from"]
+        conditions = []
+        if "group by" in create:
+            for c1 in create["group by"]:
+                c2 = self.find_mapped_column_name(c1, joined_table)
+                condition = "{t1}.{c1} = {t2}.{c2}".format(t1=t1, t2=t2, c1=c1, c2=c2)
+                conditions.append(condition)
+        if "where" in source:
+            conditions.append(source["where"])
+        sql = "(\nSELECT \n\t{what} \nFROM {table}".format(what = select, table = t2)
+        if conditions:
+            sql += "\nWHERE {condition}".format(condition = "\n\tAND ".join(conditions))
+        sql += "\n)"
+        return sql
+
+    @staticmethod
+    def list_identifiers(table):
+        identifiers = []
+        for (name, definition) in [split(column) for column in table["columns"]]:
+            if definition.get("identifier") != True:
+                continue
+            if "source" in definition:
+                s = definition["source"]
+                source_column = re.search(r'\((.*?)[)|,]',s).group(1)
+                source_column = source_column.lower().replace("distinct", "").strip()
+                if source_column:
+                    identifiers.append(source_column)
+                else:
+                    identifiers.append(s)
+            else:
+                identifiers.append(name)
+        return identifiers
+
     @classmethod
     def matches(cls, create_statement, list_of_tables) -> bool:
         create_statement = create_statement.strip()
@@ -341,9 +505,12 @@ class Domain:
     def create(self, connection, list_of_tables = None):
         with connection.cursor() as cursor:
             if list_of_tables:
-                statements = [
-                    s for s in self.ddl if self.matches(s, list_of_tables) or s.startswith("CREATE SCHEMA")
-                ]
+                statements = [ddl for ddl in  self.common_ddl]
+                for t in list_of_tables:
+                    statements += self.ddl_by_table[self.fqn(t)]
+                # statements = [
+                #     s for s in self.ddl if self.matches(s, list_of_tables) or s.startswith("CREATE SCHEMA")
+                # ]
             else:
                 statements = self.ddl
             for statement in statements:
@@ -394,6 +561,6 @@ class Domain:
                                      condition_fk = conditions[1], action_fk = actions[1],
                                      condition_pk = conditions[2], action_pk = actions[2],
         )
-        self.ddl.append(sql)
+        self.append_ddl(table, sql)
         sql = VALIDATION_TRIGGER.format(schema=self.schema, name=t, table=table).strip()
-        self.ddl.append(sql)
+        self.append_ddl(table, sql)

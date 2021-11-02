@@ -46,3 +46,4 @@ def init_logging(with_thread_id = False, name = None):
 
 # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 # handler.setFormatter(formatter)
+ORIGINAL_FILE_COLUMN = "FILE"

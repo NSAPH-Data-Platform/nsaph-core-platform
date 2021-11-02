@@ -14,7 +14,7 @@ from psycopg2.extras import execute_values
 from nsaph.data_model.domain import Domain
 from nsaph.data_model.utils import split, DataReader, regex
 from nsaph.fips import fips_dict
-from util.executors import BlockingThreadPoolExecutor
+from nsaph.util.executors import BlockingThreadPoolExecutor
 
 
 def compute(how, row):
@@ -106,7 +106,7 @@ class Inserter:
                 executor.wait_for_completion()
         else:
             l = self._loop(None, limit, log_step)
-        logging.info("Total records imported from {}: {:d}".format(self.reader.path, l))
+        logging.info("Total records imported from {}: {:d}".format(self.reader.get_path(), l))
         return l
 
     def _loop(self, executor: Optional[BlockingThreadPoolExecutor], limit = None, log_step = 1000000) -> int:
@@ -205,7 +205,7 @@ class Inserter:
             if (t1 - now) > 120:
                 self.last_logged_row = self.pushed_rows
                 self.stamp_time("last_logged")
-            path = os.path.basename(self.reader.path)
+            path = os.path.basename(self.reader.get_path())
             logging.info(
                 "Records imported from {}: {:d} => {:d}; rate: {:f} rec/sec; read: {:d}% / store: {:d}%"
                     .format(path, self.current_row, self.pushed_rows, rate, int(rt*100/t), int(st*100/t))
@@ -248,15 +248,18 @@ class Inserter:
     class _Table:
         def __init__(self, parent, name:str, table: dict):
             self.reader = parent.reader
+            self.reader_path = os.path.basename(self.reader.get_path())
             self.name = parent.domain.fqn(name)
             self.mapping = None
             self.range_columns = None
+            self.no_empty_str = None
             self.computes = None
             self.pk = None
             self.insert = None
             self.range = None
             self.arrays = dict()
             self.audit = None
+            self.file_column = None
             if "invalid.records" in table:
                 self.audit = table["invalid.records"]
             self.prepare(table)
@@ -266,6 +269,7 @@ class Inserter:
             columns = table["columns"]
             self.mapping = SortedDict()
             self.computes = SortedDict()
+            self.no_empty_str = set()
             self.range_columns = OrderedDict()
             for c in columns:
                 name, column = split(c)
@@ -300,6 +304,9 @@ class Inserter:
                             continue
                         elif t == "generated":
                             continue
+                        elif t == "file":
+                            self.file_column = name
+                            continue
                         else:
                             raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
                     else:
@@ -324,6 +331,10 @@ class Inserter:
                 else:
                     source_index = self.reader.columns.index(source)
                     self.mapping[source_index] = name
+                    if "type" in column and column["type"].lower()[:4] not in [
+                        "varc", "char", "text"
+                    ]:
+                        self.no_empty_str.add(source_index)
             inverse_mapping = {
                 item[1]: item[0] for item in self.mapping.items()
             }
@@ -348,6 +359,8 @@ class Inserter:
             if self.range:
                 cc.append(self.range[0])
             cc.extend(self.range_columns.keys())
+            if self.file_column:
+                cc.append(self.file_column)
             column_list = ", ".join(cc)
             self.insert = "INSERT INTO {table} ({columns})  VALUES %s".format(table=self.name, columns=column_list)
 
@@ -361,6 +374,8 @@ class Inserter:
             for c in self.computes:
                 value = compute(self.computes[c], row)
                 record.append(value)
+            if self.file_column:
+                record.append(self.reader_path)
             return [record]
 
         def map(self, row, record):
@@ -377,6 +392,8 @@ class Inserter:
                         return False
                     else:
                         value = None
+                elif isinstance(value, str) and not value.strip():
+                    value = None
                 if array is None:
                     record.append(value)
                 else:
