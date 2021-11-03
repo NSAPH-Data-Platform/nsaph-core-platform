@@ -5,7 +5,7 @@ import time
 from nsaph import init_logging
 from nsaph.db import Connection
 from nsaph.data_model.model import Table, INDEX_REINDEX, INDEX_INCREMENTAL
-from nsaph.loader.conf import IndexerConfig
+from nsaph.loader.loader_config import IndexerConfig
 from nsaph.loader.index_builder import IndexBuilder
 
 

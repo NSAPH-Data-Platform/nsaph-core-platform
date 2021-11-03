@@ -4,7 +4,51 @@ Common options for data manipulation
 from nsaph_utils.utils.context import Context, Argument, Cardinality
 
 
-class CommonConfig(Context):
+class DBConnectionConfig(Context):
+    """
+    Configuration class for connection to a database
+    """
+
+    _autocommit = Argument("autocommit",
+          help = "Use autocommit",
+          type = bool,
+          default = False,
+          cardinality = Cardinality.single
+    )
+
+    _db = Argument("db",
+        help = "Path to a database connection parameters file",
+        type = str,
+        default = "database.ini",
+        cardinality = Cardinality.single
+    )
+
+    _connection = Argument(
+        "connection",
+        help = "Section in the database connection parameters file",
+        type = str,
+        default = "nsaph2",
+        cardinality = Cardinality.single
+    )
+
+    def __init__(self, subclass, doc):
+        self.autocommit = None
+        ''' Use autocommit '''
+
+        self.db = None
+        ''' Path to a database connection parameters file '''
+
+        self.connection = None
+        ''' Section in the database connection parameters file '''
+
+        super().__init__(subclass, doc, include_default = False)
+        self._attrs += [
+            attr[1:] for attr in DBConnectionConfig.__dict__
+            if attr[0] == '_' and attr[1] != '_'
+        ]
+
+
+class CommonConfig(DBConnectionConfig):
     """
     Abstract base class for configurators used for data loading
 
@@ -39,27 +83,6 @@ class CommonConfig(Context):
         cardinality = Cardinality.single
     )
 
-    _autocommit = Argument("autocommit",
-          help = "Use autocommit",
-          type = bool,
-          default = False,
-          cardinality = Cardinality.single
-    )
-
-    _db = Argument("db",
-        help = "Path to a database connection parameters file",
-        type = str,
-        default = "database.ini",
-        cardinality = Cardinality.single
-    )
-
-    _connection = Argument(
-        "connection",
-        help = "Section in the database connection parameters file",
-        type = str,
-        default = "nsaph2",
-        cardinality = Cardinality.single
-    )
 
     def __init__(self, subclass, doc):
         self.domain = None
@@ -77,16 +100,7 @@ class CommonConfig(Context):
         self.table = None
         ''' Name of the table to manipulate '''
 
-        self.autocommit = None
-        ''' Use autocommit '''
-
-        self.db = None
-        ''' Path to a database connection parameters file '''
-
-        self.connection = None
-        ''' Section in the database connection parameters file '''
-
-        super().__init__(subclass, doc, include_default = False)
+        super().__init__(subclass, doc)
         self._attrs += [
             attr[1:] for attr in CommonConfig.__dict__
             if attr[0] == '_' and attr[1] != '_'

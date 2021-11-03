@@ -20,7 +20,7 @@ from nsaph import init_logging, ORIGINAL_FILE_COLUMN
 from nsaph.data_model.inserter import Inserter
 from nsaph.data_model.utils import DataReader, entry_to_path
 from nsaph.loader import LoaderBase
-from nsaph.loader.conf import LoaderConfig, Parallelization
+from nsaph.loader.loader_config import LoaderConfig, Parallelization
 from nsaph.reader import get_entries
 
 

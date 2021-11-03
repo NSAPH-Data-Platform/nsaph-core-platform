@@ -155,27 +155,3 @@ class LoaderConfig(CommonConfig):
         return value
 
 
-class IndexerConfig(CommonConfig):
-    """
-        Configurator class for index builder
-    """
-
-    _reset = Argument("reset",
-        help = "Force rebuilding indices it/they already exist",
-        type = bool,
-        default = False,
-        cardinality = Cardinality.single
-    )
-
-    _incremental = Argument("incremental",
-        help = "Skip over existing indices",
-        type = bool,
-        default = False,
-        cardinality = Cardinality.single
-    )
-
-    def __init__(self, doc):
-        self.reset = None
-        self.incremental = None
-        super().__init__(IndexerConfig, doc)
-
