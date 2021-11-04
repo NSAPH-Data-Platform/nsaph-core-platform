@@ -16,12 +16,12 @@ from psycopg2.extensions import connection
 
 from typing import List, Tuple, Callable, Any
 
-from nsaph import init_logging, ORIGINAL_FILE_COLUMN
+from nsaph import ORIGINAL_FILE_COLUMN
 from nsaph.data_model.inserter import Inserter
 from nsaph.data_model.utils import DataReader, entry_to_path
 from nsaph.loader import LoaderBase
 from nsaph.loader.loader_config import LoaderConfig, Parallelization
-from nsaph.reader import get_entries
+from nsaph_utils.utils.io_utils import get_entries, is_dir
 
 
 class DataLoader(LoaderBase):
@@ -81,7 +81,7 @@ class DataLoader(LoaderBase):
     def get_files(self) -> List[Tuple[Any,Callable]]:
         objects = []
         for path in self.context.data:
-            if not self.is_dir(path):
+            if not is_dir(path):
                 objects.append(path)
                 continue
             logging.info("Looking for relevant entries in {}.".format(path))

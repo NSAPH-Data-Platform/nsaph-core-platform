@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 from typing import Iterable
 
+from nsaph_utils.utils.io_utils import is_yaml_or_json, is_dir
 from psycopg2.extensions import connection
 
 from nsaph import init_logging
@@ -29,41 +30,13 @@ class LoaderBase(ABC):
     """
 
     @staticmethod
-    def is_dir(path: str) -> bool:
-        """
-        Determine if a certain path specification refers
-            to a collection of files or a single entry.
-            Examples of collections are folders (directories)
-            and archives
-
-        :param path: path specification
-        :return: True if specification refers to a collection of files
-        """
-
-        return (path.endswith(".tar")
-                or path.endswith(".tgz")
-                or path.endswith(".tar.gz")
-                or path.endswith(".zip")
-                or os.path.isdir(path)
-        )
-
-
-    @staticmethod
-    def is_yaml_or_json(path: str) -> bool:
-        path = path.lower()
-        for ext in [".yml", ".yaml", ".json"]:
-            if path.endswith(ext) or path.endswith(ext + ".gz"):
-                return True
-        return  False
-
-    @classmethod
-    def get_domain(cls, name: str, registry: str = None) -> Domain:
+    def get_domain(name: str, registry: str = None) -> Domain:
         src = None
         registry_path = None
         if registry:
-            if cls.is_yaml_or_json(registry):
+            if is_yaml_or_json(registry):
                 registry_path = registry
-            elif not cls.is_dir(registry):
+            elif not is_dir(registry):
                 raise ValueError("{} - is not a valid registry path".format(registry))
             elif os.path.isdir(registry):
                 src = registry

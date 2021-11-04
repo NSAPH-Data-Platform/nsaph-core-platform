@@ -126,14 +126,81 @@ in the input source.
 | Parameter | Required? | Description |
 |-----------|-----------|-------------|
 |column name | no | A column name in the incoming tabular data |
-|type | no | Types: `generated`, `multi_column`, `range`, `compute`|
+|type | no | Types: `generated`, `multi_column`, `range`, `compute`, `file`|
 |range | no | |
 |code | no | Code for generated and computed columns|
+| columns | no | |
+| parameters | no | |
 
 
 ### Generated columns
 
+Generated columns are columns that are not present in the source 
+(e.g. CSV or FST file) but whose value 
+is automatically computed using other columns values, 
+or another deterministic expression **_inside the database_**.
+                                                                   
+From [PostgreSQL Documentation](https://www.postgresql.org/docs/current/ddl-generated-columns.html):
+
+> Theoretically, generated columns are for columns 
+what a view is for tables. There are two kinds of 
+generated columns: stored and virtual. A stored 
+generated column is computed when it is written 
+(inserted or updated) and occupies storage as if 
+it were a normal column. A virtual generated column 
+occupies no storage and is computed when it is read. 
+Thus, a virtual generated column is similar to a 
+view and a stored generated column is similar to a 
+materialized view (except that it is always updated automatically). 
+  
+>However, **PostgreSQL currently implements only STORED generated columns**.
+
 ### Computed Columns
+
+Computed columns are columns that are not present in the source 
+(e.g. CSV or FST file) but whose value is computed 
+using provided Python code by the Universal Database Loader.
+They use the values of other columns in the same record and can call 
+out to standard Python functions.
+
+The columns used for computation are listed in either `columns`
+or `parameters `sections. Column names are names of the original 
+columns in the data file. To reference columns in the 
+database use parameters.
+Referenced them by a number in curly brackets in the compute code.
+
+
+Here is an example of a computed column:
+
+    - admission_date:
+        type: "DATE"
+        source:
+          type: "compute"
+          columns: 
+            - "ADMSN_DT"
+          code: "datetime.strptime({1}, '%Y%m%d').date()"
+
+Here in `code` the pattern `{1}` is replaced with the name of the 
+first (and only) column in the list: `ADMSN_DT`. 
+                        
+Another example, using database columns:
+
+    - fips5:
+        source:
+          type: "compute"
+          parameters: 
+            - state
+            - residence_county
+          code: "fips_dict[{1}] * 1000 + int({2})"
+
+Here, `{1}` references the value that would be inserted into the 
+table column `state` and `{2}` references the value that 
+would be inserted into the table column `residence_county`. 
+
+### File columns
+
+File columns are of type `file`. They store the name of the file,
+from which the data has been ingested.
 
 ### Transposing Columns 
 

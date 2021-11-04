@@ -6,12 +6,13 @@ import csv
 import logging
 import os
 import re
+import sys
 import tarfile
-from typing import Dict, Callable
+from typing import Dict, Callable, List
 
-from nsaph_utils.utils.io_utils import fopen
+import yaml
+from nsaph_utils.utils.io_utils import fopen, SpecialValues, is_dir, get_entries
 from nsaph.pg_keywords import *
-from nsaph.reader import SpecialValues
 
 PG_MAXINT = 2147483647
 
@@ -55,10 +56,13 @@ class Introspector:
         return s.strip().strip('"')
 
     def __init__(self,
-                 get_entry: Callable = None,
-                 data_file: str = None,
+                 data_file: str,
                  column_name_replacement: Dict = None):
-        self.open_entry_function = get_entry
+        self.entries = None
+        if is_dir(data_file):
+            self.entries, self.open_entry_function = get_entries(data_file)
+        else:
+            self.open_entry_function = lambda x: fopen(x, "rt")
         self.file_path = data_file
         self.has_commas = False
         self.quoted_values = False
@@ -69,11 +73,15 @@ class Introspector:
             if column_name_replacement else dict()
 
     def fopen(self, source):
-        return fopen(self.open_entry_function(source), "rt")
+        entry = self.open_entry_function(source)
+        return entry
 
     def introspect(self, entry=None):
         if not entry:
-            entry = self.file_path
+            if self.entries is not None:
+                entry = self.entries[0]
+            else:
+                entry = self.file_path
         logging.info("Using for data analysis: " + self.name(entry))
         with self.fopen(entry) as data:
             reader = self.csv_reader(data, True)
@@ -103,7 +111,13 @@ class Introspector:
             elif c.lower() in self.column_map:
                 self.sql_columns.append(self.column_map[c.lower()])
             else:
-                self.sql_columns.append(c.replace('.', '_').lower())
+                if c[0].isdigit():
+                    c = "c_" + c
+                self.sql_columns.append(
+                    c.replace('.', '_')
+                    .replace(' ', '_')
+                    .lower()
+                )
         return
 
     def guess_types(self, rows: list, lines: list):
@@ -151,6 +165,8 @@ class Introspector:
                     continue
                 elif c_type == PG_INT_TYPE and t == PG_NUMERIC_TYPE:
                     c_type = t
+                elif c_type in [PG_INT_TYPE, PG_NUMERIC_TYPE] and t == PG_STR_TYPE:
+                    c_type = t
                 elif (c_type and c_type != t):
                     msg = "Inconsistent type for column {:d} [{:s}]. " \
                         .format(c + 1, self.csv_columns[c])
@@ -172,4 +188,32 @@ class Introspector:
             self.types.append(c_type)
         return
 
+    def get_columns(self) -> List[Dict]:
+        columns = []
+        for i, c in enumerate(self.sql_columns):
+            t = self.types[i]
+            s = self.csv_columns[i]
+            column = {
+                c: {
+                    "type": t
+                }
+            }
+            if s != c:
+                column[c]["source"] = s
+            columns.append(column)
+
+        return columns
+
+
+def test():
+    for arg in sys.argv[1:]:
+        introspector = Introspector(arg)
+        introspector.introspect()
+        columns = introspector.get_columns()
+        print(arg)
+        print(yaml.dump(columns))
+
+
+if __name__ == '__main__':
+    test()
 
