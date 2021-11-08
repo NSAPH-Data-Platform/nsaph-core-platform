@@ -47,11 +47,11 @@ class DataLoader(LoaderBase):
                     self.page = 100
                 if self.log_step is None:
                     self.log_step = 10000
-        else:
-            if self.page is None:
-                self.page = 1000
-            if self.log_step is None:
-                self.log_step = 1000000
+            else:
+                if self.page is None:
+                    self.page = 1000
+                if self.log_step is None:
+                    self.log_step = 1000000
         return
 
     def print_ddl(self):
@@ -190,9 +190,12 @@ class DataLoader(LoaderBase):
         else:
             q = None
             h = None
-        with DataReader(data_file, buffer_size=buffer, quoting=q, has_header=h) as reader:
-            if h is False:
-                reader.columns = self.domain.list_columns(table)
+        domain_columns = self.domain.list_source_columns(table)
+        with DataReader(data_file,
+                        buffer_size=buffer,
+                        quoting=q,
+                        has_header=h,
+                        columns=domain_columns) as reader:
             inserter = Inserter(
                 self.domain,
                 table,

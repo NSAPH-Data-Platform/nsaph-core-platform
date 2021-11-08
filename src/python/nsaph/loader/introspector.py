@@ -3,11 +3,13 @@ This module introspects columnar data to infer the types of
 the columns
 """
 import csv
+import json
 import logging
 import os
 import re
 import sys
 import tarfile
+from collections import OrderedDict
 from typing import Dict, Callable, List
 
 import yaml
@@ -34,7 +36,7 @@ class Introspector:
         return n
 
     @staticmethod
-    def name(path):
+    def name(path) -> str:
         if isinstance(path, tarfile.TarInfo):
             full_name =  path.name
         else:
@@ -59,6 +61,7 @@ class Introspector:
                  data_file: str,
                  column_name_replacement: Dict = None):
         self.entries = None
+        self.lines_to_load = 10000
         if is_dir(data_file):
             self.entries, self.open_entry_function = get_entries(data_file)
         else:
@@ -76,6 +79,54 @@ class Introspector:
         entry = self.open_entry_function(source)
         return entry
 
+    def handle_csv(self, entry):
+        rows, lines = self.load_csv(entry)
+        for row in rows:
+            for cell in row:
+                if ',' in cell:
+                    self.has_commas = True
+                    break
+        if not rows:
+            raise Exception("No data in {}".format(self.file_path))
+        self.guess_types(rows, lines)
+
+    def handle_json(self, entry):
+        rows = self.load_json(entry)
+        if not rows:
+            raise Exception("No data in {}".format(self.file_path))
+        m = len(rows)
+        n = len(self.csv_columns)
+        for c in range(0, n):
+            c_type = None
+            max_val = 0
+            for l in range(0, m):
+                v = rows[l][c]
+                if v is None:
+                    continue
+                if isinstance(v, int):
+                    t = PG_INT_TYPE
+                    max_val = max(max_val, v)
+                elif isinstance(v, float):
+                    t = PG_NUMERIC_TYPE
+                elif isinstance(v, str):
+                    if date.fullmatch(v):
+                        t = "DATE"
+                    else:
+                        t = PG_STR_TYPE
+                else:
+                    raise ValueError(v)
+                try:
+                    c_type = self.reconcile(t, c_type)
+                except InconsistentTypes:
+                    msg = "Inconsistent type for column {:d} [{:s}]. " \
+                        .format(c + 1, self.csv_columns[c])
+                    msg += "Up to line {:d}: {:s}, for line={:d}: {:s}. " \
+                        .format(l - 1, c_type, l, t)
+                    msg += "Value = {}".format(v)
+                    raise Exception(msg)
+            self.types.append(self.db_type(c_type, max_val, None, None))
+        return
+
     def introspect(self, entry=None):
         if not entry:
             if self.entries is not None:
@@ -83,27 +134,10 @@ class Introspector:
             else:
                 entry = self.file_path
         logging.info("Using for data analysis: " + self.name(entry))
-        with self.fopen(entry) as data:
-            reader = self.csv_reader(data, True)
-            row = next(reader)
-            self.csv_columns = [self.unquote(c) for c in row]
-
-            rows = []
-            self.load_range(10000, lambda : rows.append(next(reader)))
-        with self.fopen(entry) as data:
-            reader = self.csv_reader(data, False)
-            next(reader)
-            lines = []
-            self.load_range(10000, lambda : lines.append(next(reader)))
-
-        if not rows:
-            raise Exception("No data in {}".format(self.file_path))
-        for row in rows:
-            for cell in row:
-                if ',' in cell:
-                    self.has_commas = True
-                    break
-        self.guess_types(rows, lines)
+        if ".json" in self.name(entry).lower():
+            self.handle_json(entry)
+        else:
+            self.handle_csv(entry)
         self.sql_columns = []
         for c in self.csv_columns:
             if not c:
@@ -120,6 +154,42 @@ class Introspector:
                 )
         return
 
+    def load_csv(self, entry) -> (List[List[str]], List[List[str]]):
+        with self.fopen(entry) as data:
+            reader = self.csv_reader(data, True)
+            row = next(reader)
+            self.csv_columns = [self.unquote(c) for c in row]
+
+            rows = []
+            self.load_range(self.lines_to_load, lambda : rows.append(next(reader)))
+        with self.fopen(entry) as data:
+            reader = self.csv_reader(data, False)
+            next(reader)
+            lines = []
+            self.load_range(self.lines_to_load, lambda : lines.append(next(reader)))
+        return rows, lines
+
+    def load_json(self, entry) -> List[List]:
+        headers = OrderedDict()
+        records = []
+        counter = 0
+        with self.fopen(entry) as data:
+            for line in data:
+                record = json.loads(line)
+                for h in record:
+                    if h not in headers:
+                        headers[h] = 1
+                records.append(record)
+                counter += 1
+                if counter > self.lines_to_load:
+                    break
+        self.csv_columns = list(headers.keys())
+        rows = [
+            [record.get(h, None) for h in self.csv_columns]
+            for record in records
+        ]
+        return rows
+
     def guess_types(self, rows: list, lines: list):
         m = len(rows)
         n = len(rows[0])
@@ -131,10 +201,13 @@ class Introspector:
             max_val = 0
             for l in range(0, m):
                 v = rows[l][c].strip()
-                v2 = lines[l][c].strip()
+                if lines:
+                    v2 = lines[l][c].strip()
+                else:
+                    v2 = None
                 if date.fullmatch(v):
                     t = "DATE"
-                elif v2 == '"{}"'.format(v):
+                elif v2 and v2 == '"{}"'.format(v):
                     t = PG_STR_TYPE
                     self.quoted_values = True
                 elif SpecialValues.is_untyped(v):
@@ -151,42 +224,54 @@ class Introspector:
                         t = PG_NUMERIC_TYPE
                     elif integer.fullmatch(v):
                         t = PG_INT_TYPE
+                        max_val = max(max_val, abs(int(v)))
                     else:
                         t = PG_STR_TYPE
                 if t == "0":
                     continue
-                if t in [PG_INT_TYPE]:
-                    max_val = max(max_val, abs(int(v)))
-                if c_type == "0":
-                    c_type = t
-                elif c_type == PG_NUMERIC_TYPE and t == PG_INT_TYPE:
-                    continue
-                elif c_type == PG_STR_TYPE and t in [PG_INT_TYPE, PG_NUMERIC_TYPE]:
-                    continue
-                elif c_type == PG_INT_TYPE and t == PG_NUMERIC_TYPE:
-                    c_type = t
-                elif c_type in [PG_INT_TYPE, PG_NUMERIC_TYPE] and t == PG_STR_TYPE:
-                    c_type = t
-                elif (c_type and c_type != t):
+                try:
+                    c_type = self.reconcile(t, c_type)
+                except InconsistentTypes:
                     msg = "Inconsistent type for column {:d} [{:s}]. " \
                         .format(c + 1, self.csv_columns[c])
                     msg += "Up to line {:d}: {:s}, for line={:d}: {:s}. " \
                         .format(l - 1, c_type, l, t)
                     msg += "Value = {}".format(v)
                     raise Exception(msg)
-                else:
-                    c_type = t
-            if c_type == PG_INT_TYPE and max_val * 10 > PG_MAXINT:
-                c_type = PG_BIGINT_TYPE
-            if c_type == PG_NUMERIC_TYPE:
-                precision += scale
-                c_type = c_type + "({:d},{:d})".format(precision + 2, scale)
-            if c_type == "0":
-                c_type = PG_NUMERIC_TYPE
-            if not c_type:
-                c_type = PG_STR_TYPE
-            self.types.append(c_type)
+            self.types.append(self.db_type(c_type, max_val, precision, scale))
         return
+
+    @staticmethod
+    def reconcile(cell_type, column_type) -> str:
+        if column_type == "0":
+            column_type = cell_type
+        elif column_type == PG_NUMERIC_TYPE and cell_type == PG_INT_TYPE:
+            return column_type
+        elif column_type == PG_STR_TYPE and cell_type in [PG_INT_TYPE, PG_NUMERIC_TYPE]:
+            return column_type
+        elif column_type == PG_INT_TYPE and cell_type == PG_NUMERIC_TYPE:
+            column_type = cell_type
+        elif column_type in [PG_INT_TYPE, PG_NUMERIC_TYPE] and cell_type == PG_STR_TYPE:
+            column_type = cell_type
+        elif (column_type and column_type != cell_type):
+            raise InconsistentTypes
+        else:
+            column_type = cell_type
+        return column_type
+
+    @staticmethod
+    def db_type(column_type, max_val, precision, scale) -> str:
+        if column_type == PG_INT_TYPE and max_val * 10 > PG_MAXINT:
+            column_type = PG_BIGINT_TYPE
+        if column_type == PG_NUMERIC_TYPE and precision and scale:
+            column_type = column_type + "({:d},{:d})".format(
+                precision + scale + 2, scale
+            )
+        if column_type == "0":
+            column_type = PG_NUMERIC_TYPE
+        if not column_type:
+            column_type = PG_STR_TYPE
+        return column_type
 
     def get_columns(self) -> List[Dict]:
         columns = []
@@ -203,6 +288,10 @@ class Introspector:
             columns.append(column)
 
         return columns
+
+
+class InconsistentTypes(Exception):
+    pass
 
 
 def test():

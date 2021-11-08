@@ -11,6 +11,7 @@
   * [Source](#source)
   * [Generated columns](#generated-columns)
   * [Computed Columns](#computed-columns)
+  * [File columns](#file-columns)
   * [Transposing Columns](#transposing-columns)
 - [Generation of the database schema (DDL)](#generation-of-the-database-schema-ddl)
 - [Indexing Policies](#indexing-policies)

@@ -119,10 +119,30 @@ class Domain:
     def list_columns(self, table) -> list:
         #t = self.spec[self.domain]["tables"][table]
         t = self.find(table)
+        if not t:
+            raise ValueError("Table {} is not defined in the domain {}"
+                             .format(table, self.domain))
         cc = [
             list(c.keys())[0] if isinstance(c,dict) else c
             for c in t["columns"]
         ]
+        return cc
+
+    def list_source_columns(self, table) -> list:
+        t = self.find(table)
+        if not t:
+            raise ValueError("Table {} is not defined in the domain {}"
+                             .format(table, self.domain))
+        cc = []
+        for c in t["columns"]:
+            name, column = split(c)
+            if isinstance(column, dict) and "source" in column:
+                s = column["source"]
+                if isinstance(s, str):
+                    name = s
+                elif isinstance(s, dict) and "name" in s:
+                    name = s["name"]
+            cc.append(name)
         return cc
 
     def has_hard_linked_children(self, table) -> bool:

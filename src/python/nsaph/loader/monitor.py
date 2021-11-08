@@ -46,7 +46,9 @@ class DBActivityMonitor:
             print(msg)
 
     def get_indexing_progress(self) -> List[str]:
-        with Connection(self.context.db, self.context.connection).connect() as connection:
+        with Connection(self.context.db,
+                        self.context.connection,
+                        silent=True).connect() as connection:
             cursor = connection.cursor()
             version = connection.info.server_version
             if version > 120000:
