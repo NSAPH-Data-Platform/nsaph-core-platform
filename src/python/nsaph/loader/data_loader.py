@@ -57,6 +57,8 @@ class DataLoader(LoaderBase):
     def print_ddl(self):
         for ddl in self.domain.ddl:
             print(ddl)
+        for ddl in self.domain.indices:
+            print(ddl)
 
     def is_parallel(self) -> bool:
         if self.context.threads < 2:

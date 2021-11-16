@@ -18,7 +18,7 @@ PG_MAXINT = 2147483647
 
 METADATA_TYPE_KEY = "type"
 METADATA_TYPE_MODEL = "model_specification"
-INDEX_DDL_PATTERN = "CREATE INDEX {option} {name} ON {table} USING {method} ({column})"
+INDEX_DDL_PATTERN = "CREATE INDEX {option} {name} ON {table} USING {method} ({column});"
 INDEX_NAME_PATTERN = "{table}_{column}_idx"
 
 BTREE = "btree"

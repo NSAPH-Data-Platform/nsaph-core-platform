@@ -83,7 +83,6 @@ class CommonConfig(DBConnectionConfig):
         cardinality = Cardinality.single
     )
 
-
     def __init__(self, subclass, doc):
         self.domain = None
         ''' Name of the domain '''
@@ -100,8 +99,11 @@ class CommonConfig(DBConnectionConfig):
         self.table = None
         ''' Name of the table to manipulate '''
 
-        super().__init__(subclass, doc)
-        self._attrs += [
-            attr[1:] for attr in CommonConfig.__dict__
-            if attr[0] == '_' and attr[1] != '_'
-        ]
+        if subclass is None:
+            super().__init__(CommonConfig, doc)
+        else:
+            super().__init__(subclass, doc)
+            self._attrs += [
+                attr[1:] for attr in CommonConfig.__dict__
+                if attr[0] == '_' and attr[1] != '_'
+            ]

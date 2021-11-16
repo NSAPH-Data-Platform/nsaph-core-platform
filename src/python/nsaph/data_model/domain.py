@@ -353,6 +353,17 @@ class Domain:
                     self.indices_by_table[table] = []
                 self.indices_by_table[table].append(ddl)
 
+        if "indices" in definition:
+            indices = definition["indices"]
+        elif "indexes"  in definition:
+            indices = definition["indexes"]
+        else:
+            indices = None
+
+        if indices:
+            for index in indices:
+                self.add_index(table, index, indices[index])
+
         if "children" in definition:
             children = {t: definition["children"][t] for t in definition["children"]}
             for child in children:
@@ -403,8 +414,31 @@ class Domain:
             table = table,
             column = cname,
             method = method
-        ) + ";", onload)
+        ), onload)
 
+    def add_index(self, table: str, name: str, definition: dict):
+        if self.conucrrent_indices:
+            option = "CONCURRENTLY"
+        else:
+            option = ""
+        keys = {key.lower(): key for key in definition}
+        if "using" in keys:
+            method = definition[keys["using"]]
+        else:
+            method = "BTREE"
+        columns = ','.join(definition["columns"])
+        ddl = INDEX_DDL_PATTERN.format(
+            name = INDEX_NAME_PATTERN.format(table = table.split('.')[-1],
+                                             column = name),
+            option = option,
+            table = table,
+            column = columns,
+            method = method
+        )
+        self.indices.append(ddl)
+        if table not in self.indices_by_table:
+            self.indices_by_table[table] = []
+        self.indices_by_table[table].append(ddl)
 
     @staticmethod
     def is_array(column) -> bool:
