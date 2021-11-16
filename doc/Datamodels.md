@@ -74,6 +74,7 @@ The following parameters can be defined for a table:
 |type | no | view / table |
 |hard_linked | no | Denotes that the table is an integral part of parent table rather than a separate table with a many-to-one relationship to the parent table|
 |columns | yes | list of column definitions |
+|indices or indexes | yes | dictionary of multi-column indices |
 |primary_key | yes | list of column names included in the table primary key |
 |children | no | list of table definitions for child tables of this table|
 |description | no | description of this domain to be included in auto-generated documentation
@@ -206,8 +207,17 @@ from which the data has been ingested.
 ### Transposing Columns 
 
 
+## Multi-column indices
 
+Multi-column indices of a table are defined in `indices` section 
+(spelling `indexes` is also acceptable). This is a dictionary with an 
+index name as a key and its definition as the value. At the very minimum, 
+the definition should include the list of the columns to be used in the 
+index. 
 
+Index definition can also include 
+[index type](https://www.postgresql.org/docs/current/indexes-types.html) 
+(e.g. btree, hash, etc.)  and data to be included with teh index.
 
 ## Generation of the database schema (DDL)
 
