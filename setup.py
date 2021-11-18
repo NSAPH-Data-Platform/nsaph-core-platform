@@ -143,7 +143,6 @@ setup(
         'urllib3>=1.25.11',
         'websocket-client>=0.57.0',
         'Werkzeug>=0.16.1',
-        'WTForms>=2.3.3',
         'zipp>=3.3.1',
         'zope.deprecation>=4.4.0',
         'sshtunnel'
