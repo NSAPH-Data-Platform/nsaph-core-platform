@@ -41,11 +41,14 @@ class DBConnectionConfig(Context):
         self.connection = None
         ''' Section in the database connection parameters file '''
 
-        super().__init__(subclass, doc, include_default = False)
-        self._attrs += [
-            attr[1:] for attr in DBConnectionConfig.__dict__
-            if attr[0] == '_' and attr[1] != '_'
-        ]
+        if subclass is None:
+            super().__init__(DBConnectionConfig, doc, include_default = False)
+        else:
+            super().__init__(subclass, doc, include_default = False)
+            self._attrs += [
+                attr[1:] for attr in DBConnectionConfig.__dict__
+                if attr[0] == '_' and attr[1] != '_'
+            ]
 
 
 class CommonConfig(DBConnectionConfig):

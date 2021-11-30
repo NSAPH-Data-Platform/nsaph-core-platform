@@ -33,12 +33,10 @@ INDEX_MON_SQL11 = """
 """
 
 
-
-
 class DBActivityMonitor:
     def __init__(self, context: DBConnectionConfig = None):
         if not context:
-            context = DBConnectionConfig(DBActivityMonitor, __doc__).instantiate()
+            context = DBConnectionConfig(None, __doc__).instantiate()
         self.context = context
 
     def run(self):
