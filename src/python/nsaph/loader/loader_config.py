@@ -27,6 +27,13 @@ class LoaderConfig(CommonConfig):
         Configurator class for data loader
     """
 
+    _drop = Argument(
+        "drop",
+        help = "Drops domain schema",
+        type = bool,
+        default=False
+    )
+
     _data = Argument("data",
         help = "Path to a data file or directory. Can be a "
                 + "single CSV, gzipped CSV or FST file or a directory recursively "
@@ -104,6 +111,11 @@ class LoaderConfig(CommonConfig):
     )
 
     def __init__(self, doc):
+        self.drop: bool = False
+        """ 
+        If this option is given, then the whole domain schema will be dropped
+        """
+
         self.data = None
         """
         Path to a data file or directory. Can be a 
@@ -146,7 +158,6 @@ class LoaderConfig(CommonConfig):
         """
 
         super().__init__(LoaderConfig, doc)
-
 
     def validate(self, attr, value):
         value = super().validate(attr, value)

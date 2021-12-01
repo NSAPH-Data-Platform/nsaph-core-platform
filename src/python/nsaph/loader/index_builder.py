@@ -106,6 +106,37 @@ class IndexBuilder(LoaderBase):
         for msg in self.monitor.get_indexing_progress():
             logging.info(msg)
 
+    def drop(self, schema: str, table: str = None):
+        with self._connect() as connection:
+            self.drop_all(connection, schema, table)
+
+    @classmethod
+    def drop_all (cls, connection, schema: str, table: str = None):
+        query = """
+        SELECT 
+            i.relname, 
+            n.nspname,
+            c.relname 
+        FROM 
+            "pg_catalog"."pg_index" as x
+                JOIN pg_class as i ON  x.indexrelid = i.oid
+                JOIN pg_class as c ON  x.indrelid = c.oid
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE nspname = '{}' 
+        """.format(schema)
+        if table is not None:
+            query += " AND c.relname = '{}'".format(table)
+        with (connection.cursor()) as cursor:
+            cursor.execute(query)
+            indices = [row[0] for row in cursor]
+        logging.info("Found {:d} indices".format(len(indices)))
+        with (connection.cursor()) as cursor:
+            for index in indices:
+                sql = "DROP INDEX {}.{}".format(schema, index)
+                logging.info(sql)
+                cursor.execute(sql)
+        return
+
 
 if __name__ == '__main__':
     IndexBuilder().run()

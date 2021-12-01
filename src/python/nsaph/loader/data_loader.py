@@ -12,6 +12,7 @@ import logging
 import os
 import fnmatch
 
+from nsaph.loader.index_builder import IndexBuilder
 from psycopg2.extensions import connection
 
 from typing import List, Tuple, Callable, Any
@@ -40,6 +41,9 @@ class DataLoader(LoaderBase):
         if self.context.incremental and self.context.autocommit:
             raise ValueError("Incompatible arguments: autocommit is "
                              + "incompatible with incremental loading")
+        if self.context.drop:
+            if self.table:
+                raise Exception("Drop is incompatible with other arguments")
         if self.table:
             nc = len(self.domain.list_columns(self.table))
             if self.domain.has_hard_linked_children(self.table) or nc > 20:
@@ -118,8 +122,22 @@ class DataLoader(LoaderBase):
         with self._connect() as connxn:
             tables = self.domain.drop(self.table, connxn)
             self.domain.create(connxn, [self.table])
+            for t in tables:
+                IndexBuilder.drop_all(connxn, self.domain.schema, t)
+
+    def drop(self):
+        schema = self.domain.schema
+        with self._connect() as connxn:
+            with (connxn.cursor()) as cursor:
+                sql = "DROP SCHEMA IF EXISTS {} CASCADE".format(schema)
+                print(sql)
+                cursor.execute(sql)
+            IndexBuilder.drop_all(connxn, schema)
 
     def run(self):
+        if self.context.drop:
+            self.drop()
+            return
         if not self.context.table:
             self.print_ddl()
             return

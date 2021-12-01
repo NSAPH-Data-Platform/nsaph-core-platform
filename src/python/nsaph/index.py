@@ -5,8 +5,7 @@ import time
 from nsaph import init_logging
 from nsaph.db import Connection
 from nsaph.data_model.model import Table, INDEX_REINDEX, INDEX_INCREMENTAL
-from nsaph.loader.loader_config import IndexerConfig
-from nsaph.loader.index_builder import IndexBuilder
+from nsaph.loader.index_builder import IndexBuilder, IndexerConfig
 
 
 def index(table, cursor, flag):
@@ -40,7 +39,7 @@ def build_indices(table: Table, flag: str, db: str = None,
 
 if __name__ == '__main__':
     init_logging()
-    parser = argparse.ArgumentParser (description="Build indices")
+    parser = argparse.ArgumentParser (description="Build or drop indices")
     parser.add_argument("--tdef", "-t",
                         help="Path to a config file for a table",
                         required=True)
