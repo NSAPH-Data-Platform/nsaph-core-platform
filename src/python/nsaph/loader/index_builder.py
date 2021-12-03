@@ -110,6 +110,8 @@ class IndexBuilder(LoaderBase):
                         sql = index
                     logging.info(str(datetime.now()) + ": " + sql)
                     cursor.execute(sql)
+                    logging.info(str(datetime.now()) + ": Index " +
+                                 name + " is ready.")
             logging.info("All indices has been built")
 
     def print_stat(self):
