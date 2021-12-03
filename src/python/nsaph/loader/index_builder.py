@@ -79,6 +79,13 @@ class IndexBuilder(LoaderBase):
         x.join()
 
     def execute(self):
+        try:
+            self._execute()
+        except:
+            logging.exception("Exception building indices")
+            raise
+
+    def _execute(self):
         domain = self.domain
 
         if self.context.table is not None:
@@ -88,6 +95,7 @@ class IndexBuilder(LoaderBase):
         print(indices)
 
         with self._connect() as connection:
+            connection.autocommit = True
             for index in indices:
                 name = find_name(index)
                 fqn = self.domain.fqn(name)
@@ -102,6 +110,7 @@ class IndexBuilder(LoaderBase):
                         sql = index
                     logging.info(str(datetime.now()) + ": " + sql)
                     cursor.execute(sql)
+            logging.info("All indices has been built")
 
     def print_stat(self):
         for msg in self.monitor.get_indexing_progress():
