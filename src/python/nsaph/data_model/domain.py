@@ -57,7 +57,7 @@ VALIDATION_TRIGGER = """
 
 
 CREATE_VIEW = """
-CREATE {OBJECT} {name} AS
+CREATE {OBJECT} {flag} {name} AS
 SELECT
     {features}
 FROM {source}
@@ -70,7 +70,7 @@ GROUP BY {id};
 
 
 class Domain:
-    CREATE = "CREATE TABLE {name}"
+    CREATE = "CREATE TABLE {flag} {name}"
 
     def __init__(self, spec, name):
         self.domain = name
@@ -86,7 +86,7 @@ class Domain:
         self.ddl_by_table = dict()
         self.common_ddl = []
         self.ddl = []
-        self.conucrrent_indices = False
+        self.concurrent_indices = False
         index_policy = self.spec[self.domain].get("index")
         if index_policy is None or index_policy in ["selected"]:
             self.index_policy = "selected"
@@ -96,6 +96,16 @@ class Domain:
             self.index_policy = "all"
         else:
             raise Exception("Invalid indexing policy: " + index_policy)
+        self.sloppy = False
+
+    def set_sloppy(self):
+        self.sloppy = True
+
+    def create_table(self, name) -> str:
+        return self.CREATE.format(
+            flag = "IF NOT EXISTS" if self.sloppy else "",
+            name = name
+        )
 
     def init(self) -> None:
         if self.schema:
@@ -301,6 +311,7 @@ class Domain:
             create_table = CREATE_VIEW.format(
                 OBJECT=object_type,
                 name=table,
+                flag = "IF NOT EXISTS" if self.sloppy else "",
                 features = ",\n\t".join(features),
                 source=create["from"]
             )
@@ -327,7 +338,8 @@ class Domain:
 
             if fk:
                 features.append(fk)
-            create_table = (self.CREATE + " (\n\t{features}\n);").format(name=table, features=",\n\t".join(features))
+            create_table = self.create_table(table) + \
+                " (\n\t{features}\n);".format(features=",\n\t".join(features))
         self.append_ddl(table, create_table)
         if "invalid.records" in definition:
             validation = definition["invalid.records"]
@@ -337,7 +349,8 @@ class Domain:
                 ff = [f for f in features if "CONSTRAINT" not in f and "PRIMARY KEY" not in f]
                 ff.append("REASON VARCHAR(16)")
                 ff.append("recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ")
-                create_table = (self.CREATE + " (\n\t{features}\n);").format(name=t2, features=",\n\t".join(ff))
+                create_table = self.create_table(t2) + \
+                    " (\n\t{features}\n);".format(features=",\n\t".join(ff))
                 self.append_ddl(table, create_table)
             self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
 
@@ -380,7 +393,7 @@ class Domain:
         return False
 
     def get_index_ddl(self, table, column) -> (str, bool):
-        if self.conucrrent_indices:
+        if self.concurrent_indices:
             option = "CONCURRENTLY"
         else:
             option = ""
@@ -417,7 +430,7 @@ class Domain:
         ), onload)
 
     def add_index(self, table: str, name: str, definition: dict):
-        if self.conucrrent_indices:
+        if self.concurrent_indices:
             option = "CONCURRENTLY"
         else:
             option = ""
@@ -544,11 +557,10 @@ class Domain:
                 identifiers.append(name)
         return identifiers
 
-    @classmethod
-    def matches(cls, create_statement, list_of_tables) -> bool:
+    def matches(self, create_statement, list_of_tables) -> bool:
         create_statement = create_statement.strip()
         for t in list_of_tables:
-            if create_statement.startswith(cls.CREATE.format(name=t)):
+            if create_statement.startswith(self.create_table(t)):
                 return True
             for create in ["CREATE TRIGGER", "CREATE OR REPLACE FUNCTION"]:
                 if create_statement.startswith(create) and t in create_statement:

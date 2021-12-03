@@ -67,6 +67,13 @@ class LoaderConfig(CommonConfig):
         cardinality = Cardinality.single
     )
 
+    _sloppy = Argument("sloppy",
+        help = "Do not update existing tables",
+        type = bool,
+        default = False,
+        cardinality = Cardinality.single
+    )
+
     _page = Argument(
         "page",
         help = "Explicit page size for the database",
@@ -156,6 +163,9 @@ class LoaderConfig(CommonConfig):
         Commit every file and skip over files that 
         have already been ingested
         """
+
+        self.sloppy = False
+        '''Do not update existing tables and views'''
 
         super().__init__(LoaderConfig, doc)
 

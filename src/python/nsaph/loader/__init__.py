@@ -13,6 +13,7 @@ from nsaph import init_logging
 from nsaph.data_model.domain import Domain
 from nsaph.loader.common import CommonConfig
 from nsaph.db import Connection
+from nsaph.loader.loader_config import LoaderConfig
 
 
 def diff(files: Iterable[str]) -> bool:
@@ -62,13 +63,15 @@ class LoaderBase(ABC):
         if not os.path.isfile(registry_path):
             raise ValueError("File {} does not exist".format(os.path.abspath(registry_path)))
         domain = Domain(registry_path, name)
-        domain.init()
         return domain
 
-    def __init__(self, context):
+    def __init__(self, context: LoaderConfig):
         init_logging()
         self.context = None
         self.domain = self.get_domain(context.domain, context.registry)
+        if isinstance(context, LoaderConfig) and context.sloppy:
+            self.domain.set_sloppy()
+        self.domain.init()
         self.table = context.table
 
     def _connect(self) -> connection:

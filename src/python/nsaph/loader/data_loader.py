@@ -120,10 +120,11 @@ class DataLoader(LoaderBase):
         if not self.context.reset:
             return
         with self._connect() as connxn:
-            tables = self.domain.drop(self.table, connxn)
+            if not self.context.sloppy:
+                tables = self.domain.drop(self.table, connxn)
+                for t in tables:
+                    IndexBuilder.drop_all(connxn, self.domain.schema, t)
             self.domain.create(connxn, [self.table])
-            for t in tables:
-                IndexBuilder.drop_all(connxn, self.domain.schema, t)
 
     def drop(self):
         schema = self.domain.schema

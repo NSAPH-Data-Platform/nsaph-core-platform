@@ -89,10 +89,11 @@ class IndexBuilder(LoaderBase):
 
         with self._connect() as connection:
             for index in indices:
-                name = self.domain.fqn(find_name(index))
+                name = find_name(index)
+                fqn = self.domain.fqn(name)
                 with (connection.cursor()) as cursor:
                     if self.context.reset:
-                        sql = "DROP INDEX IF EXISTS {name}".format(name=name)
+                        sql = "DROP INDEX IF EXISTS {name}".format(name=fqn)
                         logging.info(str(datetime.now()) + ": " + sql)
                         cursor.execute(sql)
                     if self.context.incremental:
