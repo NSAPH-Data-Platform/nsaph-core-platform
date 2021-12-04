@@ -78,25 +78,32 @@ class IndexBuilder(LoaderBase):
             indices = domain.indices
         print(indices)
 
-        with self._connect() as connection:
-            connection.autocommit = True
+        if self.context.autocommit:
             for index in indices:
-                name = find_name(index)
-                fqn = self.domain.fqn(name)
-                with (connection.cursor()) as cursor:
-                    if self.context.reset:
-                        sql = "DROP INDEX IF EXISTS {name}".format(name=fqn)
-                        logging.info(str(datetime.now()) + ": " + sql)
-                        cursor.execute(sql)
-                    if self.context.incremental:
-                        sql = index.replace(name, "IF NOT EXISTS " + name)
-                    else:
-                        sql = index
-                    logging.info(str(datetime.now()) + ": " + sql)
-                    cursor.execute(sql)
-                    logging.info(str(datetime.now()) + ": Index " +
-                                 name + " is ready.")
-            logging.info("All indices have been built")
+                with self._connect() as cnxn:
+                    self.build(index, cnxn)
+        else:
+            with self._connect() as cnxn:
+                for index in indices:
+                    self.build(index, cnxn)
+        logging.info("All indices have been built")
+
+    def build(self, index, cnxn):
+        name = find_name(index)
+        fqn = self.domain.fqn(name)
+        with (cnxn.cursor()) as cursor:
+            if self.context.reset:
+                sql = "DROP INDEX IF EXISTS {name}".format(name=fqn)
+                logging.info(str(datetime.now()) + ": " + sql)
+                cursor.execute(sql)
+            if self.context.incremental:
+                sql = index.replace(name, "IF NOT EXISTS " + name)
+            else:
+                sql = index
+            logging.info(str(datetime.now()) + ": " + sql)
+            cursor.execute(sql)
+            logging.info(str(datetime.now()) + ": Index " +
+                         name + " is ready.")
 
     def print_stat(self):
         for msg in self.monitor.get_indexing_progress():
