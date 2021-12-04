@@ -5,8 +5,6 @@ and monitoring the build progress
 
 
 import logging
-import threading
-import time
 from datetime import datetime
 
 from nsaph.loader import LoaderBase, CommonConfig
@@ -60,23 +58,9 @@ class IndexBuilder(LoaderBase):
             context = IndexerConfig(__doc__).instantiate()
         super().__init__(context)
         self.context: IndexerConfig = context
-        self.monitor = DBActivityMonitor(context)
 
     def run(self):
-        x = threading.Thread(target=self.execute)
-        x.start()
-        n = 0
-        step = 100
-        while x.is_alive():
-            time.sleep(0.1)
-            n += 1
-            if (n % step) == 0:
-                self.print_stat()
-                if n > 100000:
-                    step = 6000
-                elif n > 10000:
-                    step = 600
-        x.join()
+        self.execute_with_monitor(self.execute, on_monitor=self.print_stat)
 
     def execute(self):
         try:

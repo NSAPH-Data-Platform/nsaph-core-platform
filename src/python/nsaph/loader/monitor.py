@@ -2,7 +2,10 @@
 A utility that prints the statistics about
 currently running indexing processes
 """
-from typing import List
+import datetime
+from typing import List, Dict
+from psycopg2.extras import RealDictCursor
+from psycopg2.extensions import connection
 
 from nsaph.db import Connection
 from nsaph.loader.common import DBConnectionConfig
@@ -33,22 +36,57 @@ INDEX_MON_SQL11 = """
 """
 
 
+ACTIVITY_QUERY = """
+SELECT 
+    "datname", 
+    "pid", 
+    "leader_pid", 
+    "usename", 
+    "application_name", 
+    "client_addr", 
+    "backend_start", 
+    "xact_start",
+    "backend_xid", 
+    "query_start", 
+    "state_change", 
+    "wait_event_type", 
+    "wait_event", 
+    "state", 
+    "backend_xmin", 
+    "query"
+FROM 
+    "pg_catalog"."pg_stat_activity"
+
+"""
+
+ACTIVITY_BY_PID = ACTIVITY_QUERY + "WHERE pid = {pid} or leader_pid = {pid}"
+ACTIVITY_BY_DB = ACTIVITY_QUERY + "WHERE datname = '{}'"
+
+
 class DBActivityMonitor:
     def __init__(self, context: DBConnectionConfig = None):
         if not context:
             context = DBConnectionConfig(None, __doc__).instantiate()
         self.context = context
+        self.connection = None
 
     def run(self):
         for msg in self.get_indexing_progress():
             print(msg)
+        for msg in self.get_activity():
+            print(msg)
+
+    def _connect(self):
+        self.connection = Connection(self.context.db,
+                        self.context.connection,
+                        silent=True,
+                        app_name_postfix=".monitor")
+        return self.connection.connect()
 
     def get_indexing_progress(self) -> List[str]:
-        with Connection(self.context.db,
-                        self.context.connection,
-                        silent=True).connect() as connection:
-            cursor = connection.cursor()
-            version = connection.info.server_version
+        with self._connect() as cnxn:
+            cursor = cnxn.cursor()
+            version = cnxn.info.server_version
             if version > 120000:
                 sql = INDEX_MON_SQL12
             else:
@@ -80,6 +118,93 @@ class DBActivityMonitor:
                     s = row[2]
                     msgs.append("[{}] {}: {}".format(t, s, q))
         return msgs
+
+    def get_activity(self, pid: int = None) -> List[str]:
+        msgs = []
+        leaders: List[Dict] = []
+        workers: List[Dict] = []
+        with self._connect() as c:
+            with c.cursor() as cursor:
+                cursor.execute("SELECT now()")
+                for row in cursor:
+                    now = row[0]
+                    break
+            with c.cursor(cursor_factory=RealDictCursor) as cursor:
+                if pid:
+                    sql = ACTIVITY_BY_PID.format(pid = pid)
+                else:
+                    db = self.connection.parameters["database"]
+                    sql = ACTIVITY_BY_DB.format(db)
+                cursor.execute(sql)
+                for row in cursor:
+                    if row["leader_pid"]:
+                        workers.append(row.copy())
+                    else:
+                        leaders.append(row.copy())
+        for l in [leaders, workers]:
+            for p in l:
+                activity = Activity(p, now)
+                msgs.append(str(activity))
+        return msgs
+
+
+class Activity:
+    def __init__(self, activity: Dict, now: datetime):
+        self.now = now
+        self.database = activity["datname"]
+        self.pid = int(activity["pid"])
+        self.leader = int(activity["leader_pid"]) if activity["leader_pid"] else None
+        self.app = activity["application_name"]
+        self.state = activity["state"] if activity["state"] else "wait"
+        if self.state == "wait":
+            self.wait = "{}:{}".format(
+                activity["wait_event_type"], activity["wait_event"]
+            )
+        else:
+            self.wait = ""
+        self.xid = activity["backend_xid"]
+        self.in_transaction = True if self.xid else False
+        self.query = activity["query"]
+        self.start = activity["backend_start"]
+        self.last = activity["state_change"]
+        if self.in_transaction:
+            self.xact_start = activity["xact_start"]
+        else:
+            self.xact_start = None
+        if self.query:
+            self.query_start = activity["query_start"]
+        else:
+            self.query_start = None
+
+    def __str__(self):
+        msg = "{:d}".format(self.pid)
+        if self.leader:
+            msg += " <= {}".format(self.leader)
+        msg += " {}".format(self.state)
+        if self.app:
+            if self.database:
+                app = " [{}:{}]".format(self.app, self.database)
+            else:
+                app = " [{}]".format(self.app)
+            msg += app
+        msg += ". Started at {}, running for {}".format(
+            str(self.start),
+            str(self.now - self.start)
+        )
+        if self.in_transaction:
+            msg += ". Transaction {} started at {}, running {}".format(
+                self.xid, str(self.xact_start),
+                str(self.now - self.xact_start)
+            )
+        if self.wait:
+            msg += ". Waiting from {} for {}".format(
+                str(self.last),
+                str(self.now - self.last)
+            )
+        if self.query:
+            msg += ". Executing: {}".format(self.query[:32])
+
+        return msg
 
 
 if __name__ == '__main__':

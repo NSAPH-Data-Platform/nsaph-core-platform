@@ -124,7 +124,10 @@ class DataLoader(LoaderBase):
                 tables = self.domain.drop(self.table, connxn)
                 for t in tables:
                     IndexBuilder.drop_all(connxn, self.domain.schema, t)
-            self.domain.create(connxn, [self.table])
+            self.execute_with_monitor(
+                lambda: self.domain.create(connxn, [self.table]),
+                connxn=connxn
+            )
 
     def drop(self):
         schema = self.domain.schema

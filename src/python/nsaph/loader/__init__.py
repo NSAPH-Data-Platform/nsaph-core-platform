@@ -1,10 +1,13 @@
 import glob
+import logging
 import os
+import threading
+import time
 from abc import ABC
 from pathlib import Path
 
 import sys
-from typing import Iterable
+from typing import Iterable, Callable
 
 from nsaph_utils.utils.io_utils import is_yaml_or_json, is_dir
 from psycopg2.extensions import connection
@@ -14,6 +17,7 @@ from nsaph.data_model.domain import Domain
 from nsaph.loader.common import CommonConfig
 from nsaph.db import Connection
 from nsaph.loader.loader_config import LoaderConfig
+from nsaph.loader.monitor import DBActivityMonitor
 
 
 def diff(files: Iterable[str]) -> bool:
@@ -73,6 +77,7 @@ class LoaderBase(ABC):
             self.domain.set_sloppy()
         self.domain.init()
         self.table = context.table
+        self.monitor = DBActivityMonitor(context)
 
     def _connect(self) -> connection:
         c = Connection(self.context.db, self.context.connection).connect()
@@ -80,5 +85,35 @@ class LoaderBase(ABC):
             c.autocommit = self.context.autocommit
         return c
 
+    def get_pid(self, connxn: connection) -> int:
+        with connxn.cursor() as cursor:
+            cursor.execute("SELECT pg_backend_pid()")
+            for row in cursor:
+                return row[0]
 
+    def execute_with_monitor(self, what: Callable,
+                             connxn: connection = None,
+                             on_monitor: Callable = None):
+        if not on_monitor:
+            pid = self.get_pid(connxn)
+            on_monitor = lambda: self.log_activity(pid)
+        x = threading.Thread(target=what)
+        x.start()
+        n = 0
+        step = 100
+        while x.is_alive():
+            time.sleep(0.1)
+            n += 1
+            if (n % step) == 0:
+                on_monitor()
+                if n > 100000:
+                    step = 6000
+                elif n > 10000:
+                    step = 600
+        x.join()
+
+    def log_activity(self, pid: int):
+        activity = self.monitor.get_activity(pid)
+        for msg in activity:
+            logging.info(msg)
 

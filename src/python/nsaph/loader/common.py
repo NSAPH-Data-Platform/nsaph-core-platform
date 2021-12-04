@@ -51,7 +51,31 @@ class DBConnectionConfig(Context):
             ]
 
 
-class CommonConfig(DBConnectionConfig):
+class DBTableConfig(DBConnectionConfig):
+    _table = Argument("table",
+        help = "Name of the table to manipulate",
+        type = str,
+        required = False,
+        aliases = ["t"],
+        default = None,
+        cardinality = Cardinality.single
+    )
+
+    def __init__(self, subclass, doc):
+        self.table = None
+        ''' Name of the table to manipulate '''
+
+        if subclass is None:
+            super().__init__(DBTableConfig, doc)
+        else:
+            super().__init__(subclass, doc)
+            self._attrs += [
+                attr[1:] for attr in DBTableConfig.__dict__
+                if attr[0] == '_' and attr[1] != '_'
+            ]
+
+
+class CommonConfig(DBTableConfig):
     """
     Abstract base class for configurators used for data loading
 
@@ -77,15 +101,6 @@ class CommonConfig(DBConnectionConfig):
         valid_values = None
     )
 
-    _table = Argument("table",
-        help = "Name of the table to manipulate",
-        type = str,
-        required = False,
-        aliases = ["t"],
-        default = None,
-        cardinality = Cardinality.single
-    )
-
     def __init__(self, subclass, doc):
         self.domain = None
         ''' Name of the domain '''
@@ -98,9 +113,6 @@ class CommonConfig(DBConnectionConfig):
         definition. Default is to use 
         the built-in registry
         """
-
-        self.table = None
-        ''' Name of the table to manipulate '''
 
         if subclass is None:
             super().__init__(CommonConfig, doc)

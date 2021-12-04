@@ -6,6 +6,8 @@ import os
 import sshtunnel
 from configparser import ConfigParser
 
+from nsaph import app_name
+
 
 class Connection:
     default_filename = 'database.ini'
@@ -46,12 +48,16 @@ class Connection:
     def default_port() -> int:
         return 5432
 
-    def __init__(self, filename=None, section=None, silent: bool = False):
+    def __init__(self, filename=None, section=None,
+                 silent: bool = False, app_name_postfix = ""):
         if not filename:
             filename = Connection.default_filename
         if not section:
             section = Connection.default_section
         self.parameters = self.read_config(filename, section)
+        if "application_name" not in self.parameters:
+            name = "nsaph:" + app_name() + app_name_postfix
+            self.parameters["application_name"] = name
         self.connection = None
         self.tunnel = None
         self.silent = silent

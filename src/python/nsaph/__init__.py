@@ -7,24 +7,28 @@ import os
 NSAPH_LOG = False
 
 
+def app_name() -> str:
+    script = sys.argv[0]
+    if script[0] == '-':
+        script = None
+        stack = inspect.stack()
+        for frame in stack:
+            if frame.frame.f_locals.get("__name__") == "__main__":
+                script = frame.filename
+                break
+    if not script:
+        return "nsaph"
+    script = os.path.basename(script)
+    script = os.path.splitext(script)[0]
+    return script
+
+
 def init_logging(with_thread_id = False, name = None):
-    global NSAPH_LOG
+    global NSAPH_LOG, NSAPH_APP_NAME
     if NSAPH_LOG:
         return
     if not name:
-        script = sys.argv[0]
-        if script[0] == '-':
-            script = None
-            stack = inspect.stack()
-            for frame in stack:
-                if frame.frame.f_locals.get("__name__") == "__main__":
-                    script = frame.filename
-                    break
-        if not script:
-            return NSAPH_LOG
-        script = os.path.basename(script)
-        script = os.path.splitext(script)[0]
-        name = script
+        name = app_name()
     ts = datetime.datetime.now().isoformat(timespec="seconds", sep='-') \
             .replace(':', '-')
     file_name = "{}-{}.log".format(name, ts)

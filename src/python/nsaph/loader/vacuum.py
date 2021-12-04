@@ -6,7 +6,10 @@ This module executes VACUUM ANALYZE command
 import logging
 from datetime import datetime
 
-from nsaph.loader import LoaderBase, CommonConfig
+from nsaph.loader import LoaderBase
+from nsaph.loader.common import CommonConfig
+from nsaph.loader.monitor import DBActivityMonitor
+
 
 def find_name(sql):
     x = sql.split(" ")
@@ -45,8 +48,14 @@ class Vacuum(LoaderBase):
                     table
                 )
                 logging.info(str(datetime.now()) + ": " + sql)
-                cursor.execute(sql)
+                self.execute_with_monitor(lambda: cursor.execute(sql),
+                                          connxn=connection)
                 logging.info("Done")
+
+    def log_activity(self, connxn):
+        activity = self.monitor.get_activity(connxn)
+        for msg in activity:
+            logging.info(msg)
 
 
 if __name__ == '__main__':
