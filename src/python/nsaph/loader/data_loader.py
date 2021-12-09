@@ -193,8 +193,8 @@ class DataLoader(LoaderBase):
                         self.commit()
                         logging.info("Committed: " + entry_to_path(entry))
                 except Exception as x:
+                    logging.exception("Exception: " + entry_to_path(entry))
                     if self.context.incremental:
-                        logging.exception("Exception: " + entry_to_path(entry))
                         self.rollback()
                         logging.info("Rolled back and skipped: " + entry_to_path(entry))
                     else:

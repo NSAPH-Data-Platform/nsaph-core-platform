@@ -23,7 +23,7 @@ def app_name() -> str:
     return script
 
 
-def init_logging(with_thread_id = False, name = None):
+def init_logging(with_thread_id = False, name = None, level = logging.DEBUG):
     global NSAPH_LOG, NSAPH_APP_NAME
     if NSAPH_LOG:
         return
@@ -39,7 +39,7 @@ def init_logging(with_thread_id = False, name = None):
         logging.FileHandler(filename=file_name)
     ]
     for h in handlers:
-        h.setLevel(logging.DEBUG)
+        h.setLevel(level)
         if with_thread_id:
             h.setFormatter(logging.Formatter("%(thread)d: %(message)s"))
         else:
