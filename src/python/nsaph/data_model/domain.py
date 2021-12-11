@@ -143,6 +143,8 @@ class Domain:
         if not t:
             raise ValueError("Table {} is not defined in the domain {}"
                              .format(table, self.domain))
+        if "source_columns" in t:
+            return t["source_columns"]
         cc = []
         for c in t["columns"]:
             name, column = split(c)
@@ -262,7 +264,7 @@ class Domain:
 
     def ddl_for_node(self, node, parent = None) -> None:
         table_basename, definition = node
-        columns = definition["columns"]
+        columns = definition.get("columns", [])
         cnames = {split(column)[0] for column in columns}
         features = []
         table = self.fqn(table_basename)
@@ -273,11 +275,13 @@ class Domain:
         create = None
         object_type = None
         is_view = False
+        is_table_from_view = False
         if "create" in definition:
             create = definition["create"]
             if "type" in create:
-                object_type = create["type"]
-                is_view = "view" in object_type.lower()
+                object_type = create["type"].lower()
+                is_view = "view" in object_type
+                is_table_from_view = "table" in object_type
         if parent is not None:
             ptable, pdef = parent
             if "primary_key" not in pdef:
@@ -338,8 +342,13 @@ class Domain:
 
             if fk:
                 features.append(fk)
-            create_table = self.create_table(table) + \
-                " (\n\t{features}\n);".format(features=",\n\t".join(features))
+            if is_table_from_view:
+                create_table = self.create_table_from_view(table,
+                                                           definition,
+                                                           features)
+                columns = definition["columns"]
+            else:
+                create_table = self.create_true_table(table, features)
         self.append_ddl(table, create_table)
         if "invalid.records" in definition:
             validation = definition["invalid.records"]
@@ -354,17 +363,18 @@ class Domain:
                 self.append_ddl(table, create_table)
             self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
 
-        for column in columns:
-            if not self.need_index(column):
-                continue
-            ddl, onload = self.get_index_ddl(table, column)
-            if onload:
-                self.append_ddl(table, ddl)
-            else:
-                self.indices.append(ddl)
-                if table not in self.indices_by_table:
-                    self.indices_by_table[table] = []
-                self.indices_by_table[table].append(ddl)
+        if object_type != "view":
+            for column in columns:
+                if not self.need_index(column):
+                    continue
+                ddl, onload = self.get_index_ddl(table, column)
+                if onload:
+                    self.append_ddl(table, ddl)
+                else:
+                    self.indices.append(ddl)
+                    if table not in self.indices_by_table:
+                        self.indices_by_table[table] = []
+                    self.indices_by_table[table].append(ddl)
 
         if "indices" in definition:
             indices = definition["indices"]
@@ -381,6 +391,32 @@ class Domain:
             children = {t: definition["children"][t] for t in definition["children"]}
             for child in children:
                 self.ddl_for_node((child, children[child]), parent=node)
+
+    def create_table_from_view(self, table, definition, features) -> str:
+        create = definition["create"]
+        frm = self.fqn(create["from"])
+        if "select" in create:
+            select = create["select"]
+        else:
+            select = "*"
+        create_table = "CREATE TABLE {} AS SELECT {} FROM {};\n".format(
+            table,
+            select,
+            frm
+        )
+        for feature in features:
+            create_table += "ALTER TABLE {} ADD {};\n".format(
+                table,
+                feature
+            )
+        pdef = self.find(create["from"])
+        definition["columns"] = pdef["columns"]
+        return create_table
+
+    def create_true_table(self, table, features) -> str:
+        return self.create_table(table) + " (\n\t{features}\n);".format(
+            features=",\n\t".join(features)
+        )
 
     def need_index(self, column) -> bool:
         if self.index_policy == "all":
