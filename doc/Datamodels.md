@@ -13,6 +13,7 @@
   * [Computed Columns](#computed-columns)
   * [File columns](#file-columns)
   * [Transposing Columns](#transposing-columns)
+- [Multi-column indices](#multi-column-indices)
 - [Generation of the database schema (DDL)](#generation-of-the-database-schema-ddl)
 - [Indexing Policies](#indexing-policies)
 - [Ingesting Data](#ingesting-data)
