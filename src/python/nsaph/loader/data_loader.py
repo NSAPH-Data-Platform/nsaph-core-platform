@@ -90,7 +90,14 @@ class DataLoader(LoaderBase):
             if not is_dir(path):
                 objects.append(path)
                 continue
-            logging.info("Looking for relevant entries in {}.".format(path))
+            if self.context.pattern:
+                ptn = "using pattern {}".format(self.context.pattern)
+            else:
+                ptn = "(all entries)"
+            logging.info(
+                "Looking for relevant entries in {} {}.".
+                format(path, ptn)
+            )
             entries, f = get_entries(path)
             if not self.context.pattern:
                 objects += [(e,f) for e in entries]
@@ -104,6 +111,8 @@ class DataLoader(LoaderBase):
                     if fnmatch.fnmatch(name, pattern):
                         objects.append((e, f))
                         break
+        if not objects:
+            logging.warning("WARNING: no entries have been found")
         return objects
 
     def has_been_ingested(self, file:str, table):
@@ -119,15 +128,19 @@ class DataLoader(LoaderBase):
     def reset(self):
         if not self.context.reset:
             return
-        with self._connect() as connxn:
-            if not self.context.sloppy:
-                tables = self.domain.drop(self.table, connxn)
-                for t in tables:
-                    IndexBuilder.drop_all(connxn, self.domain.schema, t)
-            self.execute_with_monitor(
-                lambda: self.domain.create(connxn, [self.table]),
-                connxn=connxn
-            )
+        try:
+            with self._connect() as connxn:
+                if not self.context.sloppy:
+                    tables = self.domain.drop(self.table, connxn)
+                    for t in tables:
+                        IndexBuilder.drop_all(connxn, self.domain.schema, t)
+                self.execute_with_monitor(
+                    lambda: self.domain.create(connxn, [self.table]),
+                    connxn=connxn
+                )
+        except:
+            logging.exception("Exception resetting table {}".format(self.table))
+            raise
 
     def drop(self):
         schema = self.domain.schema
@@ -157,7 +170,7 @@ class DataLoader(LoaderBase):
         return
 
     def commit(self):
-        if not self.context.autocommit:
+        if not self.context.autocommit and self._connections:
             for cxn in self._connections:
                 cxn.commit()
         return
