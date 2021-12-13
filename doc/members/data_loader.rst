@@ -22,7 +22,7 @@ Configuration
 -------------
 .. automodule:: nsaph.loader.common
    :members:
-.. automodule:: nsaph.loader.conf
+.. automodule:: nsaph.loader.loader_config
    :members:
 
 

@@ -57,7 +57,7 @@ VALIDATION_TRIGGER = """
 
 
 CREATE_VIEW = """
-CREATE {OBJECT} {name} AS
+CREATE {OBJECT} {flag} {name} AS
 SELECT
     {features}
 FROM {source}
@@ -70,7 +70,7 @@ GROUP BY {id};
 
 
 class Domain:
-    CREATE = "CREATE TABLE {name}"
+    CREATE = "CREATE TABLE {flag} {name}"
 
     def __init__(self, spec, name):
         self.domain = name
@@ -86,7 +86,7 @@ class Domain:
         self.ddl_by_table = dict()
         self.common_ddl = []
         self.ddl = []
-        self.conucrrent_indices = False
+        self.concurrent_indices = False
         index_policy = self.spec[self.domain].get("index")
         if index_policy is None or index_policy in ["selected"]:
             self.index_policy = "selected"
@@ -96,6 +96,16 @@ class Domain:
             self.index_policy = "all"
         else:
             raise Exception("Invalid indexing policy: " + index_policy)
+        self.sloppy = False
+
+    def set_sloppy(self):
+        self.sloppy = True
+
+    def create_table(self, name) -> str:
+        return self.CREATE.format(
+            flag = "IF NOT EXISTS" if self.sloppy else "",
+            name = name
+        )
 
     def init(self) -> None:
         if self.schema:
@@ -119,10 +129,32 @@ class Domain:
     def list_columns(self, table) -> list:
         #t = self.spec[self.domain]["tables"][table]
         t = self.find(table)
+        if not t:
+            raise ValueError("Table {} is not defined in the domain {}"
+                             .format(table, self.domain))
         cc = [
             list(c.keys())[0] if isinstance(c,dict) else c
             for c in t["columns"]
         ]
+        return cc
+
+    def list_source_columns(self, table) -> list:
+        t = self.find(table)
+        if not t:
+            raise ValueError("Table {} is not defined in the domain {}"
+                             .format(table, self.domain))
+        if "source_columns" in t:
+            return t["source_columns"]
+        cc = []
+        for c in t["columns"]:
+            name, column = split(c)
+            if isinstance(column, dict) and "source" in column:
+                s = column["source"]
+                if isinstance(s, str):
+                    name = s
+                elif isinstance(s, dict) and "name" in s:
+                    name = s["name"]
+            cc.append(name)
         return cc
 
     def has_hard_linked_children(self, table) -> bool:
@@ -232,7 +264,7 @@ class Domain:
 
     def ddl_for_node(self, node, parent = None) -> None:
         table_basename, definition = node
-        columns = definition["columns"]
+        columns = definition.get("columns", [])
         cnames = {split(column)[0] for column in columns}
         features = []
         table = self.fqn(table_basename)
@@ -243,11 +275,13 @@ class Domain:
         create = None
         object_type = None
         is_view = False
+        is_table_from_view = False
         if "create" in definition:
             create = definition["create"]
             if "type" in create:
-                object_type = create["type"]
-                is_view = "view" in object_type.lower()
+                object_type = create["type"].lower()
+                is_view = "view" in object_type
+                is_table_from_view = "table" in object_type
         if parent is not None:
             ptable, pdef = parent
             if "primary_key" not in pdef:
@@ -281,6 +315,7 @@ class Domain:
             create_table = CREATE_VIEW.format(
                 OBJECT=object_type,
                 name=table,
+                flag = "IF NOT EXISTS" if self.sloppy else "",
                 features = ",\n\t".join(features),
                 source=create["from"]
             )
@@ -307,7 +342,13 @@ class Domain:
 
             if fk:
                 features.append(fk)
-            create_table = (self.CREATE + " (\n\t{features}\n);").format(name=table, features=",\n\t".join(features))
+            if is_table_from_view:
+                create_table = self.create_table_from_view(table,
+                                                           definition,
+                                                           features)
+                columns = definition["columns"]
+            else:
+                create_table = self.create_true_table(table, features)
         self.append_ddl(table, create_table)
         if "invalid.records" in definition:
             validation = definition["invalid.records"]
@@ -317,26 +358,65 @@ class Domain:
                 ff = [f for f in features if "CONSTRAINT" not in f and "PRIMARY KEY" not in f]
                 ff.append("REASON VARCHAR(16)")
                 ff.append("recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ")
-                create_table = (self.CREATE + " (\n\t{features}\n);").format(name=t2, features=",\n\t".join(ff))
+                create_table = self.create_table(t2) + \
+                    " (\n\t{features}\n);".format(features=",\n\t".join(ff))
                 self.append_ddl(table, create_table)
             self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
 
-        for column in columns:
-            if not self.need_index(column):
-                continue
-            ddl, onload = self.get_index_ddl(table, column)
-            if onload:
-                self.append_ddl(table, ddl)
-            else:
-                self.indices.append(ddl)
-                if table not in self.indices_by_table:
-                    self.indices_by_table[table] = []
-                self.indices_by_table[table].append(ddl)
+        if object_type != "view":
+            for column in columns:
+                if not self.need_index(column):
+                    continue
+                ddl, onload = self.get_index_ddl(table, column)
+                if onload:
+                    self.append_ddl(table, ddl)
+                else:
+                    self.indices.append(ddl)
+                    if table not in self.indices_by_table:
+                        self.indices_by_table[table] = []
+                    self.indices_by_table[table].append(ddl)
+
+        if "indices" in definition:
+            indices = definition["indices"]
+        elif "indexes"  in definition:
+            indices = definition["indexes"]
+        else:
+            indices = None
+
+        if indices:
+            for index in indices:
+                self.add_index(table, index, indices[index])
 
         if "children" in definition:
             children = {t: definition["children"][t] for t in definition["children"]}
             for child in children:
                 self.ddl_for_node((child, children[child]), parent=node)
+
+    def create_table_from_view(self, table, definition, features) -> str:
+        create = definition["create"]
+        frm = self.fqn(create["from"])
+        if "select" in create:
+            select = create["select"]
+        else:
+            select = "*"
+        create_table = "CREATE TABLE {} AS SELECT {} FROM {};\n".format(
+            table,
+            select,
+            frm
+        )
+        for feature in features:
+            create_table += "ALTER TABLE {} ADD {};\n".format(
+                table,
+                feature
+            )
+        pdef = self.find(create["from"])
+        definition["columns"] = pdef["columns"]
+        return create_table
+
+    def create_true_table(self, table, features) -> str:
+        return self.create_table(table) + " (\n\t{features}\n);".format(
+            features=",\n\t".join(features)
+        )
 
     def need_index(self, column) -> bool:
         if self.index_policy == "all":
@@ -349,7 +429,7 @@ class Domain:
         return False
 
     def get_index_ddl(self, table, column) -> (str, bool):
-        if self.conucrrent_indices:
+        if self.concurrent_indices:
             option = "CONCURRENTLY"
         else:
             option = ""
@@ -383,8 +463,31 @@ class Domain:
             table = table,
             column = cname,
             method = method
-        ) + ";", onload)
+        ), onload)
 
+    def add_index(self, table: str, name: str, definition: dict):
+        if self.concurrent_indices:
+            option = "CONCURRENTLY"
+        else:
+            option = ""
+        keys = {key.lower(): key for key in definition}
+        if "using" in keys:
+            method = definition[keys["using"]]
+        else:
+            method = "BTREE"
+        columns = ','.join(definition["columns"])
+        ddl = INDEX_DDL_PATTERN.format(
+            name = INDEX_NAME_PATTERN.format(table = table.split('.')[-1],
+                                             column = name),
+            option = option,
+            table = table,
+            column = columns,
+            method = method
+        )
+        self.indices.append(ddl)
+        if table not in self.indices_by_table:
+            self.indices_by_table[table] = []
+        self.indices_by_table[table].append(ddl)
 
     @staticmethod
     def is_array(column) -> bool:
@@ -490,11 +593,10 @@ class Domain:
                 identifiers.append(name)
         return identifiers
 
-    @classmethod
-    def matches(cls, create_statement, list_of_tables) -> bool:
+    def matches(self, create_statement, list_of_tables) -> bool:
         create_statement = create_statement.strip()
         for t in list_of_tables:
-            if create_statement.startswith(cls.CREATE.format(name=t)):
+            if create_statement.startswith(self.create_table(t)):
                 return True
             for create in ["CREATE TRIGGER", "CREATE OR REPLACE FUNCTION"]:
                 if create_statement.startswith(create) and t in create_statement:

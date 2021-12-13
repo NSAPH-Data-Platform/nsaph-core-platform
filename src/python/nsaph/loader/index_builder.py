@@ -5,37 +5,12 @@ and monitoring the build progress
 
 
 import logging
-import threading
-import time
 from datetime import datetime
 
-from nsaph.loader import LoaderBase
-from nsaph.loader.conf import IndexerConfig
+from nsaph.loader import LoaderBase, CommonConfig
+from nsaph_utils.utils.context import Argument, Cardinality
 
-
-SQL12 = """
-    SELECT 
-      now()::TIME(0),
-      p.command, 
-      a.query, 
-      p.phase, 
-      p.blocks_total, 
-      p.blocks_done, 
-      p.tuples_total, 
-      p.tuples_done,
-      p.pid
-    FROM pg_stat_progress_create_index p 
-    JOIN pg_stat_activity a ON p.pid = a.pid
-"""
-
-SQL11 = """
-    SELECT 
-      now()::TIME(0), 
-      a.query,
-      a.state
-    FROM pg_stat_activity a
-    WHERE a.query LIKE 'CREATE%INDEX%' 
-"""
+from nsaph.loader.monitor import DBActivityMonitor
 
 
 def find_name(sql):
@@ -44,6 +19,33 @@ def find_name(sql):
         if x[i] == "ON":
             return x[i-1]
     raise Exception(sql)
+
+
+class IndexerConfig(CommonConfig):
+    """
+        Configurator class for index builder
+    """
+
+    _reset = Argument("reset",
+        help = "Force rebuilding indices it/they already exist",
+        type = bool,
+        aliases=["r"],
+        default = False,
+        cardinality = Cardinality.single
+    )
+
+    _incremental = Argument("incremental",
+        help = "Skip over existing indices",
+        aliases=["i"],
+        type = bool,
+        default = False,
+        cardinality = Cardinality.single
+    )
+
+    def __init__(self, doc):
+        self.reset = None
+        self.incremental = None
+        super().__init__(IndexerConfig, doc)
 
 
 class IndexBuilder(LoaderBase):
@@ -58,22 +60,16 @@ class IndexBuilder(LoaderBase):
         self.context: IndexerConfig = context
 
     def run(self):
-        x = threading.Thread(target=self.execute)
-        x.start()
-        n = 0
-        step = 100
-        while x.is_alive():
-            time.sleep(0.1)
-            n += 1
-            if (n % step) == 0:
-                self.print_stat()
-                if n > 100000:
-                    step = 6000
-                elif n > 10000:
-                    step = 600
-        x.join()
+        self.execute_with_monitor(self.execute, on_monitor=self.print_stat)
 
     def execute(self):
+        try:
+            self._execute()
+        except:
+            logging.exception("Exception building indices")
+            raise
+
+    def _execute(self):
         domain = self.domain
 
         if self.context.table is not None:
@@ -82,55 +78,66 @@ class IndexBuilder(LoaderBase):
             indices = domain.indices
         print(indices)
 
-        with self._connect() as connection:
+        if self.context.autocommit:
             for index in indices:
-                name = find_name(index)
-                with (connection.cursor()) as cursor:
-                    if self.context.reset:
-                        sql = "DROP INDEX IF EXISTS {name}".format(name=name)
-                        logging.info(str(datetime.now()) + ": " + sql)
-                        cursor.execute(sql)
-                    if self.context.incremental:
-                        sql = index.replace(name, "IF NOT EXISTS " + name)
-                    else:
-                        sql = index
-                    logging.info(str(datetime.now()) + ": " + sql)
-                    cursor.execute(sql)
+                with self._connect() as cnxn:
+                    self.build(index, cnxn)
+        else:
+            with self._connect() as cnxn:
+                for index in indices:
+                    self.build(index, cnxn)
+        logging.info("All indices have been built")
+
+    def build(self, index, cnxn):
+        name = find_name(index)
+        fqn = self.domain.fqn(name)
+        with (cnxn.cursor()) as cursor:
+            if self.context.reset:
+                sql = "DROP INDEX IF EXISTS {name}".format(name=fqn)
+                logging.info(str(datetime.now()) + ": " + sql)
+                cursor.execute(sql)
+            if self.context.incremental:
+                sql = index.replace(name, "IF NOT EXISTS " + name)
+            else:
+                sql = index
+            logging.info(str(datetime.now()) + ": " + sql)
+            cursor.execute(sql)
+            logging.info(str(datetime.now()) + ": Index " +
+                         name + " is ready.")
 
     def print_stat(self):
+        for msg in self.monitor.get_indexing_progress():
+            logging.info(msg)
+
+    def drop(self, schema: str, table: str = None):
         with self._connect() as connection:
-            cursor = connection.cursor()
-            version = connection.info.server_version
-            if version > 120000:
-                sql = SQL12
-            else:
-                sql = SQL11
-            cursor.execute(sql)
-            for row in cursor:
-                if version > 120000:
-                    t = row[0]
-                    c = row[1]
-                    q = row[2][len(c):].strip().split(" ")
-                    if q:
-                        n = "None"
-                        for x in q:
-                            if x not in ["IF", "NOT", "EXISTS"]:
-                                n = x
-                                break
-                    else:
-                        n = "?"
-                    p = row[3]
-                    b = row[5] * 100.0 / row[4] if row[4] else 0
-                    tp = row[7] * 100.0 / row[6] if row[6] else 0
-                    pid = row[8]
-                    msg = "[{}] {}: {}. Blocks: {:2.0f}%, Tuples: {:2.0f}%. PID = {:d}"\
-                        .format(str(t), p, n, b, tp, pid)
-                else:
-                    t = row[0]
-                    q = row[2]
-                    s = row[2]
-                    msg = "[{}] {}: {}".format(t, s, q)
-                logging.info(msg)
+            self.drop_all(connection, schema, table)
+
+    @classmethod
+    def drop_all (cls, connection, schema: str, table: str = None):
+        query = """
+        SELECT 
+            i.relname, 
+            n.nspname,
+            c.relname 
+        FROM 
+            "pg_catalog"."pg_index" as x
+                JOIN pg_class as i ON  x.indexrelid = i.oid
+                JOIN pg_class as c ON  x.indrelid = c.oid
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE nspname = '{}' 
+        """.format(schema)
+        if table is not None:
+            query += " AND c.relname = '{}'".format(table)
+        with (connection.cursor()) as cursor:
+            cursor.execute(query)
+            indices = [row[0] for row in cursor]
+        logging.info("Found {:d} indices".format(len(indices)))
+        with (connection.cursor()) as cursor:
+            for index in indices:
+                sql = "DROP INDEX {}.{}".format(schema, index)
+                logging.info(sql)
+                cursor.execute(sql)
         return
 
 

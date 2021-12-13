@@ -27,6 +27,13 @@ class LoaderConfig(CommonConfig):
         Configurator class for data loader
     """
 
+    _drop = Argument(
+        "drop",
+        help = "Drops domain schema",
+        type = bool,
+        default=False
+    )
+
     _data = Argument("data",
         help = "Path to a data file or directory. Can be a "
                 + "single CSV, gzipped CSV or FST file or a directory recursively "
@@ -55,6 +62,13 @@ class LoaderConfig(CommonConfig):
     _incremental = Argument("incremental",
         help = "Commit every file and skip over files that "
                + "have already been ingested",
+        type = bool,
+        default = False,
+        cardinality = Cardinality.single
+    )
+
+    _sloppy = Argument("sloppy",
+        help = "Do not update existing tables",
         type = bool,
         default = False,
         cardinality = Cardinality.single
@@ -104,6 +118,11 @@ class LoaderConfig(CommonConfig):
     )
 
     def __init__(self, doc):
+        self.drop: bool = False
+        """ 
+        If this option is given, then the whole domain schema will be dropped
+        """
+
         self.data = None
         """
         Path to a data file or directory. Can be a 
@@ -145,8 +164,10 @@ class LoaderConfig(CommonConfig):
         have already been ingested
         """
 
-        super().__init__(LoaderConfig, doc)
+        self.sloppy = False
+        '''Do not update existing tables and views'''
 
+        super().__init__(LoaderConfig, doc)
 
     def validate(self, attr, value):
         value = super().validate(attr, value)
@@ -154,28 +175,4 @@ class LoaderConfig(CommonConfig):
             return Parallelization(value)
         return value
 
-
-class IndexerConfig(CommonConfig):
-    """
-        Configurator class for index builder
-    """
-
-    _reset = Argument("reset",
-        help = "Force rebuilding indices it/they already exist",
-        type = bool,
-        default = False,
-        cardinality = Cardinality.single
-    )
-
-    _incremental = Argument("incremental",
-        help = "Skip over existing indices",
-        type = bool,
-        default = False,
-        cardinality = Cardinality.single
-    )
-
-    def __init__(self, doc):
-        self.reset = None
-        self.incremental = None
-        super().__init__(IndexerConfig, doc)
 

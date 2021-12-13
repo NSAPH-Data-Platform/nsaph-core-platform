@@ -1,5 +1,6 @@
+import json
 import re
-from typing import Any
+from typing import Any, List
 
 from nsaph_utils.utils.pyfst import FSTReader
 from nsaph_utils.utils.io_utils import fopen
@@ -49,15 +50,55 @@ def entry_to_path(entry: Any) -> str:
     return str(entry)
 
 
+class CSVLikeJsonReader:
+    def __init__(self, path:str, columns: List, returns_mapping = False):
+        self.path = path
+        self.stream = None
+        self.current = None
+        self.columns = columns
+        self.returns_mapping = returns_mapping
+
+    def __next__(self):
+        line = next(self.stream)
+        data: dict = json.loads(line)
+        if self.returns_mapping:
+            row = data
+        else:
+            row = [data.get(column, None) for column in self.columns]
+        return row
+
+    def open(self):
+        self.stream = fopen(self.path, "rt")
+        return
+
+    def close(self):
+        self.stream.close()
+        return
+
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __iter__(self):
+        return self
+
+
 class DataReader:
     """
     Generalized reader for columns-structured files, such as CSV and FST
     """
 
-    def __init__(self, path: str, buffer_size = None, quoting=None, has_header = None):
+    def __init__(self, path: str,
+                 buffer_size = None,
+                 quoting=None,
+                 has_header = None,
+                 columns = None):
         self.path = path
         self.reader = None
-        self.columns = None
+        self.columns = columns
         self.to_close = None
         self.buffer_size = buffer_size
         if quoting:
@@ -85,6 +126,12 @@ class DataReader:
             self.columns = header
         return
 
+    def open_json(self, path):
+        self.reader = CSVLikeJsonReader(path, self.columns)
+        self.reader.open()
+        self.to_close = self.reader
+        return
+
     def get_path(self) -> str:
         return entry_to_path(self.path)
 
@@ -94,11 +141,16 @@ class DataReader:
             name = path if isinstance(path, str) else path.name
             if name.lower().endswith(".fst"):
                 raise Exception("Not implemented: reading fst files from archive or folder")
-            self.open_csv(path, f)
+            if ".json" in path.lower():
+                self.open_json(path)
+            else:
+                self.open_csv(path, f)
         elif self.path.lower().endswith(".fst"):
             self.open_fst()
         elif ".csv" in self.path.lower():
             self.open_csv(self.path)
+        elif ".json" in self.path.lower():
+            self.open_json(self.path)
         else:
             raise Exception("Unsupported file format: " + self.path)
         return self

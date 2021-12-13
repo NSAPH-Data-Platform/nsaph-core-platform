@@ -10,7 +10,7 @@ import traceback
 from typing import Dict, Optional
 
 from nsaph.data_model.utils import regex
-from nsaph.reader import CSVFileWrapper, name, fopen, SpecialValues
+from nsaph_utils.utils.io_utils import CSVFileWrapper, basename, fopen, SpecialValues
 from nsaph.pg_keywords import *
 
 
@@ -18,7 +18,7 @@ PG_MAXINT = 2147483647
 
 METADATA_TYPE_KEY = "type"
 METADATA_TYPE_MODEL = "model_specification"
-INDEX_DDL_PATTERN = "CREATE INDEX {option} {name} ON {table} USING {method} ({column})"
+INDEX_DDL_PATTERN = "CREATE INDEX {option} {name} ON {table} USING {method} ({column});"
 INDEX_NAME_PATTERN = "{table}_{column}_idx"
 
 BTREE = "btree"
@@ -94,7 +94,7 @@ class CustomColumn:
     def extract_value(self, input_source):
         if isinstance(self.extraction_method, int):
             n = self.extraction_method - 1
-            return name(input_source).split('_')[n]
+            return basename(input_source).split('_')[n]
 
 
 class Table:
@@ -164,7 +164,11 @@ class Table:
         logging.info("Saved table definition to: " + f)
 
     def fopen(self, source):
-        return fopen(self.open_entry_function(source))
+        entry = self.open_entry_function(source)
+        if isinstance(entry, str):
+            return fopen(entry, "rt")
+        else:
+            return entry
 
     def get_index_ddl(self, column, method):
         n = INDEX_NAME_PATTERN.format(table = self.table, column = column)

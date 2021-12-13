@@ -1,17 +1,23 @@
 import glob
+import logging
 import os
+import threading
+import time
 from abc import ABC
 from pathlib import Path
 
 import sys
-from typing import Iterable
+from typing import Iterable, Callable
 
+from nsaph_utils.utils.io_utils import is_yaml_or_json, is_dir
 from psycopg2.extensions import connection
 
 from nsaph import init_logging
 from nsaph.data_model.domain import Domain
 from nsaph.loader.common import CommonConfig
 from nsaph.db import Connection
+from nsaph.loader.loader_config import LoaderConfig
+from nsaph.loader.monitor import DBActivityMonitor
 
 
 def diff(files: Iterable[str]) -> bool:
@@ -29,41 +35,13 @@ class LoaderBase(ABC):
     """
 
     @staticmethod
-    def is_dir(path: str) -> bool:
-        """
-        Determine if a certain path specification refers
-            to a collection of files or a single entry.
-            Examples of collections are folders (directories)
-            and archives
-
-        :param path: path specification
-        :return: True if specification refers to a collection of files
-        """
-
-        return (path.endswith(".tar")
-                or path.endswith(".tgz")
-                or path.endswith(".tar.gz")
-                or path.endswith(".zip")
-                or os.path.isdir(path)
-        )
-
-
-    @staticmethod
-    def is_yaml_or_json(path: str) -> bool:
-        path = path.lower()
-        for ext in [".yml", ".yaml", ".json"]:
-            if path.endswith(ext) or path.endswith(ext + ".gz"):
-                return True
-        return  False
-
-    @classmethod
-    def get_domain(cls, name: str, registry: str = None) -> Domain:
+    def get_domain(name: str, registry: str = None) -> Domain:
         src = None
         registry_path = None
         if registry:
-            if cls.is_yaml_or_json(registry):
+            if is_yaml_or_json(registry):
                 registry_path = registry
-            elif not cls.is_dir(registry):
+            elif not is_dir(registry):
                 raise ValueError("{} - is not a valid registry path".format(registry))
             elif os.path.isdir(registry):
                 src = registry
@@ -89,14 +67,17 @@ class LoaderBase(ABC):
         if not os.path.isfile(registry_path):
             raise ValueError("File {} does not exist".format(os.path.abspath(registry_path)))
         domain = Domain(registry_path, name)
-        domain.init()
         return domain
 
-    def __init__(self, context):
+    def __init__(self, context: LoaderConfig):
         init_logging()
         self.context = None
         self.domain = self.get_domain(context.domain, context.registry)
+        if isinstance(context, LoaderConfig) and context.sloppy:
+            self.domain.set_sloppy()
+        self.domain.init()
         self.table = context.table
+        self.monitor = DBActivityMonitor(context)
 
     def _connect(self) -> connection:
         c = Connection(self.context.db, self.context.connection).connect()
@@ -104,5 +85,35 @@ class LoaderBase(ABC):
             c.autocommit = self.context.autocommit
         return c
 
+    def get_pid(self, connxn: connection) -> int:
+        with connxn.cursor() as cursor:
+            cursor.execute("SELECT pg_backend_pid()")
+            for row in cursor:
+                return row[0]
 
+    def execute_with_monitor(self, what: Callable,
+                             connxn: connection = None,
+                             on_monitor: Callable = None):
+        if not on_monitor:
+            pid = self.get_pid(connxn)
+            on_monitor = lambda: self.log_activity(pid)
+        x = threading.Thread(target=what)
+        x.start()
+        n = 0
+        step = 100
+        while x.is_alive():
+            time.sleep(0.1)
+            n += 1
+            if (n % step) == 0:
+                on_monitor()
+                if n > 100000:
+                    step = 6000
+                elif n > 10000:
+                    step = 600
+        x.join()
+
+    def log_activity(self, pid: int):
+        activity = self.monitor.get_activity(pid)
+        for msg in activity:
+            logging.info(msg)
 

@@ -11,7 +11,9 @@
   * [Source](#source)
   * [Generated columns](#generated-columns)
   * [Computed Columns](#computed-columns)
+  * [File columns](#file-columns)
   * [Transposing Columns](#transposing-columns)
+- [Multi-column indices](#multi-column-indices)
 - [Generation of the database schema (DDL)](#generation-of-the-database-schema-ddl)
 - [Indexing Policies](#indexing-policies)
 - [Ingesting Data](#ingesting-data)
@@ -73,6 +75,7 @@ The following parameters can be defined for a table:
 |type | no | view / table |
 |hard_linked | no | Denotes that the table is an integral part of parent table rather than a separate table with a many-to-one relationship to the parent table|
 |columns | yes | list of column definitions |
+|indices or indexes | yes | dictionary of multi-column indices |
 |primary_key | yes | list of column names included in the table primary key |
 |children | no | list of table definitions for child tables of this table|
 |description | no | description of this domain to be included in auto-generated documentation
@@ -126,20 +129,96 @@ in the input source.
 | Parameter | Required? | Description |
 |-----------|-----------|-------------|
 |column name | no | A column name in the incoming tabular data |
-|type | no | Types: `generated`, `multi_column`, `range`, `compute`|
+|type | no | Types: `generated`, `multi_column`, `range`, `compute`, `file`|
 |range | no | |
 |code | no | Code for generated and computed columns|
+| columns | no | |
+| parameters | no | |
 
 
 ### Generated columns
 
+Generated columns are columns that are not present in the source 
+(e.g. CSV or FST file) but whose value 
+is automatically computed using other columns values, 
+or another deterministic expression **_inside the database_**.
+                                                                   
+From [PostgreSQL Documentation](https://www.postgresql.org/docs/current/ddl-generated-columns.html):
+
+> Theoretically, generated columns are for columns 
+what a view is for tables. There are two kinds of 
+generated columns: stored and virtual. A stored 
+generated column is computed when it is written 
+(inserted or updated) and occupies storage as if 
+it were a normal column. A virtual generated column 
+occupies no storage and is computed when it is read. 
+Thus, a virtual generated column is similar to a 
+view and a stored generated column is similar to a 
+materialized view (except that it is always updated automatically). 
+  
+>However, **PostgreSQL currently implements only STORED generated columns**.
+
 ### Computed Columns
+
+Computed columns are columns that are not present in the source 
+(e.g. CSV or FST file) but whose value is computed 
+using provided Python code by the Universal Database Loader.
+They use the values of other columns in the same record and can call 
+out to standard Python functions.
+
+The columns used for computation are listed in either `columns`
+or `parameters `sections. Column names are names of the original 
+columns in the data file. To reference columns in the 
+database use parameters.
+Referenced them by a number in curly brackets in the compute code.
+
+
+Here is an example of a computed column:
+
+    - admission_date:
+        type: "DATE"
+        source:
+          type: "compute"
+          columns: 
+            - "ADMSN_DT"
+          code: "datetime.strptime({1}, '%Y%m%d').date()"
+
+Here in `code` the pattern `{1}` is replaced with the name of the 
+first (and only) column in the list: `ADMSN_DT`. 
+                        
+Another example, using database columns:
+
+    - fips5:
+        source:
+          type: "compute"
+          parameters: 
+            - state
+            - residence_county
+          code: "fips_dict[{1}] * 1000 + int({2})"
+
+Here, `{1}` references the value that would be inserted into the 
+table column `state` and `{2}` references the value that 
+would be inserted into the table column `residence_county`. 
+
+### File columns
+
+File columns are of type `file`. They store the name of the file,
+from which the data has been ingested.
 
 ### Transposing Columns 
 
 
+## Multi-column indices
 
+Multi-column indices of a table are defined in `indices` section 
+(spelling `indexes` is also acceptable). This is a dictionary with an 
+index name as a key and its definition as the value. At the very minimum, 
+the definition should include the list of the columns to be used in the 
+index. 
 
+Index definition can also include 
+[index type](https://www.postgresql.org/docs/current/indexes-types.html) 
+(e.g. btree, hash, etc.)  and data to be included with teh index.
 
 ## Generation of the database schema (DDL)
 

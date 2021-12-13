@@ -4,7 +4,78 @@ Common options for data manipulation
 from nsaph_utils.utils.context import Context, Argument, Cardinality
 
 
-class CommonConfig(Context):
+class DBConnectionConfig(Context):
+    """
+    Configuration class for connection to a database
+    """
+
+    _autocommit = Argument("autocommit",
+          help = "Use autocommit",
+          type = bool,
+          default = False,
+          cardinality = Cardinality.single
+    )
+
+    _db = Argument("db",
+        help = "Path to a database connection parameters file",
+        type = str,
+        default = "database.ini",
+        cardinality = Cardinality.single
+    )
+
+    _connection = Argument(
+        "connection",
+        help = "Section in the database connection parameters file",
+        type = str,
+        default = "nsaph2",
+        cardinality = Cardinality.single
+    )
+
+    def __init__(self, subclass, doc):
+        self.autocommit = None
+        ''' Use autocommit '''
+
+        self.db = None
+        ''' Path to a database connection parameters file '''
+
+        self.connection = None
+        ''' Section in the database connection parameters file '''
+
+        if subclass is None:
+            super().__init__(DBConnectionConfig, doc, include_default = False)
+        else:
+            super().__init__(subclass, doc, include_default = False)
+            self._attrs += [
+                attr[1:] for attr in DBConnectionConfig.__dict__
+                if attr[0] == '_' and attr[1] != '_'
+            ]
+
+
+class DBTableConfig(DBConnectionConfig):
+    _table = Argument("table",
+        help = "Name of the table to manipulate",
+        type = str,
+        required = False,
+        aliases = ["t"],
+        default = None,
+        cardinality = Cardinality.single
+    )
+
+    def __init__(self, subclass, doc):
+        self.table = None
+        ''' Name of the table to manipulate '''
+
+        if subclass is None:
+            super().__init__(DBTableConfig, doc)
+        else:
+            super().__init__(subclass, doc)
+            self._attrs += [
+                attr[1:] for attr in DBTableConfig.__dict__
+                if attr[0] == '_' and attr[1] != '_'
+            ]
+
+
+class CommonConfig(DBTableConfig):
     """
     Abstract base class for configurators used for data loading
 
@@ -30,37 +101,6 @@ class CommonConfig(Context):
         valid_values = None
     )
 
-    _table = Argument("table",
-        help = "Name of the table to manipulate",
-        type = str,
-        required = False,
-        aliases = ["t"],
-        default = None,
-        cardinality = Cardinality.single
-    )
-
-    _autocommit = Argument("autocommit",
-          help = "Use autocommit",
-          type = bool,
-          default = False,
-          cardinality = Cardinality.single
-    )
-
-    _db = Argument("db",
-        help = "Path to a database connection parameters file",
-        type = str,
-        default = "database.ini",
-        cardinality = Cardinality.single
-    )
-
-    _connection = Argument(
-        "connection",
-        help = "Section in the database connection parameters file",
-        type = str,
-        default = "nsaph2",
-        cardinality = Cardinality.single
-    )
-
     def __init__(self, subclass, doc):
         self.domain = None
         ''' Name of the domain '''
@@ -74,20 +114,11 @@ class CommonConfig(Context):
         the built-in registry
         """
 
-        self.table = None
-        ''' Name of the table to manipulate '''
-
-        self.autocommit = None
-        ''' Use autocommit '''
-
-        self.db = None
-        ''' Path to a database connection parameters file '''
-
-        self.connection = None
-        ''' Section in the database connection parameters file '''
-
-        super().__init__(subclass, doc, include_default = False)
-        self._attrs += [
-            attr[1:] for attr in CommonConfig.__dict__
-            if attr[0] == '_' and attr[1] != '_'
-        ]
+        if subclass is None:
+            super().__init__(CommonConfig, doc)
+        else:
+            super().__init__(subclass, doc)
+            self._attrs += [
+                attr[1:] for attr in CommonConfig.__dict__
+                if attr[0] == '_' and attr[1] != '_'
+            ]

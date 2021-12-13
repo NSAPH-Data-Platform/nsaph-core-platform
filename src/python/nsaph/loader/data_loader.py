@@ -12,16 +12,17 @@ import logging
 import os
 import fnmatch
 
+from nsaph.loader.index_builder import IndexBuilder
 from psycopg2.extensions import connection
 
 from typing import List, Tuple, Callable, Any
 
-from nsaph import init_logging, ORIGINAL_FILE_COLUMN
+from nsaph import ORIGINAL_FILE_COLUMN
 from nsaph.data_model.inserter import Inserter
 from nsaph.data_model.utils import DataReader, entry_to_path
 from nsaph.loader import LoaderBase
-from nsaph.loader.conf import LoaderConfig, Parallelization
-from nsaph.reader import get_entries
+from nsaph.loader.loader_config import LoaderConfig, Parallelization
+from nsaph_utils.utils.io_utils import get_entries, is_dir
 
 
 class DataLoader(LoaderBase):
@@ -40,6 +41,9 @@ class DataLoader(LoaderBase):
         if self.context.incremental and self.context.autocommit:
             raise ValueError("Incompatible arguments: autocommit is "
                              + "incompatible with incremental loading")
+        if self.context.drop:
+            if self.table:
+                raise Exception("Drop is incompatible with other arguments")
         if self.table:
             nc = len(self.domain.list_columns(self.table))
             if self.domain.has_hard_linked_children(self.table) or nc > 20:
@@ -47,15 +51,17 @@ class DataLoader(LoaderBase):
                     self.page = 100
                 if self.log_step is None:
                     self.log_step = 10000
-        else:
-            if self.page is None:
-                self.page = 1000
-            if self.log_step is None:
-                self.log_step = 1000000
+            else:
+                if self.page is None:
+                    self.page = 1000
+                if self.log_step is None:
+                    self.log_step = 1000000
         return
 
     def print_ddl(self):
         for ddl in self.domain.ddl:
+            print(ddl)
+        for ddl in self.domain.indices:
             print(ddl)
 
     def is_parallel(self) -> bool:
@@ -81,10 +87,17 @@ class DataLoader(LoaderBase):
     def get_files(self) -> List[Tuple[Any,Callable]]:
         objects = []
         for path in self.context.data:
-            if not self.is_dir(path):
+            if not is_dir(path):
                 objects.append(path)
                 continue
-            logging.info("Looking for relevant entries in {}.".format(path))
+            if self.context.pattern:
+                ptn = "using pattern {}".format(self.context.pattern)
+            else:
+                ptn = "(all entries)"
+            logging.info(
+                "Looking for relevant entries in {} {}.".
+                format(path, ptn)
+            )
             entries, f = get_entries(path)
             if not self.context.pattern:
                 objects += [(e,f) for e in entries]
@@ -98,6 +111,8 @@ class DataLoader(LoaderBase):
                     if fnmatch.fnmatch(name, pattern):
                         objects.append((e, f))
                         break
+        if not objects:
+            logging.warning("WARNING: no entries have been found")
         return objects
 
     def has_been_ingested(self, file:str, table):
@@ -113,11 +128,33 @@ class DataLoader(LoaderBase):
     def reset(self):
         if not self.context.reset:
             return
+        try:
+            with self._connect() as connxn:
+                if not self.context.sloppy:
+                    tables = self.domain.drop(self.table, connxn)
+                    for t in tables:
+                        IndexBuilder.drop_all(connxn, self.domain.schema, t)
+                self.execute_with_monitor(
+                    lambda: self.domain.create(connxn, [self.table]),
+                    connxn=connxn
+                )
+        except:
+            logging.exception("Exception resetting table {}".format(self.table))
+            raise
+
+    def drop(self):
+        schema = self.domain.schema
         with self._connect() as connxn:
-            tables = self.domain.drop(self.table, connxn)
-            self.domain.create(connxn, [self.table])
+            with (connxn.cursor()) as cursor:
+                sql = "DROP SCHEMA IF EXISTS {} CASCADE".format(schema)
+                print(sql)
+                cursor.execute(sql)
+            IndexBuilder.drop_all(connxn, schema)
 
     def run(self):
+        if self.context.drop:
+            self.drop()
+            return
         if not self.context.table:
             self.print_ddl()
             return
@@ -133,7 +170,7 @@ class DataLoader(LoaderBase):
         return
 
     def commit(self):
-        if not self.context.autocommit:
+        if not self.context.autocommit and self._connections:
             for cxn in self._connections:
                 cxn.commit()
         return
@@ -169,8 +206,8 @@ class DataLoader(LoaderBase):
                         self.commit()
                         logging.info("Committed: " + entry_to_path(entry))
                 except Exception as x:
+                    logging.exception("Exception: " + entry_to_path(entry))
                     if self.context.incremental:
-                        logging.exception("Exception: " + entry_to_path(entry))
                         self.rollback()
                         logging.info("Rolled back and skipped: " + entry_to_path(entry))
                     else:
@@ -190,9 +227,12 @@ class DataLoader(LoaderBase):
         else:
             q = None
             h = None
-        with DataReader(data_file, buffer_size=buffer, quoting=q, has_header=h) as reader:
-            if h is False:
-                reader.columns = self.domain.list_columns(table)
+        domain_columns = self.domain.list_source_columns(table)
+        with DataReader(data_file,
+                        buffer_size=buffer,
+                        quoting=q,
+                        has_header=h,
+                        columns=domain_columns) as reader:
             inserter = Inserter(
                 self.domain,
                 table,
