@@ -31,9 +31,14 @@ import tarfile
 from collections import OrderedDict
 from typing import Dict, Callable, List
 
+import numbers
 import yaml
 from nsaph_utils.utils.io_utils import fopen, SpecialValues, is_dir, get_entries
 from nsaph.pg_keywords import *
+from nsaph_utils.utils.pyfst import FSTReader
+from rpy2.rinterface_lib.sexp import NACharacterType
+from rpy2.robjects import NA_Character, NA_Complex, NA_Integer, NA_Real, \
+    NA_Logical
 
 PG_MAXINT = 2147483647
 
@@ -102,7 +107,7 @@ class Introspector:
         rows, lines = self.load_csv(entry)
         for row in rows:
             for cell in row:
-                if ',' in cell:
+                if isinstance(cell, str) and ',' in cell:
                     self.has_commas = True
                     break
         if not rows:
@@ -174,6 +179,8 @@ class Introspector:
         return
 
     def load_csv(self, entry) -> (List[List[str]], List[List[str]]):
+        if isinstance(entry, str) and entry.lower().endswith(".fst"):
+            return self.load_fst(entry)
         with self.fopen(entry) as data:
             reader = self.csv_reader(data, True)
             row = next(reader)
@@ -186,6 +193,14 @@ class Introspector:
             next(reader)
             lines = []
             self.load_range(self.lines_to_load, lambda : lines.append(next(reader)))
+        return rows, lines
+
+    def load_fst(self, entry) -> (List[List[str]], List[List[str]]):
+        with FSTReader(entry, buffer_size=self.lines_to_load + 10) as reader:
+            self.csv_columns = [c for c in reader.columns]
+            rows = []
+            self.load_range(self.lines_to_load, lambda : rows.append(next(reader)))
+            lines = None
         return rows, lines
 
     def load_json(self, entry) -> List[List]:
@@ -209,6 +224,31 @@ class Introspector:
         ]
         return rows
 
+    def guess_str(self, v, v2, scale, precision, max_val):
+        if date.fullmatch(v):
+            t = "DATE"
+        elif v2 and v2 == '"{}"'.format(v):
+            t = PG_STR_TYPE
+            self.quoted_values = True
+        elif SpecialValues.is_untyped(v):
+            t = "0"
+        else:
+            f = float_number.fullmatch(v)
+            if f:
+                t = PG_NUMERIC_TYPE
+                s = len(f.group(2))
+                p = len(f.group(1))
+                scale = max(scale, s)
+                precision = max(precision, p)
+            elif exponent.fullmatch(v):
+                t = PG_NUMERIC_TYPE
+            elif integer.fullmatch(v):
+                t = PG_INT_TYPE
+                max_val = max(max_val, abs(int(v)))
+            else:
+                t = PG_STR_TYPE
+        return t, scale, precision, max_val
+
     def guess_types(self, rows: list, lines: list):
         m = len(rows)
         n = len(rows[0])
@@ -219,33 +259,22 @@ class Introspector:
             scale = 0
             max_val = 0
             for l in range(0, m):
-                v = rows[l][c].strip()
-                if lines:
-                    v2 = lines[l][c].strip()
-                else:
-                    v2 = None
-                if date.fullmatch(v):
-                    t = "DATE"
-                elif v2 and v2 == '"{}"'.format(v):
-                    t = PG_STR_TYPE
-                    self.quoted_values = True
-                elif SpecialValues.is_untyped(v):
+                cell = rows[l][c]
+                if isinstance(cell, numbers.Number):
+                    if isinstance(cell, numbers.Integral):
+                        t = PG_INT_TYPE
+                    else:
+                        t = PG_NUMERIC_TYPE
+                elif SpecialValues.is_missing(cell):
                     t = "0"
                 else:
-                    f = float_number.fullmatch(v)
-                    if f:
-                        t = PG_NUMERIC_TYPE
-                        s = len(f.group(2))
-                        p = len(f.group(1))
-                        scale = max(scale, s)
-                        precision = max(precision, p)
-                    elif exponent.fullmatch(v):
-                        t = PG_NUMERIC_TYPE
-                    elif integer.fullmatch(v):
-                        t = PG_INT_TYPE
-                        max_val = max(max_val, abs(int(v)))
+                    v = cell.strip()
+                    if lines:
+                        v2 = lines[l][c].strip()
                     else:
-                        t = PG_STR_TYPE
+                        v2 = None
+                    t, scale, precision, max_val = \
+                        self.guess_str(v, v2, scale, precision, max_val)
                 if t == "0":
                     continue
                 try:
