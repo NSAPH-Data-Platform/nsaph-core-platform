@@ -18,6 +18,7 @@
 #
 
 import json
+import os
 import re
 from typing import Any, List
 
@@ -129,9 +130,11 @@ class DataReader:
         else:
             self.has_header = True
 
-    def open_fst(self):
+    def open_fst(self, name = None):
+        if name is None:
+            name = self.path
         bs = self.buffer_size if self.buffer_size else 100000
-        self.reader = FSTReader(self.path, bs)
+        self.reader = FSTReader(name, bs)
         self.reader.open()
         self.to_close = self.reader
         self.columns = list(self.reader.columns.keys())
@@ -155,23 +158,31 @@ class DataReader:
         return entry_to_path(self.path)
 
     def __enter__(self):
+        opened = False
+        name = self.path
         if isinstance(self.path, tuple):
             path, f = self.path
             name = path if isinstance(path, str) else path.name
             if name.lower().endswith(".fst"):
-                raise Exception("Not implemented: reading fst files from archive or folder")
-            if ".json" in path.lower():
+                if not os.path.isfile(name):
+                    raise Exception(
+                        "Not implemented: reading fst files from archive"
+                    )
+            elif ".json" in path.lower():
                 self.open_json(path)
+                opened = True
             else:
                 self.open_csv(path, f)
-        elif self.path.lower().endswith(".fst"):
-            self.open_fst()
-        elif ".csv" in self.path.lower():
-            self.open_csv(self.path)
-        elif ".json" in self.path.lower():
-            self.open_json(self.path)
-        else:
-            raise Exception("Unsupported file format: " + self.path)
+                opened = True
+        if not opened:
+            if name.lower().endswith(".fst"):
+                self.open_fst(name)
+            elif ".csv" in name.lower():
+                self.open_csv(name)
+            elif ".json" in name.lower():
+                self.open_json(name)
+            else:
+                raise Exception("Unsupported file format: " + self.path)
         return self
 
     def rows(self):

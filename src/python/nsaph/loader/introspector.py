@@ -284,7 +284,7 @@ class Introspector:
                         .format(c + 1, self.csv_columns[c])
                     msg += "Up to line {:d}: {:s}, for line={:d}: {:s}. " \
                         .format(l - 1, c_type, l, t)
-                    msg += "Value = {}".format(v)
+                    msg += "Value = {}".format(cell)
                     raise Exception(msg)
             self.types.append(self.db_type(c_type, max_val, precision, scale))
         return
