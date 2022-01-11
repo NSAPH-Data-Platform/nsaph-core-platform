@@ -22,6 +22,8 @@ the columns
 #
 
 import csv
+import datetime
+import glob
 import json
 import logging
 import os
@@ -29,11 +31,13 @@ import re
 import sys
 import tarfile
 from collections import OrderedDict
-from typing import Dict, Callable, List
+from typing import Dict, Callable, List, Union
 
 import numbers
 import yaml
 from nsaph_utils.utils.io_utils import fopen, SpecialValues, is_dir, get_entries
+from sas7bdat import SAS7BDAT
+
 from nsaph.pg_keywords import *
 from nsaph_utils.utils.pyfst import FSTReader
 from rpy2.rinterface_lib.sexp import NACharacterType
@@ -65,8 +69,8 @@ class Introspector:
             full_name =  path.name
         else:
             full_name = str(path)
-        name, _ = os.path.splitext(os.path.basename(full_name))
-        return name
+        #name, _ = os.path.splitext(os.path.basename(full_name))
+        return full_name
 
     @staticmethod
     def csv_reader(data, unquote = True):
@@ -96,6 +100,7 @@ class Introspector:
         self.sql_columns = []
         self.csv_columns = []
         self.types = []
+        self.descriptions = None
         self.column_map = column_name_replacement \
             if column_name_replacement else dict()
 
@@ -151,6 +156,36 @@ class Introspector:
             self.types.append(self.db_type(c_type, max_val, None, None))
         return
 
+    @classmethod
+    def sas2db_type(cls, column, rows):
+        if column.type == "number":
+            values = [row[column.col_id] for row in rows]
+            is_date = all([isinstance(v, datetime.date)] for v in values)
+            if is_date:
+                return PG_DATE_TYPE
+            is_ts = all([isinstance(v, datetime.datetime)] for v in values)
+            if is_date:
+                return PG_TS_TYPE
+            max_value = max(values)
+            is_int = all([isinstance(v, numbers.Integral)] for v in values)
+            t = PG_INT_TYPE if is_int else PG_NUMERIC_TYPE
+            return cls.db_type(t, max_value, None, None)
+        if column.type == "string":
+            return "{}({:d})".format(PG_STR_TYPE, column.length)
+        raise ValueError("Unknown SAS datatype: {}".format(column.type))
+
+    def handle_sas(self, entry):
+        reader = SAS7BDAT(entry, skip_header=True)
+        rows = self.load_sas(reader)
+        sas_columns = reader.columns
+        self.csv_columns = [
+            column.name.decode("utf-8") for column in sas_columns
+        ]
+        self.descriptions = [
+            column.label.decode("utf-8") for column in sas_columns
+        ]
+        self.types = [self.sas2db_type(column, rows)  for column in sas_columns]
+
     def introspect(self, entry=None):
         if not entry:
             if self.entries is not None:
@@ -160,6 +195,8 @@ class Introspector:
         logging.info("Using for data analysis: " + self.name(entry))
         if ".json" in self.name(entry).lower():
             self.handle_json(entry)
+        elif self.name(entry).lower().endswith(".sas7bdat"):
+            self.handle_sas(entry)
         else:
             self.handle_csv(entry)
         self.sql_columns = []
@@ -202,6 +239,14 @@ class Introspector:
             self.load_range(self.lines_to_load, lambda : rows.append(next(reader)))
             lines = None
         return rows, lines
+
+    def load_sas(self, reader: SAS7BDAT) -> List[List]:
+        rows = []
+        for row in reader:
+            rows.append(row)
+            if len(rows) >= self.lines_to_load:
+                break
+        return rows
 
     def load_json(self, entry) -> List[List]:
         headers = OrderedDict()
@@ -328,14 +373,38 @@ class Introspector:
             s = self.csv_columns[i]
             column = {
                 c: {
-                    "type": t
+                    "type": t,
                 }
             }
+            if self.descriptions is not None:
+                column[c]["description"] = self.descriptions[i]
             if s != c:
                 column[c]["source"] = s
             columns.append(column)
 
         return columns
+
+    @classmethod
+    def classify(cls, files):
+        classes = []
+        for f in files:
+            print(f)
+            introspector = Introspector(f)
+            introspector.introspect()
+            cc = introspector.get_columns()
+            new = True
+            for c in classes:
+                if c[0] == cc:
+                    c[1].append(f)
+                    new = False
+                    break
+            if new:
+                classes.append([cc, [f]])
+        print("Found {:d} classes".format(len(classes)))
+        for i, c in enumerate(classes):
+            print("{:d}:".format(i+1))
+            for f in c[1]:
+                print("\t{}".format(f))
 
 
 class InconsistentTypes(Exception):
@@ -343,11 +412,19 @@ class InconsistentTypes(Exception):
 
 
 def test():
-    for arg in sys.argv[1:]:
+    if len(sys.argv) == 2:
+        args = glob.glob(sys.argv[1])
+    else:
+        args = sys.argv[1:]
+
+    if len(args) > 1:
+        Introspector.classify(args)
+    else:
+        arg = args[0]
+        print(arg)
         introspector = Introspector(arg)
         introspector.introspect()
         columns = introspector.get_columns()
-        print(arg)
         print(yaml.dump(columns))
 
 

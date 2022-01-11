@@ -26,6 +26,8 @@ from nsaph_utils.utils.pyfst import FSTReader
 from nsaph_utils.utils.io_utils import fopen
 import csv
 
+from sas7bdat import SAS7BDAT
+
 
 def split(node) -> (str, dict):
     """
@@ -108,7 +110,8 @@ class CSVLikeJsonReader:
 
 class DataReader:
     """
-    Generalized reader for columns-structured files, such as CSV and FST
+    Generalized reader for columns-structured files, such as CSV, FST and
+    sas7bdat
     """
 
     def __init__(self, path: str,
@@ -148,6 +151,15 @@ class DataReader:
             self.columns = header
         return
 
+    def open_sas7bdat(self, name = None):
+        if name is None:
+            name = self.path
+        self.reader = SAS7BDAT(name, skip_header=True)
+        self.to_close = self.reader
+        sas_columns = self.reader.columns
+        self.columns = [column.name for column in sas_columns]
+        return 
+
     def open_json(self, path):
         self.reader = CSVLikeJsonReader(path, self.columns)
         self.reader.open()
@@ -163,10 +175,11 @@ class DataReader:
         if isinstance(self.path, tuple):
             path, f = self.path
             name = path if isinstance(path, str) else path.name
-            if name.lower().endswith(".fst"):
+            nlower = name.lower()
+            if nlower.endswith(".fst") or nlower.endswith(".sas7bdat"):
                 if not os.path.isfile(name):
                     raise Exception(
-                        "Not implemented: reading fst files from archive"
+                        "Not implemented: reading FST or SAS files from archive"
                     )
             elif ".json" in path.lower():
                 self.open_json(path)
@@ -179,6 +192,8 @@ class DataReader:
                 self.open_fst(name)
             elif ".csv" in name.lower():
                 self.open_csv(name)
+            elif name.lower().endswith(".sas7bdat"):
+                self.open_sas7bdat(name)
             elif ".json" in name.lower():
                 self.open_json(name)
             else:
