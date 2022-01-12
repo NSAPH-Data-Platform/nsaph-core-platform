@@ -88,7 +88,7 @@ setup(
         'natsort>=7.0.1',
 #       'netcdf',
         'networkx>=2.5',
-        'nsaph-utils>=0.0.4.0',
+        'nsaph-utils>=0.0.5.8',
         'numpy',
         'openapi-spec-validator>=0.2.9',
         'pandas',
