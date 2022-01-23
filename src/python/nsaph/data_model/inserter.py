@@ -293,69 +293,75 @@ class Inserter:
             for c in columns:
                 name, column = split(c)
                 source = None
-                if "source" in column:
-                    if isinstance(column["source"], str):
-                        source = column["source"]
-                    elif isinstance(column["source"], dict):
-                        t = column["source"]["type"]
-                        if t == "column":
-                            source = column["source"]["column"]
-                        elif t == "multi_column":
-                            if not self.range:
-                                raise Exception("Multi columns require range: " + name)
-                            pattern = column["source"]["pattern"]
-                            self.range_columns[name] = dict()
-                            _, rng = self.range
-                            for v in rng:
-                                source = pattern.format(v)
-                                self.range_columns[name][v] = self.reader.columns.index(source)
-                            continue
-                        elif t == "compute":
-                            self.computes[name] = column["source"]
-                            continue
-                        elif t == "range":
-                            if self.range:
-                                raise Exception("Only one range is supported column {}: {}".format(name, str(column["source"])))
-                            if "values" not in column["source"]:
-                                raise Exception("Range must specify values for column {}: {}".format(name, str(column["source"])))
-                            values = column["source"]["values"]
-                            self.range = (name, values)
-                            continue
-                        elif t == "generated":
-                            continue
-                        elif t == "file":
-                            self.file_column = name
-                            continue
+                try:
+                    if "source" in column:
+                        if isinstance(column["source"], str):
+                            source = column["source"]
+                        elif isinstance(column["source"], dict):
+                            t = column["source"]["type"]
+                            if t == "column":
+                                source = column["source"]["column"]
+                            elif t == "multi_column":
+                                if not self.range:
+                                    raise Exception("Multi columns require range: " + name)
+                                pattern = column["source"]["pattern"]
+                                self.range_columns[name] = dict()
+                                _, rng = self.range
+                                for v in rng:
+                                    source = pattern.format(v)
+                                    self.range_columns[name][v] = self.reader.columns.index(source)
+                                continue
+                            elif t == "compute":
+                                self.computes[name] = column["source"]
+                                continue
+                            elif t == "range":
+                                if self.range:
+                                    raise Exception("Only one range is supported column {}: {}".format(name, str(column["source"])))
+                                if "values" not in column["source"]:
+                                    raise Exception("Range must specify values for column {}: {}".format(name, str(column["source"])))
+                                values = column["source"]["values"]
+                                self.range = (name, values)
+                                continue
+                            elif t == "generated":
+                                continue
+                            elif t == "file":
+                                self.file_column = name
+                                continue
+                            else:
+                                raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
                         else:
                             raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
+                    elif "type" in column and column["type"].upper() == "SERIAL":
+                        continue
                     else:
-                        raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
-                elif "type" in column and column["type"].upper() == "SERIAL":
-                    continue
-                else:
-                    for f in self.reader.columns:
-                        if name.lower() == f.lower():
-                            source = f
-                            break
-                if not source:
-                    raise Exception("Source was not found for column {}".format(name))
-                if Domain.is_array(column):
-                    r = regex(source)
-                    i0 = len(self.reader.columns)
-                    i1 = 0
-                    for i, clmn in enumerate(self.reader.columns):
-                        if r.fullmatch(clmn):
-                            self.mapping[i] = name
-                            i0 = min(i0, i)
-                            i1 = max(i1, i)
-                    self.arrays[i0] = i1
-                else:
-                    source_index = self.reader.columns.index(source)
-                    self.mapping[source_index] = name
-                    if "type" in column and column["type"].lower()[:4] not in [
-                        "varc", "char", "text"
-                    ]:
-                        self.no_empty_str.add(source_index)
+                        for f in self.reader.columns:
+                            if name.lower() == f.lower():
+                                source = f
+                                break
+                    if not source:
+                        raise Exception("Source was not found for column {}".format(name))
+                    if Domain.is_array(column):
+                        r = regex(source)
+                        i0 = len(self.reader.columns)
+                        i1 = 0
+                        for i, clmn in enumerate(self.reader.columns):
+                            if r.fullmatch(clmn):
+                                self.mapping[i] = name
+                                i0 = min(i0, i)
+                                i1 = max(i1, i)
+                        self.arrays[i0] = i1
+                    else:
+                        source_index = self.reader.columns.index(source)
+                        self.mapping[source_index] = name
+                        if "type" in column and column["type"].lower()[:4] not in [
+                            "varc", "char", "text"
+                        ]:
+                            self.no_empty_str.add(source_index)
+                except Exception as x:
+                    raise Exception(
+                        "Invalid specification for column {}; error: {}"
+                        .format(name, str(x))
+                    ) from x
             inverse_mapping = {
                 item[1]: item[0] for item in self.mapping.items()
             }
