@@ -330,7 +330,7 @@ class Inserter:
                             raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
                     else:
                         raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
-                elif column["type"].upper() == "SERIAL":
+                elif "type" in column and column["type"].upper() == "SERIAL":
                     continue
                 else:
                     for f in self.reader.columns:
