@@ -160,14 +160,14 @@ class Introspector:
     def sas2db_type(cls, column, rows):
         if column.type == "number":
             values = [row[column.col_id] for row in rows]
-            is_date = all([isinstance(v, datetime.date)] for v in values)
+            is_date = all([isinstance(v, datetime.date) or v is None for v in values])
             if is_date:
                 return PG_DATE_TYPE
-            is_ts = all([isinstance(v, datetime.datetime)] for v in values)
-            if is_date:
+            is_ts = all([isinstance(v, datetime.datetime) or v is None for v in values])
+            if is_ts:
                 return PG_TS_TYPE
             max_value = max(values)
-            is_int = all([isinstance(v, numbers.Integral)] for v in values)
+            is_int = all([isinstance(v, numbers.Integral) or v is None for v in values])
             t = PG_INT_TYPE if is_int else PG_NUMERIC_TYPE
             return cls.db_type(t, max_value, None, None)
         if column.type == "string":

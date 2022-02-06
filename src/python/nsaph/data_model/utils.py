@@ -157,7 +157,11 @@ class DataReader:
         self.reader = SAS7BDAT(name, skip_header=True)
         self.to_close = self.reader
         sas_columns = self.reader.columns
-        self.columns = [column.name for column in sas_columns]
+        self.columns = [
+            column.name if isinstance(column.name, str)
+            else column.name.decode("utf-8")
+            for column in sas_columns
+        ]
         return 
 
     def open_json(self, path):
