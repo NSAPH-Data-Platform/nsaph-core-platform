@@ -18,6 +18,7 @@
 #
 
 import os.path
+import sys
 import threading
 from contextlib import contextmanager
 from datetime import timedelta, datetime
@@ -33,8 +34,24 @@ from psycopg2.extras import execute_values
 from nsaph.data_model.domain import Domain
 from nsaph.data_model.utils import split, DataReader, regex
 from nsaph.fips import fips_dict
+from nsaph.pg_keywords import PG_SERIAL_TYPE, PG_SM_SERIAL_TYPE
 from nsaph.util.executors import BlockingThreadPoolExecutor
 
+
+EMPTY_LIST_SIZE = sys.getsizeof([])
+
+
+def sizeof_fmt(num, suffix="B"):
+    units = ["", "K", "M", "G", "T", "P"]
+    for unit in units:
+        if unit == units[-1]:
+            fmt = f"{num:.1f}"
+        else:
+            fmt = f"{num:3.1f}"
+        if abs(num) < 1024.0 or unit == units[-1]:
+            return fmt + f"{unit}{suffix}"
+        num /= 1024.0
+    return
 
 def compute(how, row):
     try:
@@ -72,6 +89,7 @@ class Inserter:
         self.timestamps = dict()
         self.current_row = 0
         self.pushed_rows = 0
+        self.volume = 0
         self.last_logged_row = 0
         self.in_wait_state = False
 
@@ -91,6 +109,7 @@ class Inserter:
         with self.read_lock:
             for row in self.reader.rows():
                 self.current_row += 1
+                self.volume += sys.getsizeof(row) - EMPTY_LIST_SIZE
                 is_valid = True
                 for table in self.tables:
                     records = table.read(row)
@@ -225,12 +244,13 @@ class Inserter:
                 self.last_logged_row = self.pushed_rows
                 self.stamp_time("last_logged")
             path = os.path.basename(self.reader.get_path())
+            sz = sizeof_fmt(self.volume)
             logging.info(
-                "Records imported from {}: {:d} => {:d}; rate: {:f} rec/sec; read: {:d}% / store: {:d}%"
-                    .format(path, self.current_row, self.pushed_rows, rate, int(rt*100/t), int(st*100/t))
+                "Records imported from {}: {:,} => {:,}; rate: {:,.2f} rec/sec; read: {:d}% / store: {:d}%; size: {}"
+                    .format(path, self.current_row, self.pushed_rows, rate, int(rt*100/t), int(st*100/t), sz)
             )
             logging.debug(
-                "Current rate: {:f} rec/sec, time read: {}; time store: {}"
+                "Current rate: {:,.2f} rec/sec, time read: {}; time store: {}"
                     .format(rate1, rts, sts)
             )
 
@@ -331,7 +351,7 @@ class Inserter:
                                 raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
                         else:
                             raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
-                    elif "type" in column and column["type"].upper() == "SERIAL":
+                    elif "type" in column and column["type"].upper() in [PG_SERIAL_TYPE, PG_SM_SERIAL_TYPE]:
                         continue
                     else:
                         for f in self.reader.columns:
