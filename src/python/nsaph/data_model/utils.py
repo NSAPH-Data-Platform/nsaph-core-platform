@@ -121,8 +121,11 @@ class DataReader:
                  columns = None):
         self.path = path
         self.reader = None
+        self._reader = None
         self.columns = columns
         self.to_close = None
+        self.size = None
+        self.count = None
         self.buffer_size = buffer_size
         if quoting:
             self.quoting = quoting
@@ -154,14 +157,18 @@ class DataReader:
     def open_sas7bdat(self, name = None):
         if name is None:
             name = self.path
-        self.reader = SAS7BDAT(name, skip_header=True)
-        self.to_close = self.reader
-        sas_columns = self.reader.columns
+        self._reader = SAS7BDAT(name, skip_header=True)
+        self.to_close = self._reader
+        sas_columns = self._reader.columns
         self.columns = [
             column.name if isinstance(column.name, str)
             else column.name.decode("utf-8")
             for column in sas_columns
         ]
+        header = self._reader.header.properties
+        self.count = header.row_count
+        self.size = header.page_count * header.page_length
+        self.reader = iter(self._reader)
         return 
 
     def open_json(self, path):

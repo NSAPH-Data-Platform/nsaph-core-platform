@@ -36,22 +36,10 @@ from nsaph.data_model.utils import split, DataReader, regex
 from nsaph.fips import fips_dict
 from nsaph.pg_keywords import PG_SERIAL_TYPE, PG_SM_SERIAL_TYPE
 from nsaph.util.executors import BlockingThreadPoolExecutor
-
+from nsaph_utils.utils.io_utils import sizeof_fmt
 
 EMPTY_LIST_SIZE = sys.getsizeof([])
 
-
-def sizeof_fmt(num, suffix="B"):
-    units = ["", "K", "M", "G", "T", "P"]
-    for unit in units:
-        if unit == units[-1]:
-            fmt = f"{num:.1f}"
-        else:
-            fmt = f"{num:3.1f}"
-        if abs(num) < 1024.0 or unit == units[-1]:
-            return fmt + f"{unit}{suffix}"
-        num /= 1024.0
-    return
 
 def compute(how, row):
     try:
@@ -253,6 +241,8 @@ class Inserter:
                 "Current rate: {:,.2f} rec/sec, time read: {}; time store: {}"
                     .format(rate1, rts, sts)
             )
+            if 0 < self.reader.count < self.current_row:
+                logging.error("Continue ingesting over the file size")
 
     def Batch(self):
         return self._Batch(self)
