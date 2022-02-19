@@ -241,7 +241,9 @@ class Inserter:
                 "Current rate: {:,.2f} rec/sec, time read: {}; time store: {}"
                     .format(rate1, rts, sts)
             )
-            if 0 < self.reader.count < self.current_row:
+            if self.reader.count is not None and (
+                    0 < self.reader.count < self.current_row
+            ):
                 logging.error("Continue ingesting over the file size")
 
     def Batch(self):
@@ -423,7 +425,10 @@ class Inserter:
                     array = []
                     array_end = self.arrays[i]
                 is_end = array_end == i
-                value = row[i]
+                try:
+                    value = row[i]
+                except:
+                    raise
                 if not value:
                     if i in self.pk and self.audit is None:
                         return False

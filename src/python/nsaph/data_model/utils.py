@@ -118,7 +118,8 @@ class DataReader:
                  buffer_size = None,
                  quoting=None,
                  has_header = None,
-                 columns = None):
+                 columns = None,
+                 delimiter = None):
         self.path = path
         self.reader = None
         self._reader = None
@@ -126,6 +127,7 @@ class DataReader:
         self.to_close = None
         self.size = None
         self.count = None
+        self.delimiter = delimiter
         self.buffer_size = buffer_size
         if quoting:
             self.quoting = quoting
@@ -147,7 +149,11 @@ class DataReader:
 
     def open_csv(self, path, f= lambda s: fopen(s, "rt")):
         self.to_close = f(path)
-        self.reader = csv.reader(self.to_close, quoting=self.quoting)
+        if self.delimiter is not None:
+            self.reader = csv.reader(self.to_close, quoting=self.quoting,
+                                     delimiter = self.delimiter)
+        else:
+            self.reader = csv.reader(self.to_close, quoting=self.quoting)
         # self.reader = csv.reader((line.replace('\0',' ') for line in self.to_close), quoting=self.quoting)
         if self.has_header:
             header = next(self.reader)

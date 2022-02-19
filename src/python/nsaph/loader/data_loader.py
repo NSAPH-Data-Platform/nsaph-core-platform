@@ -57,6 +57,7 @@ class DataLoader(LoaderBase):
         self.page = context.page
         self.log_step = context.log
         self._connections = None
+        self.csv_delimiter = None
         if self.context.incremental and self.context.autocommit:
             raise ValueError("Incompatible arguments: autocommit is "
                              + "incompatible with incremental loading")
@@ -251,7 +252,8 @@ class DataLoader(LoaderBase):
                         buffer_size=buffer,
                         quoting=q,
                         has_header=h,
-                        columns=domain_columns) as reader:
+                        columns=domain_columns,
+                        delimiter=self.csv_delimiter) as reader:
             if reader.count is not None or reader.size is not None:
                 logging.info("File size: {}; Row count: {:,}".format(
                     sizeof_fmt(reader.size),
