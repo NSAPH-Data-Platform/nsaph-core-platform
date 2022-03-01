@@ -22,6 +22,7 @@ import os
 import re
 from typing import Any, List
 
+from nsaph_utils.utils.fwf import FWFReader
 from nsaph_utils.utils.pyfst import FSTReader
 from nsaph_utils.utils.io_utils import fopen
 import csv
@@ -175,7 +176,12 @@ class DataReader:
         self.count = header.row_count
         self.size = header.page_count * header.page_length
         self.reader = iter(self._reader)
-        return 
+        return
+
+    def open_fwf(self, reader):
+        self.reader = reader
+        self.reader.open()
+        self.to_close = self.reader
 
     def open_json(self, path):
         self.reader = CSVLikeJsonReader(path, self.columns)
@@ -205,7 +211,9 @@ class DataReader:
                 self.open_csv(path, f)
                 opened = True
         if not opened:
-            if name.lower().endswith(".fst"):
+            if isinstance(name, FWFReader):
+                self.open_fwf(name)
+            elif name.lower().endswith(".fst"):
                 self.open_fst(name)
             elif ".csv" in name.lower():
                 self.open_csv(name)
