@@ -136,6 +136,13 @@ class LoaderConfig(CommonConfig):
         valid_values = [v.value for v in Parallelization]
     )
 
+    _dryrun = Argument("dryrun",
+            help = "Dry run: do not load any data",
+            type = bool,
+            default = False,
+            cardinality = Cardinality.single
+    )
+
     def __init__(self, doc):
         self.drop: bool = False
         """ 
@@ -185,6 +192,9 @@ class LoaderConfig(CommonConfig):
 
         self.sloppy = False
         '''Do not update existing tables and views'''
+
+        self.dryrun = None
+        '''Dry run: prepare everything then exit'''
 
         super().__init__(LoaderConfig, doc)
 
