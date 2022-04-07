@@ -18,6 +18,7 @@
 #
 
 import os.path
+import sys
 import threading
 from contextlib import contextmanager
 from datetime import timedelta, datetime
@@ -33,7 +34,11 @@ from psycopg2.extras import execute_values
 from nsaph.data_model.domain import Domain
 from nsaph.data_model.utils import split, DataReader, regex
 from nsaph.fips import fips_dict
+from nsaph.pg_keywords import PG_SERIAL_TYPE, PG_SM_SERIAL_TYPE
 from nsaph.util.executors import BlockingThreadPoolExecutor
+from nsaph_utils.utils.io_utils import sizeof_fmt
+
+EMPTY_LIST_SIZE = sys.getsizeof([])
 
 
 def compute(how, row):
@@ -72,6 +77,7 @@ class Inserter:
         self.timestamps = dict()
         self.current_row = 0
         self.pushed_rows = 0
+        self.volume = 0
         self.last_logged_row = 0
         self.in_wait_state = False
 
@@ -91,6 +97,7 @@ class Inserter:
         with self.read_lock:
             for row in self.reader.rows():
                 self.current_row += 1
+                self.volume += sys.getsizeof(row) - EMPTY_LIST_SIZE
                 is_valid = True
                 for table in self.tables:
                     records = table.read(row)
@@ -225,14 +232,19 @@ class Inserter:
                 self.last_logged_row = self.pushed_rows
                 self.stamp_time("last_logged")
             path = os.path.basename(self.reader.get_path())
+            sz = sizeof_fmt(self.volume)
             logging.info(
-                "Records imported from {}: {:d} => {:d}; rate: {:f} rec/sec; read: {:d}% / store: {:d}%"
-                    .format(path, self.current_row, self.pushed_rows, rate, int(rt*100/t), int(st*100/t))
+                "Records imported from {}: {:,} => {:,}; rate: {:,.2f} rec/sec; read: {:d}% / store: {:d}%; size: {}"
+                    .format(path, self.current_row, self.pushed_rows, rate, int(rt*100/t), int(st*100/t), sz)
             )
             logging.debug(
-                "Current rate: {:f} rec/sec, time read: {}; time store: {}"
+                "Current rate: {:,.2f} rec/sec, time read: {}; time store: {}"
                     .format(rate1, rts, sts)
             )
+            if self.reader.count is not None and (
+                    0 < self.reader.count < self.current_row
+            ):
+                logging.error("Continue ingesting over the file size")
 
     def Batch(self):
         return self._Batch(self)
@@ -293,69 +305,75 @@ class Inserter:
             for c in columns:
                 name, column = split(c)
                 source = None
-                if "source" in column:
-                    if isinstance(column["source"], str):
-                        source = column["source"]
-                    elif isinstance(column["source"], dict):
-                        t = column["source"]["type"]
-                        if t == "column":
-                            source = column["source"]["column"]
-                        elif t == "multi_column":
-                            if not self.range:
-                                raise Exception("Multi columns require range: " + name)
-                            pattern = column["source"]["pattern"]
-                            self.range_columns[name] = dict()
-                            _, rng = self.range
-                            for v in rng:
-                                source = pattern.format(v)
-                                self.range_columns[name][v] = self.reader.columns.index(source)
-                            continue
-                        elif t == "compute":
-                            self.computes[name] = column["source"]
-                            continue
-                        elif t == "range":
-                            if self.range:
-                                raise Exception("Only one range is supported column {}: {}".format(name, str(column["source"])))
-                            if "values" not in column["source"]:
-                                raise Exception("Range must specify values for column {}: {}".format(name, str(column["source"])))
-                            values = column["source"]["values"]
-                            self.range = (name, values)
-                            continue
-                        elif t == "generated":
-                            continue
-                        elif t == "file":
-                            self.file_column = name
-                            continue
+                try:
+                    if "source" in column:
+                        if isinstance(column["source"], str):
+                            source = column["source"]
+                        elif isinstance(column["source"], dict):
+                            t = column["source"]["type"]
+                            if t == "column":
+                                source = column["source"]["column"]
+                            elif t == "multi_column":
+                                if not self.range:
+                                    raise Exception("Multi columns require range: " + name)
+                                pattern = column["source"]["pattern"]
+                                self.range_columns[name] = dict()
+                                _, rng = self.range
+                                for v in rng:
+                                    source = pattern.format(v)
+                                    self.range_columns[name][v] = self.reader.columns.index(source)
+                                continue
+                            elif t == "compute":
+                                self.computes[name] = column["source"]
+                                continue
+                            elif t == "range":
+                                if self.range:
+                                    raise Exception("Only one range is supported column {}: {}".format(name, str(column["source"])))
+                                if "values" not in column["source"]:
+                                    raise Exception("Range must specify values for column {}: {}".format(name, str(column["source"])))
+                                values = column["source"]["values"]
+                                self.range = (name, values)
+                                continue
+                            elif t == "generated":
+                                continue
+                            elif t == "file":
+                                self.file_column = name
+                                continue
+                            else:
+                                raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
                         else:
                             raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
+                    elif "type" in column and column["type"].upper() in [PG_SERIAL_TYPE, PG_SM_SERIAL_TYPE]:
+                        continue
                     else:
-                        raise Exception("Invalid source for column {}: {}".format(name, str(column["source"])))
-                elif column["type"].upper() == "SERIAL":
-                    continue
-                else:
-                    for f in self.reader.columns:
-                        if name.lower() == f.lower():
-                            source = f
-                            break
-                if not source:
-                    raise Exception("Source was not found for column {}".format(name))
-                if Domain.is_array(column):
-                    r = regex(source)
-                    i0 = len(self.reader.columns)
-                    i1 = 0
-                    for i, clmn in enumerate(self.reader.columns):
-                        if r.fullmatch(clmn):
-                            self.mapping[i] = name
-                            i0 = min(i0, i)
-                            i1 = max(i1, i)
-                    self.arrays[i0] = i1
-                else:
-                    source_index = self.reader.columns.index(source)
-                    self.mapping[source_index] = name
-                    if "type" in column and column["type"].lower()[:4] not in [
-                        "varc", "char", "text"
-                    ]:
-                        self.no_empty_str.add(source_index)
+                        for f in self.reader.columns:
+                            if name.lower() == f.lower():
+                                source = f
+                                break
+                    if not source:
+                        raise Exception("Source was not found for column {}".format(name))
+                    if Domain.is_array(column):
+                        r = regex(source)
+                        i0 = len(self.reader.columns)
+                        i1 = 0
+                        for i, clmn in enumerate(self.reader.columns):
+                            if r.fullmatch(clmn):
+                                self.mapping[i] = name
+                                i0 = min(i0, i)
+                                i1 = max(i1, i)
+                        self.arrays[i0] = i1
+                    else:
+                        source_index = self.reader.columns.index(source)
+                        self.mapping[source_index] = name
+                        if "type" in column and column["type"].lower()[:4] not in [
+                            "varc", "char", "text"
+                        ]:
+                            self.no_empty_str.add(source_index)
+                except Exception as x:
+                    raise Exception(
+                        "Invalid specification for column {}; error: {}"
+                        .format(name, str(x))
+                    ) from x
             inverse_mapping = {
                 item[1]: item[0] for item in self.mapping.items()
             }
@@ -407,7 +425,10 @@ class Inserter:
                     array = []
                     array_end = self.arrays[i]
                 is_end = array_end == i
-                value = row[i]
+                try:
+                    value = row[i]
+                except:
+                    raise
                 if not value:
                     if i in self.pk and self.audit is None:
                         return False

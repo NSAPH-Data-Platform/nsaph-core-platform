@@ -6,7 +6,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='nsaph',
-    version="0.0.2.6",
+    version="0.0.2.9",
     url='https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/nsaph',
     license='',
     author='Michael Bouzinier',
@@ -88,7 +88,7 @@ setup(
         'natsort>=7.0.1',
 #       'netcdf',
         'networkx>=2.5',
-        'nsaph-utils>=0.0.4.0',
+        'nsaph-utils>=0.0.5.10',
         'numpy',
         'openapi-spec-validator>=0.2.9',
         'pandas',
@@ -119,6 +119,7 @@ setup(
         'rpy2>=3.4.4',
         'ruamel.yaml>=0.16.5',
         'ruamel.yaml.clib>=0.2.2',
+        'sas7bdat',
         'schema-salad>=7.0.20200811075006',
         'setproctitle>=1.1.10',
         'shellescape>=3.4.1',

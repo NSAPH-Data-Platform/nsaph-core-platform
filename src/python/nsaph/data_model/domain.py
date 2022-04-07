@@ -459,7 +459,7 @@ class Domain:
         cname, column = split(column)
         if "index" in column:
             index = column["index"]
-            if isinstance(index, str):
+            if isinstance(index, str) and index != 'true':
                 iname = index
             elif isinstance(index, dict):
                 if "name" in index:

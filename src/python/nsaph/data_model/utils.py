@@ -22,9 +22,12 @@ import os
 import re
 from typing import Any, List
 
+from nsaph_utils.utils.fwf import FWFReader
 from nsaph_utils.utils.pyfst import FSTReader
 from nsaph_utils.utils.io_utils import fopen
 import csv
+
+from sas7bdat import SAS7BDAT
 
 
 def split(node) -> (str, dict):
@@ -108,18 +111,24 @@ class CSVLikeJsonReader:
 
 class DataReader:
     """
-    Generalized reader for columns-structured files, such as CSV and FST
+    Generalized reader for columns-structured files, such as CSV, FST and
+    sas7bdat
     """
 
     def __init__(self, path: str,
                  buffer_size = None,
                  quoting=None,
                  has_header = None,
-                 columns = None):
+                 columns = None,
+                 delimiter = None):
         self.path = path
         self.reader = None
+        self._reader = None
         self.columns = columns
         self.to_close = None
+        self.size = None
+        self.count = None
+        self.delimiter = delimiter
         self.buffer_size = buffer_size
         if quoting:
             self.quoting = quoting
@@ -141,12 +150,38 @@ class DataReader:
 
     def open_csv(self, path, f= lambda s: fopen(s, "rt")):
         self.to_close = f(path)
-        self.reader = csv.reader(self.to_close, quoting=self.quoting)
+        if self.delimiter is not None:
+            self.reader = csv.reader(self.to_close, quoting=self.quoting,
+                                     delimiter = self.delimiter)
+        else:
+            self.reader = csv.reader(self.to_close, quoting=self.quoting)
         # self.reader = csv.reader((line.replace('\0',' ') for line in self.to_close), quoting=self.quoting)
         if self.has_header:
             header = next(self.reader)
             self.columns = header
         return
+
+    def open_sas7bdat(self, name = None):
+        if name is None:
+            name = self.path
+        self._reader = SAS7BDAT(name, skip_header=True)
+        self.to_close = self._reader
+        sas_columns = self._reader.columns
+        self.columns = [
+            column.name if isinstance(column.name, str)
+            else column.name.decode("utf-8")
+            for column in sas_columns
+        ]
+        header = self._reader.header.properties
+        self.count = header.row_count
+        self.size = header.page_count * header.page_length
+        self.reader = iter(self._reader)
+        return
+
+    def open_fwf(self, reader):
+        self.reader = reader
+        self.reader.open()
+        self.to_close = self.reader
 
     def open_json(self, path):
         self.reader = CSVLikeJsonReader(path, self.columns)
@@ -163,10 +198,11 @@ class DataReader:
         if isinstance(self.path, tuple):
             path, f = self.path
             name = path if isinstance(path, str) else path.name
-            if name.lower().endswith(".fst"):
+            nlower = name.lower()
+            if nlower.endswith(".fst") or nlower.endswith(".sas7bdat"):
                 if not os.path.isfile(name):
                     raise Exception(
-                        "Not implemented: reading fst files from archive"
+                        "Not implemented: reading FST or SAS files from archive"
                     )
             elif ".json" in path.lower():
                 self.open_json(path)
@@ -175,10 +211,14 @@ class DataReader:
                 self.open_csv(path, f)
                 opened = True
         if not opened:
-            if name.lower().endswith(".fst"):
+            if isinstance(name, FWFReader):
+                self.open_fwf(name)
+            elif name.lower().endswith(".fst"):
                 self.open_fst(name)
             elif ".csv" in name.lower():
                 self.open_csv(name)
+            elif name.lower().endswith(".sas7bdat"):
+                self.open_sas7bdat(name)
             elif ".json" in name.lower():
                 self.open_json(name)
             else:

@@ -41,7 +41,7 @@ from nsaph.data_model.inserter import Inserter
 from nsaph.data_model.utils import DataReader, entry_to_path
 from nsaph.loader import LoaderBase
 from nsaph.loader.loader_config import LoaderConfig, Parallelization
-from nsaph_utils.utils.io_utils import get_entries, is_dir
+from nsaph_utils.utils.io_utils import get_entries, is_dir, sizeof_fmt
 
 
 class DataLoader(LoaderBase):
@@ -57,6 +57,7 @@ class DataLoader(LoaderBase):
         self.page = context.page
         self.log_step = context.log
         self._connections = None
+        self.csv_delimiter = None
         if self.context.incremental and self.context.autocommit:
             raise ValueError("Incompatible arguments: autocommit is "
                              + "incompatible with incremental loading")
@@ -251,7 +252,13 @@ class DataLoader(LoaderBase):
                         buffer_size=buffer,
                         quoting=q,
                         has_header=h,
-                        columns=domain_columns) as reader:
+                        columns=domain_columns,
+                        delimiter=self.csv_delimiter) as reader:
+            if reader.count is not None or reader.size is not None:
+                logging.info("File size: {}; Row count: {:,}".format(
+                    sizeof_fmt(reader.size),
+                    reader.count if reader.count is not None else -1)
+                )
             inserter = Inserter(
                 self.domain,
                 table,
