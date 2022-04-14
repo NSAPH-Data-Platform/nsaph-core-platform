@@ -151,7 +151,8 @@ setup(
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: Harvard University :: Development",
-        "Operating System :: OS Independent"],
+        "Operating System :: OS Independent",
+    ],
     package_data = {
         "nsaph_models": ["*.yaml"],
         "nsaph_resources": ["**/*", "*/*/*", "*/*/*/*"],
