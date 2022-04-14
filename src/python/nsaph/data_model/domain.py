@@ -281,6 +281,9 @@ class Domain:
         self.ddl.append(ddl)
         self.ddl_by_table[table].append(ddl)
 
+    def skip(self, table: str):
+        self.append_ddl(table, "-- {} skipped;".format(table))
+
     def ddl_for_node(self, node, parent = None) -> None:
         table_basename, definition = node
         columns = definition.get("columns", [])
@@ -301,6 +304,13 @@ class Domain:
                 object_type = create["type"].lower()
                 is_view = "view" in object_type
                 is_table_from_view = "table" in object_type
+            if "from" in create:
+                if isinstance(create["from"], list):
+                    self.skip(table)
+                    return
+                if isinstance(create["from"], str) and '*' in create["from"]:
+                    self.skip(table)
+                    return 
         if parent is not None:
             ptable, pdef = parent
             if "primary_key" not in pdef:

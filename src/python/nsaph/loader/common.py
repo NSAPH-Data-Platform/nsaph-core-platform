@@ -50,6 +50,13 @@ class DBConnectionConfig(Context):
         cardinality = Cardinality.single
     )
 
+    _verbose = Argument("verbose",
+          help = "Verbose output",
+          type = bool,
+          default = False,
+          cardinality = Cardinality.single
+    )
+
     def __init__(self, subclass, doc):
         self.autocommit = None
         ''' Use autocommit '''
@@ -59,6 +66,9 @@ class DBConnectionConfig(Context):
 
         self.connection = None
         ''' Section in the database connection parameters file '''
+
+        self.verbose = None
+        ''' Generate verbose output '''
 
         if subclass is None:
             super().__init__(DBConnectionConfig, doc, include_default = False)

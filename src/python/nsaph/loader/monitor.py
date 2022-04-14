@@ -154,6 +154,8 @@ class DBActivityMonitor:
                 else:
                     db = self.connection.parameters["database"]
                     sql = ACTIVITY_BY_DB.format(db)
+                if (self.context.verbose):
+                    print(sql)
                 cursor.execute(sql)
                 for row in cursor:
                     if row["leader_pid"]:
@@ -162,14 +164,18 @@ class DBActivityMonitor:
                         leaders.append(row.copy())
         for l in [leaders, workers]:
             for p in l:
-                activity = Activity(p, now)
+                if self.context.verbose:
+                    activity = Activity(p, now, -1)
+                else:
+                    activity = Activity(p, now)
                 msgs.append(str(activity))
         return msgs
 
 
 class Activity:
-    def __init__(self, activity: Dict, now: datetime):
+    def __init__(self, activity: Dict, now: datetime, msg_len = 32):
         self.now = now
+        self.msg_len = msg_len
         self.database = activity["datname"]
         self.pid = int(activity["pid"])
         self.leader = int(activity["leader_pid"]) if activity["leader_pid"] else None
@@ -221,7 +227,10 @@ class Activity:
                 str(self.now - self.last)
             )
         if self.query:
-            msg += ". Executing: {}".format(self.query[:32])
+            if self.msg_len < 0:
+                msg += ". Executing: \n{}".format(self.query)
+            else:
+                msg += ". Executing: {}".format(self.query[:self.msg_len])
 
         return msg
 
