@@ -181,9 +181,13 @@ class Activity:
         self.leader = int(activity["leader_pid"]) if activity["leader_pid"] else None
         self.app = activity["application_name"]
         self.state = activity["state"] if activity["state"] else "wait"
-        if self.state == "wait":
-            self.wait = "{}:{}".format(
-                activity["wait_event_type"], activity["wait_event"]
+        if self.state == "wait" or (
+            self.state == "active"
+            and activity["wait_event_type"]
+            and activity["wait_event"]
+        ):
+            self.wait = "{} waiting for {}".format(
+                activity["wait_event"], activity["wait_event_type"]
             )
         else:
             self.wait = ""
@@ -222,7 +226,8 @@ class Activity:
                 str(self.now - self.xact_start)
             )
         if self.wait:
-            msg += ". Waiting from {} for {}".format(
+            msg += ". {} from {} for {}".format(
+                self.wait.capitalize(),
                 str(self.last),
                 str(self.now - self.last)
             )
