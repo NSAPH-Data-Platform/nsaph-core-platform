@@ -32,8 +32,8 @@ from typing import Optional, Dict, List
 from nsaph_utils.utils.io_utils import as_dict
 
 from nsaph.data_model.utils import basename, split
-from nsaph.data_model.model import index_method, INDEX_NAME_PATTERN, INDEX_DDL_PATTERN
-
+from nsaph.data_model.model import index_method, INDEX_NAME_PATTERN, \
+    INDEX_DDL_PATTERN, UNIQUE_INDEX_DDL_PATTERN
 
 AUDIT_INSERT = """INSERT INTO {target} 
                 ({columns}, REASON) 
@@ -505,7 +505,11 @@ class Domain:
         else:
             method = "BTREE"
         columns = ','.join(definition["columns"])
-        ddl = INDEX_DDL_PATTERN.format(
+        if "unique" in keys:
+            pattern = UNIQUE_INDEX_DDL_PATTERN
+        else:
+            pattern = INDEX_DDL_PATTERN
+        ddl = pattern.format(
             name = INDEX_NAME_PATTERN.format(table = table.split('.')[-1],
                                              column = name),
             option = option,

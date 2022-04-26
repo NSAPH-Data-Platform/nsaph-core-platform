@@ -1,0 +1,31 @@
+ssa:
+  schema: public
+  reference: "https://www.nber.org/research/data/ssa-federal-information-processing-series-fips-state-and-county-crosswalk"
+  index: "unless excluded"
+  description: "Mapping between SSA and FIPS codes"
+  tables:
+    ssa:
+      columns:
+        - year:   INT
+        - state:  VARCHAR(2)
+        - county: VARCHAR(128)
+        - fips5:  VARCHAR(5)
+        - fips2:  VARCHAR(2)
+        - fips3:  VARCHAR(3)
+        - ssa5:   VARCHAR(5)
+        - ssa2:   VARCHAR(2)
+        - ssa3:   VARCHAR(3)
+      primary_key:
+        - year
+        - fips5
+        - ssa5
+      indices:
+        ssa23:
+          columns:
+            - year
+            - ssa2
+            - ssa3
+            - fips2
+            - fips3
+          unique: true
+
