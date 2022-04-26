@@ -239,6 +239,20 @@ The main class responsible for the generation of DDL is
 * **unless excluded** Indices are only created for all columns 
   not explicitly excluded
 
+## Linking with nomenclature
+                            
+### US States
+
+Database includes a table with codes for US states. It is taken from:
+
+https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/technical/nra/nri/results/?cid=nrcs143_013696 
+
+The data leaves locally in [fips.py](../src/python/nsaph/fips.py)
+
+County codes:
+
+https://www.nber.org/research/data/ssa-federal-information-processing-series-fips-state-and-county-crosswalk 
+
 ## Ingesting Data 
 
 The following command ingests data into a table and all hard-linked

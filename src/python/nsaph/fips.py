@@ -28,13 +28,15 @@ ORDER BY 2
 
 import json
 
+# Source: https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/technical/nra/nri/results/?cid=nrcs143_013696
+
+
 fips_list = [
     {"state_id":"AL", "fips":1},
     {"state_id":"AK", "fips":2},
     {"state_id":"AZ", "fips":4},
     {"state_id":"AR", "fips":5},
     {"state_id":"CA", "fips":6},
-    {"state_id":"OR", "fips":6},
     {"state_id":"CO", "fips":8},
     {"state_id":"CT", "fips":9},
     {"state_id":"DE", "fips":10},
@@ -67,6 +69,7 @@ fips_list = [
     {"state_id":"ND", "fips":38},
     {"state_id":"OH", "fips":39},
     {"state_id":"OK", "fips":40},
+    {"state_id":"OR", "fips":41},
     {"state_id":"PA", "fips":42},
     {"state_id":"RI", "fips":44},
     {"state_id":"SC", "fips":45},
@@ -80,7 +83,11 @@ fips_list = [
     {"state_id":"WV", "fips":54},
     {"state_id":"WI", "fips":55},
     {"state_id":"WY", "fips":56},
-    {"state_id":"PR", "fips":72}
+    {"state_id":"AS", "fips":60}, #American Samoa
+    {"state_id":"GU", "fips":66}, # Guam
+    {"state_id":"MP", "fips":69}, # Northern Mariana Islands
+    {"state_id":"PR", "fips":72},
+    {"state_id":"VI", "fips":78} #  Virgin Islands
 ]
 
 
