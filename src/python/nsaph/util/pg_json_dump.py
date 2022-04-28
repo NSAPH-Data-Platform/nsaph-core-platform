@@ -104,7 +104,7 @@ def export(conn: connection, table: str):
     resource = os.path.join(
         get_resource_dir(), name2path(table)
     )
-    data_path = os.path.join(resource, ".json.gz")
+    data_path = resource + ".json.gz"
     with gzip.open(data_path, "wt") as fd:
         dump(conn, table, fd, corrector)
     logging.info("Exported table {} to {}.".format(table, data_path))
