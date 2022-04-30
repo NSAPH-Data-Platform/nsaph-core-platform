@@ -35,6 +35,24 @@ from nsaph.data_model.utils import basename, split
 from nsaph.data_model.model import index_method, INDEX_NAME_PATTERN, \
     INDEX_DDL_PATTERN, UNIQUE_INDEX_DDL_PATTERN
 
+
+CONSTRAINTS = [
+    "CONSTRAINT",
+    "CHECK",
+    "UNIQUE",
+    "PRIMARY KEY",
+    "EXCLUDE",
+    "FOREIGN KEY",
+]
+
+
+def is_constraint(feature: str) -> bool:
+    for c in CONSTRAINTS:
+        if feature.upper().startswith(c):
+            return True
+    return False
+
+
 AUDIT_INSERT = """INSERT INTO {target} 
                 ({columns}, REASON) 
                 VALUES ({values}, '{reason}');"""
@@ -151,6 +169,8 @@ class Domain:
         if not t:
             raise ValueError("Table {} is not defined in the domain {}"
                              .format(table, self.domain))
+        if "columns" not in t:
+            return []
         cc = [
             list(c.keys())[0] if isinstance(c,dict) else c
             for c in t["columns"]
@@ -297,13 +317,13 @@ class Domain:
         create = None
         object_type = None
         is_view = False
-        is_table_from_view = False
+        is_select_from = False
         if "create" in definition:
             create = definition["create"]
             if "type" in create:
                 object_type = create["type"].lower()
                 is_view = "view" in object_type
-                is_table_from_view = "table" in object_type
+                is_select_from = "select" in create
             if "from" in create:
                 if isinstance(create["from"], list):
                     self.skip(table)
@@ -320,10 +340,12 @@ class Domain:
             fk_column_list = ", ".join(fk_columns)
             fk = "CONSTRAINT {name} FOREIGN KEY ({columns}) REFERENCES {parent} ({columns})"\
                 .format(name=fk_name, columns=fk_column_list, parent=self.fqn(ptable))
-            for column in pdef["columns"]:
-                c, _ = split(column)
-                if c in fk_columns and c not in cnames:
-                    columns.append(column)
+            if not is_select_from:
+                # for "SELECT FROM" the columns have to be added in SELECT clause
+                for column in pdef["columns"]:
+                    c, _ = split(column)
+                    if c in fk_columns and c not in cnames:
+                        columns.append(column)
 
         if is_view:
             features = [self.view_column_spec(column, definition, table) for column in columns]
@@ -332,7 +354,7 @@ class Domain:
 
         pk_columns = None
 
-        if is_view:
+        if is_view and not is_select_from:
             #     CREATE {OBJECT} {name} AS
             #     SELECT
             #     {features}
@@ -371,10 +393,9 @@ class Domain:
 
             if fk:
                 features.append(fk)
-            if is_table_from_view:
-                create_table = self.create_table_from_view(table,
-                                                           definition,
-                                                           features)
+            if is_select_from:
+                create_table = self.create_object_from(table, definition,
+                                                       features, object_type)
                 columns = definition["columns"]
             else:
                 create_table = self.create_true_table(table, features)
@@ -421,20 +442,24 @@ class Domain:
             for child in children:
                 self.ddl_for_node((child, children[child]), parent=node)
 
-    def create_table_from_view(self, table, definition, features) -> str:
+    def create_object_from(self, table, definition, features, obj_type) -> str:
         create = definition["create"]
         frm = self.fqn(create["from"])
         if "select" in create:
             select = create["select"]
         else:
             select = "*"
-        create_table = "CREATE TABLE {} AS SELECT {} FROM {};\n".format(
+        create_table = "CREATE {} {} AS SELECT {} FROM {};\n".format(
+            obj_type,
             table,
             select,
             frm
         )
         for feature in features:
-            create_table += "ALTER TABLE {} ADD {};\n".format(
+            if not is_constraint(feature):
+                feature = "COLUMN " + feature
+            create_table += "ALTER {} {} ADD {};\n".format(
+                obj_type,
                 table,
                 feature
             )
