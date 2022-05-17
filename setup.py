@@ -91,6 +91,7 @@ setup(
         'nsaph-utils>=0.0.5.12',
         'numpy',
         'openapi-spec-validator>=0.2.9',
+        "openpyxl",
         'pandas',
         'paramiko',
         'pendulum>=1.4.4',
