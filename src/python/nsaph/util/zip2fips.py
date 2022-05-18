@@ -51,22 +51,34 @@ class Zip2FipsCrossWalk:
             raise ValueError("Quarter must be between 1 and 4: " + str(quarter))
         m = self.m2q[quarter]
         url = self.url_pattern.format(month=m, year=str(year))
+        print("Downloading: " + url + " ...", end="")
         df: pandas.DataFrame = pandas.read_excel(url)
+        print(" Processing ", end="")
+        df.rename(str.lower, inplace=True, axis=1)
+        print('.', end = "")
         n = df.shape[0]
-        df.insert(0, "year", [year for _ in range(n)])
+        df.insert(0, "year", year)
+        print('.', end = "")
         df.insert(1, "month", m)
-        df[["fips2i", "fips3i"]] = df.COUNTY.apply(
+        print('.', end = "")
+
+        df[["fips2i", "fips3i"]] = df.county.apply(
             lambda x: pandas.Series((int(x / 1000), int(x % 1000)))
         )
-        df["ZIPs"] = df.ZIP.apply(
+        print('.', end = "")
+        df["zip5s"] = df.zip.apply(
             lambda x: pandas.Series("{:05d}".format(x))
         )
+        print('.', end = "")
         df["fips2s"] = df.fips2i.apply(
             lambda x: pandas.Series("{:02d}".format(x))
         )
+        print('.', end = "")
         df["fips3s"] = df.fips3i.apply(
             lambda x: pandas.Series("{:03d}".format(x))
         )
+        print('.', end = "")
+        print("Done")
         return df
 
     def save(self):

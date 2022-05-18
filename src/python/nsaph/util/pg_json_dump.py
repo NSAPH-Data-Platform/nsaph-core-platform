@@ -157,6 +157,8 @@ def import_table(conn: connection, table: str, replace = True):
                 if len(rows) > 100:
                     flush(cursor, table, rows)
                     rows.clear()
+                if (n % 10000) == 0:
+                    print('*', end="")
             if len(rows) > 0:
                 flush(cursor, table, rows)
 
