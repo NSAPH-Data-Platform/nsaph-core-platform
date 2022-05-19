@@ -99,7 +99,7 @@ AS $body$
 DECLARE fips int;
 BEGIN
     fips := public.zip_to_fips(_year, _zip);
-    RETURN to_char(fips, '000');
+    RETURN btrim(to_char(fips, '000'));
 END;
 $body$ LANGUAGE plpgsql
 ;
@@ -134,7 +134,7 @@ BEGIN
     SELECT 1 into cnt FROM
         public.hud_zip2fips
     WHERE
-        zip = _zip AND fips3s =fips3 and fips2s = fips2
+        zip = _zip AND fips3s = fips3 and fips2s = fips2
     LIMIT 1;
     RETURN cnt is not NULL;
 END;
