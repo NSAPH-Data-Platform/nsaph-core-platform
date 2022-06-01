@@ -202,19 +202,29 @@ class Introspector:
         else:
             self.handle_csv(entry)
         self.sql_columns = []
-        for c in self.csv_columns:
+        for i, c in enumerate(self.csv_columns):
             if not c:
-                self.sql_columns.append("Col")
+                self.append_sql_column("Col{:03d}".format(i+1))
             elif c.lower() in self.column_map:
-                self.sql_columns.append(self.column_map[c.lower()])
+                self.append_sql_column(self.column_map[c.lower()])
             else:
                 if c[0].isdigit():
                     c = "c_" + c
-                self.sql_columns.append(
+                self.append_sql_column(
                     c.replace('.', '_')
                     .replace(' ', '_')
                     .lower()
                 )
+        return
+
+    def append_sql_column(self, name: str):
+        fmt = "{}_{:03d}"
+        if name in self.sql_columns:
+            n = len(self.sql_columns)
+            i = self.sql_columns.index(name)
+            self.sql_columns[i] = fmt.format(name, i+1)
+            name = fmt.format(name, n)
+        self.sql_columns.append(name)
         return
 
     def load_csv(self, entry) -> (List[List[str]], List[List[str]]):
@@ -383,7 +393,9 @@ class Introspector:
             }
             if self.descriptions is not None:
                 column[c]["description"] = self.descriptions[i]
-            if s != c:
+            if not s:
+                column[c]["source"] = i
+            elif s != c:
                 column[c]["source"] = s
             columns.append(column)
 

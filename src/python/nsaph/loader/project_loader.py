@@ -77,6 +77,7 @@ class DirLoader(DataLoader):
             raise ValueError(entry)
 
         introspector = Introspector(entry)
+        introspector.lines_to_load = 20000
         introspector.introspect()
         introspector.append_file_column()
         introspector.append_record_column()

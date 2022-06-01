@@ -305,10 +305,13 @@ class Inserter:
             for c in columns:
                 name, column = split(c)
                 source = None
+                source_index = None
                 try:
                     if "source" in column:
                         if isinstance(column["source"], str):
                             source = column["source"]
+                        elif isinstance(column["source"], int):
+                            source_index = column["source"]
                         elif isinstance(column["source"], dict):
                             t = column["source"]["type"]
                             if t == "column":
@@ -350,7 +353,7 @@ class Inserter:
                             if name.lower() == f.lower():
                                 source = f
                                 break
-                    if not source:
+                    if not source and source_index is None:
                         raise Exception("Source was not found for column {}".format(name))
                     if Domain.is_array(column):
                         r = regex(source)
@@ -363,12 +366,14 @@ class Inserter:
                                 i1 = max(i1, i)
                         self.arrays[i0] = i1
                     else:
-                        source_index = self.reader.columns.index(source)
+                        if source and not source_index:
+                            source_index = self.reader.columns.index(source)
                         self.mapping[source_index] = name
                         if "type" in column and column["type"].lower()[:4] not in [
                             "varc", "char", "text"
                         ]:
                             self.no_empty_str.add(source_index)
+
                 except Exception as x:
                     raise Exception(
                         "Invalid specification for column {}; error: {}"
