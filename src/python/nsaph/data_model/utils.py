@@ -130,7 +130,7 @@ class DataReader:
         self.count = None
         self.delimiter = delimiter
         self.buffer_size = buffer_size
-        if quoting:
+        if quoting is not None:
             self.quoting = quoting
         else:
             self.quoting = csv.QUOTE_NONNUMERIC

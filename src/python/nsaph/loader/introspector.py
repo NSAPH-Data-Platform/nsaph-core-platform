@@ -103,6 +103,8 @@ class Introspector:
         self.descriptions = None
         self.column_map = column_name_replacement \
             if column_name_replacement else dict()
+        self.appended_columns = []
+        return
 
     def fopen(self, source):
         entry = self.open_entry_function(source)
@@ -315,7 +317,10 @@ class Introspector:
                 else:
                     v = cell.strip()
                     if lines:
-                        v2 = lines[l][c].strip()
+                        try:
+                            v2 = lines[l][c].strip()
+                        except:
+                            v2 = None
                     else:
                         v2 = None
                     t, scale, precision, max_val = \
@@ -367,7 +372,7 @@ class Introspector:
         return column_type
 
     def get_columns(self) -> List[Dict]:
-        columns = []
+        columns = self.appended_columns
         for i, c in enumerate(self.sql_columns):
             t = self.types[i]
             s = self.csv_columns[i]
@@ -383,6 +388,30 @@ class Introspector:
             columns.append(column)
 
         return columns
+
+    def append_file_column(self):
+        self.appended_columns.append({
+                    "FILE": {
+                        "description": "original file name",
+                        "index": {
+                            "required_before_loading_data": True
+                        },
+                        "source": {
+                            "type": "file"
+                        },
+                        "type": "VARCHAR(128)"
+                    }
+                })
+
+    def append_record_column(self):
+        self.appended_columns.append({
+                        "RECORD": {
+                            "description": "Record (line) number in the file",
+                            "index": True,
+                            "type": PG_SERIAL_TYPE
+                        }
+                    }
+        )
 
     @classmethod
     def classify(cls, files):

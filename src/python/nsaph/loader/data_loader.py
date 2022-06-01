@@ -64,6 +64,12 @@ class DataLoader(LoaderBase):
         if self.context.drop:
             if self.table:
                 raise Exception("Drop is incompatible with other arguments")
+        self.set_table()
+        return
+
+    def set_table(self, table: str = None):
+        if table is not None:
+            self.table = table
         if self.table:
             nc = len(self.domain.list_columns(self.table))
             if self.domain.has_hard_linked_children(self.table) or nc > 20:
@@ -76,7 +82,6 @@ class DataLoader(LoaderBase):
                     self.page = 1000
                 if self.log_step is None:
                     self.log_step = 1000000
-        return
 
     def print_ddl(self):
         for ddl in self.domain.ddl:
@@ -237,7 +242,7 @@ class DataLoader(LoaderBase):
             self.close()
 
     def import_data_from_file(self, data_file):
-        table = self.context.table
+        table = self.table
         buffer = self.context.buffer
         limit = self.context.limit
         connections = self.get_connections()
