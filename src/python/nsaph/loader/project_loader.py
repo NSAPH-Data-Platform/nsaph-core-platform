@@ -39,8 +39,7 @@ def is_relative_to(p: PurePath, *other):
         return False
 
 
-
-class DirLoader(DataLoader):
+class ProjectLoader(DataLoader):
     @classmethod
     def new_domain(cls, name: str, file_path: str):
         domain = dict()
@@ -128,5 +127,5 @@ class DirLoader(DataLoader):
 
 
 if __name__ == '__main__':
-    loader = DirLoader()
+    loader = ProjectLoader()
     loader.run()
