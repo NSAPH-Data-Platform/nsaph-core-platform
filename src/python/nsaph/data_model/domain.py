@@ -34,7 +34,7 @@ from nsaph_utils.utils.io_utils import as_dict
 from nsaph.data_model.utils import basename, split
 from nsaph.data_model.model import index_method, INDEX_NAME_PATTERN, \
     INDEX_DDL_PATTERN, UNIQUE_INDEX_DDL_PATTERN
-
+from nsaph.pg_keywords import PG_TXT_TYPE
 
 CONSTRAINTS = [
     "CONSTRAINT",
@@ -473,9 +473,11 @@ class Domain:
         )
 
     def need_index(self, column) -> bool:
+        n, c = split(column)
+        if self.get_column_type(c) == PG_TXT_TYPE:
+            return False
         if self.index_policy == "all":
             return True
-        n, c = split(column)
         if "index" in c:
             return True
         if self.index_policy == "selected":
@@ -576,9 +578,13 @@ class Domain:
             expression = expression.replace(n, "{}.{}".format(qualifier, n))
         return expression
 
+    @staticmethod
+    def get_column_type(column) -> str:
+        return column.get("type", "VARCHAR").upper()
+
     def column_spec(self, column) -> str:
         name, column = split(column)
-        t = column.get("type", "VARCHAR")
+        t = self.get_column_type(column)
         if self.is_generated(column):
             if not "code" in column["source"]:
                 raise Exception("Generated column must specify the compute code")

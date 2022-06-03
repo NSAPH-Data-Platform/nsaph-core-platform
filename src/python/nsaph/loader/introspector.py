@@ -144,6 +144,7 @@ class Introspector:
                         t = "DATE"
                     else:
                         t = PG_STR_TYPE
+                        max_val = max(max_val, len(v))
                 else:
                     raise ValueError(v)
                 try:
@@ -304,6 +305,8 @@ class Introspector:
                 max_val = max(max_val, abs(int(v)))
             else:
                 t = PG_STR_TYPE
+        if t == PG_STR_TYPE:
+            max_val = max(max_val, len(v))
         return t, scale, precision, max_val
 
     def guess_types(self, rows: list, lines: list):
@@ -379,6 +382,8 @@ class Introspector:
             column_type = PG_NUMERIC_TYPE
         if not column_type:
             column_type = PG_STR_TYPE
+        if column_type == PG_STR_TYPE and max_val > 256:
+            column_type = PG_TXT_TYPE
         return column_type
 
     def get_columns(self) -> List[Dict]:

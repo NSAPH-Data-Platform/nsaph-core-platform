@@ -105,6 +105,8 @@ class ProjectLoader(DataLoader):
             for entry in entries
         }
         self.save_registry()
+        if self.context.dryrun:
+            return
         inputs = self.context.data
         s = 0
         e = 0
