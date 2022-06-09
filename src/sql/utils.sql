@@ -40,4 +40,21 @@ EXECUTE format('SELECT string_agg(DISTINCT YEAR::INT::VARCHAR, '','') FROM %I.%I
 RETURN yr;
 END;
 $body$ LANGUAGE plpgsql
+;
+CREATE OR REPLACE PROCEDURE public.grant_select(
+        username varchar
+    )
+LANGUAGE plpgsql
+AS $body$
+DECLARE
+    sch text;
+BEGIN
+    FOR sch IN SELECT nspname FROM pg_namespace
+    LOOP
+        EXECUTE format($$ GRANT SELECT ON ALL TABLES IN SCHEMA %I TO %I $$, sch, username);
+        EXECUTE format($$ GRANT USAGE ON SCHEMA %I TO %I $$, sch, username);
+    END LOOP;
+END;
+$body$;
+
 

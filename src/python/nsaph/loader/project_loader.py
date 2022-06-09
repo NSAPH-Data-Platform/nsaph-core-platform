@@ -16,7 +16,21 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-import json
+
+"""
+This module is a command line tool to introspect and ingest into a database
+a directory, containing CSV (or CSV-like, e.g. FST, JSON, SAS, etc.) files.
+The directory can be structured, e.g. have nested subdirectories. All files
+matching a certain name pattern at any nested subdirectory level
+are included in the data set.
+
+In the database, a schema is crated based on the given project name.
+For each file in the data set a table is created. The name
+of the table is constructed from the relative path of the
+incoming data file with OS path separators (e.g. '/') being
+replaced with underscores ('_').
+"""
+
 import logging
 import os
 from pathlib import PurePath
@@ -54,6 +68,13 @@ class ProjectLoader(DataLoader):
             yaml.dump(domain, f, indent=2)
 
     def __init__(self, context: LoaderConfig = None):
+        """
+        Class, implementing Project Loading functionality.
+
+        :param context: Configuration options, usually provided as command
+            line arguments
+        """
+
         if not context:
             context = LoaderConfig(__doc__).instantiate()
         if context.registry is not None and not os.path.exists(context.registry):
@@ -99,6 +120,12 @@ class ProjectLoader(DataLoader):
         return 
 
     def run(self):
+        """
+        Run introspection and ingestion.
+
+        :return: nothing
+        """
+
         entries = self.get_files()
         tables = {
             self.introspect(entry[0]): entry[0]
