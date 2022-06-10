@@ -57,6 +57,13 @@ class DBConnectionConfig(Context):
           cardinality = Cardinality.single
     )
 
+    _dryrun = Argument("dryrun",
+            help = "Dry run: do not perform any modifications of the database",
+            type = bool,
+            default = False,
+            cardinality = Cardinality.single
+    )
+
     def __init__(self, subclass, doc):
         self.autocommit = None
         ''' Use autocommit '''
@@ -69,6 +76,9 @@ class DBConnectionConfig(Context):
 
         self.verbose = None
         ''' Generate verbose output '''
+
+        self.dryrun = None
+        '''Dry run: do no database modifications'''
 
         if subclass is None:
             super().__init__(DBConnectionConfig, doc, include_default = False)
