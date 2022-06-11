@@ -27,7 +27,9 @@ See
 
 import logging
 import re
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Tuple
+
+import copy
 
 from nsaph_utils.utils.io_utils import as_dict
 
@@ -306,7 +308,7 @@ class Domain:
 
     def ddl_for_node(self, node, parent = None) -> None:
         table_basename, definition = node
-        columns = definition.get("columns", [])
+        columns = self.get_columns(definition)
         cnames = {split(column)[0] for column in columns}
         features = []
         table = self.fqn(table_basename)
@@ -730,3 +732,78 @@ class Domain:
         self.append_ddl(table, sql)
         sql = VALIDATION_TRIGGER.format(schema=self.schema, name=t, table=table).strip()
         self.append_ddl(table, sql)
+        return
+
+    @classmethod
+    def parse_wildcard_column_spec(cls, s: str) -> Optional[Tuple[str, str,List, str]]:
+        match = re.search("(.*)(\\[.*])(.*)", s)
+        if match:
+            prefix = match.group(1)
+            postfix = match.group(3)
+            g = match.group(2)
+            if not g:
+                return None
+            g = g[1:-1]
+            x = g.split('=')
+            if len(x) < 2:
+                raise ValueError("Invalid column wildcard: " + s)
+            var = x[0]
+            rng = x[1]
+            if var[0] != '$':
+                raise ValueError("Invalid column wildcard: " + s)
+            var = var[1:]
+            values = []
+            for val in rng.split(','):
+                if ':' in val:
+                    y = val.split(':')
+                    l = int(y[0])
+                    u = int(y[1])
+                    values.extend(range(l, u+1))
+                else:
+                    values.append(val)
+            return prefix, var, values, postfix
+        return None
+
+    @classmethod
+    def is_column_wildcard(cls, name: str):
+        x = cls.parse_wildcard_column_spec(name)
+        if x is None:
+            return False
+        return True
+
+    @classmethod
+    def get_columns(cls, definition: Dict):
+        clmns = definition.get("columns", [])
+        columns = []
+        for clmn in clmns:
+            name, column = split(clmn)
+            if not cls.is_column_wildcard(name):
+                columns.append(clmn)
+            else:
+                prefix, var, values, postfix = cls.parse_wildcard_column_spec(
+                    name
+                )
+                if "source" not in column:
+                    raise ValueError(
+                        "Invalid wildcard column spec [no source]"
+                        + name
+                    )
+                src = column["source"]
+                for v in values:
+                    cname = prefix + str(v) + postfix
+                    if isinstance(src, str):
+                        csource = src.replace('$'+var, v)
+                    elif isinstance(src, list):
+                        csource = [
+                            s.replace('$'+var, str(v)) for s in src
+                        ]
+                    else:
+                        raise NotImplementedError(
+                            "Wildcard expansion is not implemented for "
+                            + " source in column " + name
+                        )
+                    c = copy.deepcopy(column)
+                    c["source"] = csource
+                    columns.append({cname: c})
+        return columns
+
