@@ -29,18 +29,50 @@ RETURN cnt;
 END;
 $body$ LANGUAGE plpgsql
 ;
-CREATE OR REPLACE FUNCTION "public"."get_year" (
-    schema_name character varying, table_name character varying
+
+CREATE OR REPLACE FUNCTION "public"."has_column" (
+    s character varying,
+    t character varying,
+    c varchar
 )  RETURNS VARCHAR
   VOLATILE
 AS $body$
-DECLARE yr VARCHAR;
+DECLARE e BOOL;
 BEGIN
-EXECUTE format('SELECT string_agg(DISTINCT YEAR::INT::VARCHAR, '','') FROM %I.%I', schema_name, table_name) into yr;
-RETURN yr;
+    SELECT EXISTS (
+            SELECT * FROM information_schema.columns
+            WHERE table_schema = s AND table_name = t AND column_name = c
+    ) into e;
+    RETURN e;
 END;
 $body$ LANGUAGE plpgsql
 ;
+
+CREATE OR REPLACE FUNCTION "public"."get_year" (
+    schema_name anyelement, table_name anyelement
+)  RETURNS VARCHAR
+  VOLATILE
+AS $body$
+DECLARE yr VARCHAR; s varchar; t varchar;
+BEGIN
+    s := schema_name::varchar;
+    t := table_name::varchar;
+    IF public.has_column(s, t, 'year') THEN
+        EXECUTE format('SELECT string_agg(DISTINCT YEAR::INT::VARCHAR, '','') FROM %I.%I', s, t) into yr;
+        RETURN yr;
+    ELSIF public.has_column(s, t, 'observation_date') THEN
+            EXECUTE format('SELECT string_agg(' ||
+                           'DISTINCT EXTRACT (YEAR FROM observation_date)::INT::VARCHAR, '',''' ||
+                           ') FROM %I.%I',
+                schema_name, table_name) into yr;
+            RETURN yr;
+    ELSE
+        RETURN NULL;
+    END IF;
+END;
+$body$ LANGUAGE plpgsql
+;
+
 CREATE OR REPLACE PROCEDURE public.grant_select(
         username varchar
     )
