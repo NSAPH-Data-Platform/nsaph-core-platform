@@ -76,6 +76,7 @@ $body$ LANGUAGE plpgsql
 CREATE OR REPLACE PROCEDURE public.grant_select(
         username varchar
     )
+    VOLATILE
 LANGUAGE plpgsql
 AS $body$
 DECLARE
@@ -88,5 +89,26 @@ BEGIN
     END LOOP;
 END;
 $body$;
+;
 
-
+CREATE OR REPLACE FUNCTION public.hll_arr_agg(
+    arr anyarray
+) RETURNS HLL
+IMMUTABLE
+LANGUAGE plpgsql
+AS $body$
+DECLARE hash HLL;
+BEGIN
+    SELECT
+        hll_add_agg(hx)
+    FROM (
+        SELECT
+            hll_hash_any(x, 1) AS hx
+        FROM (
+            SELECT UNNEST(arr) AS x
+        ) AS y
+    ) AS hy into hash;
+    RETURN hash;
+END;
+$body$
+;

@@ -31,12 +31,16 @@ from typing import Optional, Dict, List, Tuple
 
 import copy
 
+import sqlparse
+from sqlparse.sql import Identifier, IdentifierList
+from sqlparse.tokens import Wildcard
+
 from nsaph_utils.utils.io_utils import as_dict
 
 from nsaph.data_model.utils import basename, split
 from nsaph.data_model.model import index_method, INDEX_NAME_PATTERN, \
     INDEX_DDL_PATTERN, UNIQUE_INDEX_DDL_PATTERN
-from nsaph.pg_keywords import PG_TXT_TYPE
+from nsaph.pg_keywords import PG_TXT_TYPE, HLL_HASHVAL, HLL
 
 CONSTRAINTS = [
     "CONSTRAINT",
@@ -306,6 +310,25 @@ class Domain:
     def skip(self, table: str):
         self.append_ddl(table, "-- {} skipped;".format(table))
 
+    @staticmethod
+    def get_select_from(definition) -> Optional[List[Identifier]]:
+        if "create" not in definition:
+            return None
+        create = definition["create"]
+        if "select" not in create:
+            return None
+        select = "select " + create["select"]
+        parsed = sqlparse.parse(select)[0]
+        token = None
+        for t in parsed.tokens:
+            if isinstance(t, IdentifierList):
+                token = t
+                break
+        if token is None:
+            return None
+        identifiers = [i for i in token.get_identifiers()]
+        return identifiers
+
     def ddl_for_node(self, node, parent = None) -> None:
         table_basename, definition = node
         columns = self.get_columns(definition)
@@ -352,7 +375,11 @@ class Domain:
         if is_view:
             features = [self.view_column_spec(column, definition, table) for column in columns]
         else:
-            features.extend([self.column_spec(column) for column in columns])
+            features.extend([
+                self.column_spec(column)
+                for column in columns
+                if self.has_column_spec(column)
+            ])
 
         pk_columns = None
 
@@ -398,6 +425,7 @@ class Domain:
             if is_select_from:
                 create_table = self.create_object_from(table, definition,
                                                        features, object_type)
+
                 columns = definition["columns"]
             else:
                 create_table = self.create_true_table(table, features)
@@ -448,7 +476,7 @@ class Domain:
         create = definition["create"]
         frm = self.fqn(create["from"])
         if "select" in create:
-            select = create["select"]
+            select = create["select"].strip()
         else:
             select = "*"
         create_table = "CREATE {} {} AS SELECT {} FROM {};\n".format(
@@ -466,7 +494,35 @@ class Domain:
                 feature
             )
         pdef = self.find(create["from"])
-        definition["columns"] = pdef["columns"]
+        selected_columns = self.get_select_from(definition)
+        if selected_columns is not None:
+            has_wildcard = any([
+                i.ttype == Wildcard or (
+                    isinstance(i, Identifier) and i.is_wildcard()
+                )
+                for i in selected_columns
+            ])
+            cc = []
+            for c in self.get_columns(pdef):
+                cname, col = split(c)
+                identifiers = [
+                    i for i in selected_columns
+                    if isinstance(i, Identifier) and i.get_real_name() == cname
+                ]
+                if identifiers:
+                    sql_id = identifiers[0]
+                    if cname == sql_id.get_name():
+                        cc.append(c)
+                    else:
+                        cc.append({sql_id.get_name(): col})
+                elif has_wildcard:
+                    cc.append(c)
+        else:
+            cc = self.get_columns(pdef)
+        if "columns" in definition:
+            definition["columns"].extend(cc)
+        else:
+            definition["columns"] = cc
         return create_table
 
     def create_true_table(self, table, features) -> str:
@@ -476,7 +532,9 @@ class Domain:
 
     def need_index(self, column) -> bool:
         n, c = split(column)
-        if self.get_column_type(c) == PG_TXT_TYPE:
+        if self.get_column_type(c) in [PG_TXT_TYPE, HLL, HLL_HASHVAL]:
+            return False
+        if "index" in c and c["index"] is False:
             return False
         if self.index_policy == "all":
             return True
@@ -583,6 +641,13 @@ class Domain:
     @staticmethod
     def get_column_type(column) -> str:
         return column.get("type", "VARCHAR").upper()
+
+    @staticmethod
+    def has_column_spec(column) -> bool:
+        name, column = split(column)
+        if "source" in column and column["source"] == "None":
+            return False
+        return True
 
     def column_spec(self, column) -> str:
         name, column = split(column)

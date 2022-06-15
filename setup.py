@@ -130,6 +130,7 @@ setup(
         'sphinx-markdown-tables',
         'sphinx_paramlinks',
         'sphinx_rtd_theme',
+        'sqlparse',
         'SQLAlchemy>=1.3.20',
         'SQLAlchemy-JSONField>=0.9.0',
         'SQLAlchemy-Utils>=0.36.8',

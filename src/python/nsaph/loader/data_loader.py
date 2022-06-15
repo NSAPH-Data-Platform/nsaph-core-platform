@@ -89,6 +89,13 @@ class DataLoader(LoaderBase):
         for ddl in self.domain.indices:
             print(ddl)
 
+    def print_table_ddl(self, table: str):
+        fqn = self.domain.fqn(table)
+        for ddl in self.domain.ddl_by_table[fqn]:
+            print(ddl)
+        for ddl in self.domain.indices_by_table[fqn]:
+            print(ddl)
+
     def is_parallel(self) -> bool:
         if self.context.threads < 2:
             return False
@@ -185,7 +192,10 @@ class DataLoader(LoaderBase):
             return
         acted = False
         if self.context.reset:
-            self.reset()
+            if self.context.dryrun:
+                self.print_table_ddl(self.context.table)
+            else:
+                self.reset()
             acted = True
         if self.context.data:
             self.load()
