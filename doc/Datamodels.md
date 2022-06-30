@@ -103,6 +103,7 @@ in a special audit table.
 |-----------|-----------|-------------|
 |type | yes | Database type |
 |source | no | [source](#source) of the data|
+|index| no | Override default to build an index based on this column. Possible values: true/false/dictionary, specifying index name and/or parameters
 |description | no | description of this domain to be included in auto-generated documentation
 |reference | no | URL with external documentation
 
@@ -200,9 +201,15 @@ Here, `{1}` references the value that would be inserted into the
 table column `state` and `{2}` references the value that 
 would be inserted into the table column `residence_county`. 
 
-### File columns
+### File column
 
 File columns are of type `file`. They store the name of the file,
+from which the data has been ingested.
+
+### Record column
+
+Record columns are of type `record`. They store the sequential 
+index of the record (line number) in the file,
 from which the data has been ingested.
 
 ### Transposing Columns 

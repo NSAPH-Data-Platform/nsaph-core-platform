@@ -131,7 +131,7 @@ module, [inserter](src/python/nsaph/data_model/inserter.py)
 handles parallel insertion of the data into domain tables.
 
 Auxiliary modules perform various maintenance tasks. 
-Module [index2](src/python/nsaph/loader/index_builder.py)
+Module [index_builder](src/python/nsaph/loader/index_builder.py)
 builds indices for a given tables or for all
 tables within a domain. 
 Module [utils](src/python/nsaph/data_model/utils.py)
