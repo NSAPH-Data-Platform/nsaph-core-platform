@@ -1,5 +1,17 @@
 # Mapping between different territorial codes
 
+<!--toc-->
+
+- [Code systems](#code-systems)
+- [Mapping sources](#mapping-sources)
+- [Python and SQL Code](#python-and-sql-code)
+- [Tables and Functions](#tables-and-functions)
+  - [Tables](#tables)
+  - [Functions](#functions)
+
+<!--toc-->
+<!-- tocstop -->
+
 ## Code systems
 
 * United States Postal Service (USPS) 

@@ -1,5 +1,9 @@
 # How to query the database
 
+<!-- toc -->
+<!-- tocstop -->
+
+
 Here we show how to query the NSAPH database from Python.
                                                          
 We use public data (climate, pollution, census) in the query,
@@ -57,5 +61,24 @@ Copy the file into your local directory and execute it:
 
     python -u query.py database.ini nsaph2
 
+## Using EXPLAIN to optimize queries
 
+You do not want to run a query that will take a week to execute. When we have
+hundreds of millions of records, this can easily happen. SQL is a declarative
+language, hence, an SQL statement describes what you want to do. DBMS optimizer
+decides how to do it. It should understand your query correctly. To ensure, it
+did, use EXPLAIN query before trying to execute. See documentation for EXPLAIN.
+
+Here are a few more links that might be useful:
+
+* How to read [query plans](https://thoughtbot.com/blog/reading-an-explain-analyze-query-plan)
+    produced by EXPLAIN
+* [What is cost](https://scalegrid.io/blog/postgres-explain-cost/)
+
+Unfortunately, less useful is the 
+[tutorial](https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-explain/)
+The queries below (given as examples) take 4 to 8 minutes each. I suggest
+running them with EXPLAIN first, note the costs and compare them with any costs
+of the queries you will write. Pay attention how indices are used: the most
+expensive part is scan.
 

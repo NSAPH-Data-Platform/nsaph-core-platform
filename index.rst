@@ -6,7 +6,11 @@ NSAPH Core Data Platform
    :caption: Contents:
 
    README
-   doc/Datamodels.md
+   doc/Datamodels
+   doc/DataLoader
+   doc/ProjectLoader
+   doc/TerritorialCodes
+   doc/SampleQuery
    doc/UserRequests
 
 Indices and tables
