@@ -115,7 +115,6 @@ setup(
         'PyYAML>=5.3.1',
         'rdflib>=4.2.2',
         'rdflib-jsonld>=0.5.0',
-        'recommonmark',
         'requests',
         'rpy2>=3.4.4',
         'ruamel.yaml>=0.16.5',
