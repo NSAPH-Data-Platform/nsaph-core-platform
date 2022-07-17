@@ -237,3 +237,24 @@ after a package is deployed is provided by
 Another module, [pg_json_dump](src/python/nsaph/util/pg_json_dump.py),
 provides support for packaging tables as resources in JSONLines
 format. This format is used natively by some DBMSs.
+
+### SQL and PL/pgSQL Utilities
+
+Utilities, implementing the following: 
+
+* [Functions](src/sql/utils.sql):
+    * Counting rows in tables
+    * Finding a name of the column that contains year from most tables used
+        in data platform
+    * Creating a hash for [HLL aggregations](https://en.wikipedia.org/wiki/HyperLogLog)
+* Procedure:
+    * [A procedure](src/sql/utils.sql)) granting `SELECT` privileges 
+      to a user on all NSAPH tables
+    * [A procedure to rename indices](src/sql/rename_indices.sql)
+* Set of SQL statements 
+    [to map tables from another database](src/sql/map_to_foreign_database.ddl)
+    This can be used to map public tables available to anybody
+    to a more secure database, containing health data
+
+Utilities used to map territorial codes are described in 
+[this document](doc/TerritorialCodes.md)
