@@ -1,5 +1,7 @@
 NSAPH Data Platform
 ===================
+                                
+[Full Platform Documentation](https://nsaph-data-platform.github.io/nsaph-platform-docs/home.html)
 
 <!-- toc -->
 
