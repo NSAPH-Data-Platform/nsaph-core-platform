@@ -17,6 +17,12 @@
 --  limitations under the License.
 --
 
+/*
+ Purpose:
+ Responsible for in-database mapping between postal zip codes
+ and state FIPS codes
+ */
+
 CREATE MATERIALIZED VIEW public.zip2fips AS
 SELECT
     zip,
