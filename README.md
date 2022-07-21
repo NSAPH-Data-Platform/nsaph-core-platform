@@ -1,5 +1,5 @@
-NSAPH Data Platform
-===================
+NSAPH Data Platform Core
+========================
                                 
 [Full Platform Documentation](https://nsaph-data-platform.github.io/nsaph-platform-docs/home.html)
 
@@ -250,7 +250,7 @@ Utilities, implementing the following:
         in data platform
     * Creating a hash for [HLL aggregations](https://en.wikipedia.org/wiki/HyperLogLog)
 * Procedure:
-    * [A procedure](src/sql/utils.sql)) granting `SELECT` privileges 
+    * [A procedure](src/sql/utils.sql) granting `SELECT` privileges 
       to a user on all NSAPH tables
     * [A procedure to rename indices](src/sql/rename_indices.sql)
 * Set of SQL statements 
