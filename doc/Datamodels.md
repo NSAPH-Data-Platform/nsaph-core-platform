@@ -81,6 +81,19 @@ The following parameters can be defined for a table:
 |description | no | description of this domain to be included in auto-generated documentation
 |reference | no | URL with external documentation
 |invalid.records | no | [action](#invalid-record) to be performed upon encountering an invalid record (corrupted, incomplete, duplicate, etc.) |
+|create | no | If the table or view should be created from existing database objects, see [detailed description](#create-statement) |
+               
+### Create statement
+
+Describes how a table or a view should be created. 
+
+| Parameter | Required? | Description |
+|-----------|-----------|-------------|
+|type | no | view / table |
+|select | no | columns to put in `SELECT` clause of CREATE statement   |
+|from | no |  What to put into `FROM` clause |
+|group by | no | What to put into `GROUP BY` clause |
+|populate | no, default is `True` | If `False`, then a condition that can never be satisfied will be added as `WHERE` clause, ehnce an empty table will be created that can be populated later. This is mostly used when additional triggers needed for population process. |
 
 ### Invalid Record
 

@@ -27,12 +27,12 @@ See
 
 import logging
 import re
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Set
 
 import copy
 
 import sqlparse
-from sqlparse.sql import Identifier, IdentifierList
+from sqlparse.sql import Identifier, IdentifierList, Token
 from sqlparse.tokens import Wildcard
 
 from nsaph_utils.utils.io_utils import as_dict
@@ -435,7 +435,16 @@ class Domain:
             action = validation["action"].lower()
             t2 = self.spillover_table(table_basename, definition)
             if t2:
-                ff = [f for f in features if "CONSTRAINT" not in f and "PRIMARY KEY" not in f]
+                if is_select_from:
+                    ff = [
+                        self.column_spec(column)
+                        for column in columns
+                    ]
+                else:
+                    ff = [
+                        f for f in features
+                            if "CONSTRAINT" not in f and "PRIMARY KEY" not in f
+                    ]
                 ff.append("REASON VARCHAR(16)")
                 ff.append("recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ")
                 create_table = self.create_table(t2) + \
@@ -479,11 +488,16 @@ class Domain:
             select = create["select"].strip()
         else:
             select = "*"
-        create_table = "CREATE {} {} AS SELECT {} FROM {};\n".format(
+        if "populate" in create and create["populate"] is False:
+            condition = "WHERE 1 = 0"
+        else:
+            condition = ""
+        create_table = "CREATE {} {} AS SELECT {} \nFROM {}\n{};\n".format(
             obj_type,
             table,
             select,
-            frm
+            frm,
+            condition
         )
         for feature in features:
             if not is_constraint(feature):
@@ -496,27 +510,7 @@ class Domain:
         pdef = self.find(create["from"])
         selected_columns = self.get_select_from(definition)
         if selected_columns is not None:
-            has_wildcard = any([
-                i.ttype == Wildcard or (
-                    isinstance(i, Identifier) and i.is_wildcard()
-                )
-                for i in selected_columns
-            ])
-            cc = []
-            for c in self.get_columns(pdef):
-                cname, col = split(c)
-                identifiers = [
-                    i for i in selected_columns
-                    if isinstance(i, Identifier) and i.get_real_name() == cname
-                ]
-                if identifiers:
-                    sql_id = identifiers[0]
-                    if cname == sql_id.get_name():
-                        cc.append(c)
-                    else:
-                        cc.append({sql_id.get_name(): col})
-                elif has_wildcard:
-                    cc.append(c)
+            cc = self.map_selected_columns(selected_columns, definition, pdef)
         else:
             cc = self.get_columns(pdef)
         if "columns" in definition:
@@ -524,6 +518,44 @@ class Domain:
         else:
             definition["columns"] = cc
         return create_table
+
+    def map_selected_columns(self, selected_columns: List[Identifier],
+                             cdef: Dict, pdef: Dict) -> List[Dict]:
+        has_wildcard = any([
+            i.ttype == Wildcard or (
+                isinstance(i, Identifier) and i.is_wildcard()
+            )
+            for i in selected_columns
+        ])
+        cc = []
+        pcc = set()
+        parent_columns = self.get_columns_as_dict(pdef)
+        self_columns = self.get_columns_as_dict(cdef)
+        for c in selected_columns:
+            if isinstance(c, Identifier):
+                sql_id_name = c.get_name()
+                pc_name = c.get_real_name()
+            elif isinstance(c, Token) and c.value.lower() in ["file", "year"]:
+                sql_id_name = c.value
+                pc_name = c.value
+            else:
+                continue
+
+            if sql_id_name in self_columns:
+                #cc.append({sql_id_name: self_columns[sql_id_name]})
+                pass
+            elif pc_name in parent_columns:
+                cc.append({sql_id_name: parent_columns[pc_name]})
+                pcc.add(pc_name)
+            else:
+                cc.append(sql_id_name)
+
+        if has_wildcard:
+            for p_column in self.get_columns(pdef):
+                pc_name, pc_def = split(p_column)
+                if pc_name not in pcc:
+                    cc.append(p_column)
+        return cc
 
     def create_true_table(self, table, features) -> str:
         return self.create_table(table) + " (\n\t{features}\n);".format(
@@ -871,4 +903,13 @@ class Domain:
                     c["source"] = csource
                     columns.append({cname: c})
         return columns
+
+    @classmethod
+    def get_columns_as_dict(cls, definition: Dict) -> Dict:
+        columns = cls.get_columns(definition)
+        c_dict = dict()
+        for c in columns:
+            name, cdef = split(c)
+            c_dict[name] = cdef
+        return c_dict
 

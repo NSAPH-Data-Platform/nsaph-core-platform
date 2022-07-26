@@ -48,6 +48,8 @@ def split(node) -> (str, dict):
         name = entry
         break
     node = node[name]
+    if node is None:
+        return name, {}
     if isinstance(node, str):
         node = {"type": node}
     if not isinstance(node, dict):
