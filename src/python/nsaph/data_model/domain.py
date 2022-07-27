@@ -450,6 +450,34 @@ class Domain:
                 create_table = self.create_table(t2) + \
                     " (\n\t{features}\n);".format(features=",\n\t".join(ff))
                 self.append_ddl(table, create_table)
+                ddl, _ = self.get_index_ddl(t2, "REASON")
+                self.add_index_by_ddl(table, ddl)
+                for column in columns:
+                    if not self.need_index(column):
+                        continue
+                    column_name, column_def = split(column)
+                    index_name = "{}_audit_{}".format(
+                        table_basename, column_name
+                    )
+                    c = {
+                        column_name: {
+                            "index": index_name
+                        }
+                    }
+                    ddl, _ = self.get_index_ddl(t2, c)
+                    self.add_index_by_ddl(table, ddl)
+                    index_def = {
+                        "columns": [
+                            "REASON",
+                            column_name
+                        ]
+                    }
+                    index_name = "audit_REASON_{}".format(column_name)
+                    ddl = self.get_multi_column_index_ddl(t2,
+                                                          index_name,
+                                                          index_def
+                    )
+                    self.add_index_by_ddl(table, ddl)
             self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
 
         if object_type != "view":
@@ -460,10 +488,7 @@ class Domain:
                 if onload:
                     self.append_ddl(table, ddl)
                 else:
-                    self.indices.append(ddl)
-                    if table not in self.indices_by_table:
-                        self.indices_by_table[table] = []
-                    self.indices_by_table[table].append(ddl)
+                    self.add_index_by_ddl(table, ddl)
 
         if "indices" in definition:
             indices = definition["indices"]
@@ -613,7 +638,16 @@ class Domain:
             method = method
         ), onload)
 
-    def add_index(self, table: str, name: str, definition: dict):
+    def add_index_by_ddl(self, table: str, ddl: str):
+        self.indices.append(ddl)
+        if table not in self.indices_by_table:
+            self.indices_by_table[table] = []
+        self.indices_by_table[table].append(ddl)
+
+    def get_multi_column_index_ddl(self,
+                                   table: str,
+                                   name: str,
+                                   definition: dict) -> str:
         if self.concurrent_indices:
             option = "CONCURRENTLY"
         else:
@@ -628,7 +662,7 @@ class Domain:
             pattern = UNIQUE_INDEX_DDL_PATTERN
         else:
             pattern = INDEX_DDL_PATTERN
-        ddl = pattern.format(
+        return pattern.format(
             name = INDEX_NAME_PATTERN.format(table = table.split('.')[-1],
                                              column = name),
             option = option,
@@ -636,10 +670,11 @@ class Domain:
             column = columns,
             method = method
         )
-        self.indices.append(ddl)
-        if table not in self.indices_by_table:
-            self.indices_by_table[table] = []
-        self.indices_by_table[table].append(ddl)
+
+    def add_index(self, table: str, name: str, definition: dict):
+        ddl = self.get_multi_column_index_ddl(table, name, definition)
+        self.add_index_by_ddl(table, ddl)
+        return
 
     @staticmethod
     def is_array(column) -> bool:
