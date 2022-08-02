@@ -53,6 +53,14 @@ def is_relative_to(p: PurePath, *other):
         return False
 
 
+def remove_ext(p: str) -> str:
+    d, f = os.path.split(p)
+    pos = f.find('.')
+    if pos >= 0:
+        return os.path.join(d, f[:pos])
+    return os.path.join(d, f)
+
+
 class ProjectLoader(DataLoader):
     @classmethod
     def new_domain(cls, name: str, file_path: str):
@@ -89,9 +97,7 @@ class ProjectLoader(DataLoader):
         table = None
         for root in self.context.data:
             if is_relative_to(p, root):
-                relpath = PurePath(
-                    os.path.relpath(os.path.splitext(entry)[0], root)
-                )
+                relpath = PurePath(os.path.relpath(remove_ext(entry), root))
                 table = "_".join(relpath.parts)
         if table is None:
             raise ValueError(entry)
