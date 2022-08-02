@@ -36,7 +36,7 @@ from nsaph.data_model.utils import split, DataReader, regex
 from nsaph.fips import fips_dict
 from nsaph.pg_keywords import PG_SERIAL_TYPE, PG_SM_SERIAL_TYPE
 from nsaph.util.executors import BlockingThreadPoolExecutor
-from nsaph_utils.utils.io_utils import sizeof_fmt
+from nsaph_utils.utils.io_utils import sizeof_fmt, SpecialValues
 
 EMPTY_LIST_SIZE = sys.getsizeof([])
 
@@ -52,7 +52,7 @@ def compute(how, row):
 class Inserter:
 
     def __init__(self, domain, root_table_name, reader: DataReader, connections, page_size = 1000):
-        self.tables = []
+        self.tables: List[Inserter.Table] = []
         self.page_size = page_size
         self.ready = False
         self.reader = reader
@@ -434,7 +434,7 @@ class Inserter:
                     value = row[i]
                 except:
                     raise
-                if not value:
+                if not value or SpecialValues.is_missing(value):
                     if i in self.pk and self.audit is None:
                         return False
                     else:
