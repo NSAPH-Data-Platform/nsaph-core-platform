@@ -126,7 +126,7 @@ Puppet creates the following files required for Apache Superset:
 | File | Description
 |------|------------
 |docker-compose.yml | Docker-compose file, contains the majority of all settings
-|superset/superset-config.py | Script that doecker executes within teh container
+|superset/superset-config.py | Script that doecker executes within the container
 |superset/postresql/init/db-init.sql | database definitions
 |startup.sh | script that can be used either to install and initialize Superset or as a list of commands that should be manually executed
 
@@ -275,7 +275,7 @@ In psql:
 ### SSL Setup 
 
 [FAS RC SSL Documentation](https://docs-int.rc.fas.harvard.edu/generate-csr-and-ssl-cert/)
-describes how to put the certificates. Put them for each of teh virtual hosts
+describes how to put the certificates. Put them for each of the virtual hosts
 
  * Define certificates for virtual hosts in `profiles::web::ssl::certs`
 

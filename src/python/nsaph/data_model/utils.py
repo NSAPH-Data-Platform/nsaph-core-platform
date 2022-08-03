@@ -63,7 +63,7 @@ def basename(table):
     returns just a basename of a table
 
     :param table: a fully qualified table name
-    :return: just the base name of the table, a piece of name after teh last dot
+    :return: just the base name of the table, a piece of name after the last dot
     """
     return table.split('.')[-1]
 
