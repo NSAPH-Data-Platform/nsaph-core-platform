@@ -52,7 +52,7 @@ def compute(how, row):
 class Inserter:
 
     def __init__(self, domain, root_table_name, reader: DataReader, connections, page_size = 1000):
-        self.tables: List[Inserter.Table] = []
+        self.tables: List[Inserter._Table] = []
         self.page_size = page_size
         self.ready = False
         self.reader = reader
