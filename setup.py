@@ -6,7 +6,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='nsaph',
-    version="0.0.3.3",
+    version="0.0.3.4",
     url='https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/nsaph',
     license='',
     author='Michael Bouzinier',
@@ -60,7 +60,7 @@ setup(
         'future>=0.18.2',
         'graphviz>=0.14.2',
         'gunicorn>=20.0.4',
-        #'h5py',
+        'h5py',
         'humanfriendly>=8.2',
         'idna>=2.10',
         'importlib-metadata>=2.0.0',

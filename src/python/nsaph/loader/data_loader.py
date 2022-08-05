@@ -40,7 +40,8 @@ from nsaph import ORIGINAL_FILE_COLUMN
 from nsaph.data_model.inserter import Inserter
 from nsaph.data_model.utils import DataReader, entry_to_path
 from nsaph.loader import LoaderBase
-from nsaph.loader.loader_config import LoaderConfig, Parallelization
+from nsaph.loader.loader_config import LoaderConfig, Parallelization, \
+    DataLoaderAction
 from nsaph_utils.utils.io_utils import get_entries, is_dir, sizeof_fmt
 
 
@@ -61,7 +62,7 @@ class DataLoader(LoaderBase):
         if self.context.incremental and self.context.autocommit:
             raise ValueError("Incompatible arguments: autocommit is "
                              + "incompatible with incremental loading")
-        if self.context.drop:
+        if self.context.action == DataLoaderAction.drop:
             if self.table:
                 raise Exception("Drop is incompatible with other arguments")
         self.set_table()
@@ -95,6 +96,19 @@ class DataLoader(LoaderBase):
             print(ddl)
         for ddl in self.domain.indices_by_table[fqn]:
             print(ddl)
+
+    def insert_from_select(self):
+        if not self.context.table:
+            raise ValueError("Table name is required for INSERT FROM SELECT")
+        sql = self.domain.generate_insert_from_select(self.context.table,
+                                                      self.context.limit)
+        act = not self.context.dryrun
+        print(sql)
+        if act:
+            with self._connect() as connxn:
+                with (connxn.cursor()) as cursor:
+                    cursor.execute(sql)
+        return
 
     def is_parallel(self) -> bool:
         if self.context.threads < 2:
@@ -176,16 +190,23 @@ class DataLoader(LoaderBase):
 
     def drop(self):
         schema = self.domain.schema
+        act = not self.context.dryrun
         with self._connect() as connxn:
             with (connxn.cursor()) as cursor:
                 sql = "DROP SCHEMA IF EXISTS {} CASCADE".format(schema)
                 print(sql)
-                cursor.execute(sql)
-            IndexBuilder.drop_all(connxn, schema)
+                if act:
+                    cursor.execute(sql)
+            IndexBuilder.drop_all(connxn, schema, act = act)
 
     def run(self):
-        if self.context.drop:
+        if self.context.data and self.context.action is None:
+            self.context.action = DataLoaderAction.load
+        if self.context.action == DataLoaderAction.drop:
             self.drop()
+            return
+        if self.context.action == DataLoaderAction.insert:
+            self.insert_from_select()
             return
         if not self.context.table:
             self.print_ddl()
@@ -197,7 +218,7 @@ class DataLoader(LoaderBase):
             else:
                 self.reset()
             acted = True
-        if self.context.data:
+        if self.context.action == DataLoaderAction.load:
             self.load()
             acted = True
         if not acted:

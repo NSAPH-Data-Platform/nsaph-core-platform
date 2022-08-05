@@ -506,6 +506,32 @@ class Domain:
             for child in children:
                 self.ddl_for_node((child, children[child]), parent=node)
 
+    def generate_insert_from_select(self, table: str, limit: int = None) -> str:
+        definition = self.find(table)
+        if "create" not in definition:
+            raise ValueError("No create clause for table " + table)
+        create = definition["create"]
+        if "from" not in create:
+            raise ValueError("No from clause for table " + table)
+        frm = self.fqn(create["from"])
+        if "select" in create:
+            lines = [
+                '\t' + line
+                for line in create["select"].strip().split('\n')
+            ]
+            select = '\n'.join(lines)
+        else:
+            select = "\t*"
+        sql = "INSERT INTO {target}\nSELECT\n{select}\nFROM {src}\n".format(
+            target = self.fqn(table),
+            select = select,
+            src = frm
+        )
+        if limit is not None:
+            sql += "LIMIT {:d}".format(limit)
+        sql += ";\n"
+        return sql
+
     def create_object_from(self, table, definition, features, obj_type) -> str:
         create = definition["create"]
         frm = self.fqn(create["from"])
