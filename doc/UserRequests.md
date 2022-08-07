@@ -18,7 +18,7 @@ possible implementations of exporting and packaging
 data.
 
 A very crude and basic 
-[example](../src/yml/example_request.yaml)
+[example](members/example_request.yaml.rst)
 describes a request to export climate data for a set 
 of places and dates.
 

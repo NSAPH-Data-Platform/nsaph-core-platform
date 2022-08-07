@@ -12,7 +12,7 @@
 
 ## Overview
 
-[Project Loader](../src/python/nsaph/loader/project_loader.py) 
+[Project Loader](members/project_loader.rst) 
 is a command line tool to introspect and ingest into a database
 a directory, containing CSV (or CSV-like, e.g. FST, JSON, SAS, etc.) files.
 The directory can be structured, e.g. have nested subdirectories. All files
@@ -26,12 +26,12 @@ incoming data file with OS path separators (e.g. '/') being
 replaced with underscores ('_'). 
                                  
 Loading into the database is performed using 
-[Data Loader](DataLoader.md) functionality.
+[Data Loader](members/data_loader.rst) functionality.
 
 ## Configuration options
 
 Configuration options are provided by 
-[LoaderConfig](../src/python/nsaph/loader/loader_config.py) object.
+[LoaderConfig](members/loader_config.rst) object.
 Usually, they are provided as command line arguments but can also be provided
 via an API call.
 

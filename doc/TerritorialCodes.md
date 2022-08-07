@@ -39,13 +39,13 @@ Two utilities are provided to downloaded mapping files from
 sources and load them into the database:
 
 * Python module to download and ingest NBER FIPS <-> SSA mapping files:
-    [ssa2fips](../src/python/nsaph/util/ssa2fips.py)
+    [ssa2fips](members/ssa2fips.rst)
 * Python module to download and ingest HUD ZIP to FIPS mappings:
-    [zip2fips](../src/python/nsaph/util/zip2fips.py)
+    [zip2fips](members/zip2fips.rst)
 * DDL for HUD ZIP to FIPS mappings:
-    [hud_zip2fips.ddl](../resources/public/hud_zip2fips.ddl)
+    [hud_zip2fips.ddl](members/hud_zip2fips.rst)
 * SQL to create direct ZIP => FIPS lookup table and helper functions:
-    [zip2fips.sql](../src/sql/zip2fips.sql)
+    [zip2fips.sql](members/zip2fips.sql.rst)
 
 ## Tables and Functions
 

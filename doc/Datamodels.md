@@ -12,6 +12,7 @@
   * [Generated columns](#generated-columns)
   * [Computed Columns](#computed-columns)
   * [File columns](#file-columns)
+  * [Record columns](#record-columns)
   * [Transposing Columns](#transposing-columns)
 - [Multi-column indices](#multi-column-indices)
 - [Generation of the database schema (DDL)](#generation-of-the-database-schema-ddl)
@@ -41,10 +42,10 @@ following domains
 ## Domain
 
 Handling domains is implemented by the 
-[Domain](../src/python/nsaph/data_model/domain.py) class.
+[Domain](members/domain.rst) class.
 
 For each domain, its data model is defined by a YAML file in 
-the following directory: [src/yml](../src/yml)
+the following directory: [src/yml](src/yml)
 
 Each model is represented by a "forest": a set of treelike 
 structures of tables. It can contain one or several root tables
@@ -55,32 +56,32 @@ Domain should be the first entry in the YAML file:
 
 The following parameters can be defined fro domain:
 
-| Parameter | Required? | Description |
-|-----------|-----------|-------------|
-|schema | yes | Database schema, in which all tables are generated
-|schema.audit| no | Database schema for tables containing audit logs of data ingestion, including corrupted, duplicate and inconsistent records |
-|index | no | Default indexing policy for this domain. This policy is used for tables that do not define their own indexing policy |
-|tables | yes | list of table definitions |
-|description | no | description of this domain to be included in auto-generated documentation
-|reference | no | URL with external documentation
-|header | no | Boolean value, passed to CSV loader. Describes input source rather than data model itself
-|quoting| no | Numeric value, passed to CSV loader. Describes input source rather than data model itself (QUOTE_MINIMAL=0, QUOTE_ALL=1, QUOTE_NONNUMERIC=2, QUOTE_NONE=3) 
+| Parameter    | Required? | Description                                                                                                                                                |
+|--------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| schema       | yes       | Database schema, in which all tables are generated                                                                                                         |
+| schema.audit | no        | Database schema for tables containing audit logs of data ingestion, including corrupted, duplicate and inconsistent records                                |
+| index        | no        | Default indexing policy for this domain. This policy is used for tables that do not define their own indexing policy                                       |
+| tables       | yes       | list of table definitions                                                                                                                                  |
+| description  | no        | description of this domain to be included in auto-generated documentation                                                                                  |
+| reference    | no        | URL with external documentation                                                                                                                            |
+| header       | no        | Boolean value, passed to CSV loader. Describes input source rather than data model itself                                                                  |
+| quoting      | no        | Numeric value, passed to CSV loader. Describes input source rather than data model itself (QUOTE_MINIMAL=0, QUOTE_ALL=1, QUOTE_NONNUMERIC=2, QUOTE_NONE=3) |
 
 ## Table 
 
 The following parameters can be defined for a table:
 
-| Parameter | Required? | Description |
-|-----------|-----------|-------------|
-|type | no | view / table |
-|hard_linked | no | Denotes that the table is an integral part of parent table rather than a separate table with a many-to-one relationship to the parent table|
-|columns | yes | list of column definitions |
-|indices or indexes | yes | dictionary of multi-column indices |
-|primary_key | yes | list of column names included in the table primary key |
-|children | no | list of table definitions for child tables of this table|
-|description | no | description of this domain to be included in auto-generated documentation
-|reference | no | URL with external documentation
-|invalid.records | no | [action](#invalid-record) to be performed upon encountering an invalid record (corrupted, incomplete, duplicate, etc.) |
+| Parameter          | Required? | Description                                                                                                                                 |
+|--------------------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| type               | no        | view / table                                                                                                                                |
+| hard_linked        | no        | Denotes that the table is an integral part of parent table rather than a separate table with a many-to-one relationship to the parent table |
+| columns            | yes       | list of column definitions                                                                                                                  |
+| indices or indexes | yes       | dictionary of multi-column indices                                                                                                          |
+| primary_key        | yes       | list of column names included in the table primary key                                                                                      |
+| children           | no        | list of table definitions for child tables of this table                                                                                    |
+| description        | no        | description of this domain to be included in auto-generated documentation                                                                   |
+| reference          | no        | URL with external documentation                                                                                                             |
+| invalid.records    | no        | [action](#invalid-record) to be performed upon encountering an invalid record (corrupted, incomplete, duplicate, etc.)                      |
 
 ### Invalid Record
 
@@ -90,22 +91,22 @@ it is possible to override this behaviour by instructing
 the data loader to either ignore such records or put them
 in a special audit table.
 
-| Parameter | Required? | Description |
-|-----------|-----------|-------------|
-|action | yes | Action to be performed: `INSERT` or `IGNORE` |
-|target | yes/no | For action INSERT - a target table|
-|description | no | description of this domain to be included in auto-generated documentation
-|reference | no | URL with external documentation
+| Parameter   | Required? | Description                                                               |
+|-------------|-----------|---------------------------------------------------------------------------|
+| action      | yes       | Action to be performed: `INSERT` or `IGNORE`                              |
+| target      | yes/no    | For action INSERT - a target table                                        |
+| description | no        | description of this domain to be included in auto-generated documentation |
+| reference   | no        | URL with external documentation                                           |
 
 ## Column
 
-| Parameter | Required? | Description |
-|-----------|-----------|-------------|
-|type | yes | Database type |
-|source | no | [source](#source) of the data|
-|index| no | Override default to build an index based on this column. Possible values: true/false/dictionary, specifying index name and/or parameters
-|description | no | description of this domain to be included in auto-generated documentation
-|reference | no | URL with external documentation
+| Parameter   | Required? | Description                                                                                                                              |
+|-------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------|
+| type        | yes       | Database type                                                                                                                            |
+| source      | no        | [source](#source) of the data                                                                                                            |
+| index       | no        | Override default to build an index based on this column. Possible values: true/false/dictionary, specifying index name and/or parameters |
+| description | no        | description of this domain to be included in auto-generated documentation                                                                |
+| reference   | no        | URL with external documentation                                                                                                          |
 
 Beside "normal" columns, when the value is 
 directly taken from a column in a tabular input source,
@@ -201,12 +202,12 @@ Here, `{1}` references the value that would be inserted into the
 table column `state` and `{2}` references the value that 
 would be inserted into the table column `residence_county`. 
 
-### File column
+### File columns
 
 File columns are of type `file`. They store the name of the file,
 from which the data has been ingested.
 
-### Record column
+### Record columns
 
 Record columns are of type `record`. They store the sequential 
 index of the record (line number) in the file,
@@ -233,7 +234,7 @@ From a domain YAML file, the database schema is
 generated in the form of PostgreSQL dialect of DDL.
 
 The main class responsible for the generation of DDL is
-[Domain](../src/python/nsaph/data_model/domain.py#Domain)
+[Domain](members/domain.rst)
 
 ## Indexing Policies
 
@@ -242,7 +243,7 @@ The main class responsible for the generation of DDL is
 * **all** Indices are only created for all columns
 * **selected** Indices are only created for columns 
      matching certain pattern (defined in `index_columns` variable
-     of [model](../src/python/nsaph/data_model/model.py)) module
+     of [model](members/model.rst)) module
 * **unless excluded** Indices are only created for all columns 
   not explicitly excluded
 
@@ -254,7 +255,7 @@ Database includes a table with codes for US states. It is taken from:
 
 https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/technical/nra/nri/results/?cid=nrcs143_013696 
 
-The data leaves locally in [fips.py](../src/python/nsaph/fips.py)
+The data leaves locally in [fips.py](members/fips.rst)
 
 County codes:
 

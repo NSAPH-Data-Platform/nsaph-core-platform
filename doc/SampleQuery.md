@@ -55,7 +55,7 @@ to the database. Here is a sample file I use:
 
 We will use the following sample Python program to execute
 a query (with public data) on the NSAPH database:
-[query.py](../sandbox/python/examples/query.py)
+[query.py](members/sample_query.rst)
 
 Copy the file into your local directory and execute it:
 

@@ -18,6 +18,7 @@ NSAPH Data Platform Core
       - [Subpackage with miscellaneous utilities](#subpackage-with-miscellaneous-utilities)
   * [YAML files](#yaml-files)
   * [Resources](#resources)
+  * [SQL Utilities](#sql-utilities)
 
 <!-- tocstop -->
 
@@ -35,17 +36,17 @@ The project structure can also be in flux.
 ## Tool Examples
 Examples of tools included in this package are:
 
-* [Universal Data Loader](src/python/nsaph/loader/data_loader.py)
-* A [utility to monitor progress of long-running database](src/python/nsaph/index.py)
+* [Universal Data Loader](doc/members/data_loader.rst)
+* A [utility to monitor progress of long-running database](doc/members/index.rst)
     processes like indexing.
-* A [utility to infer database schema and generate DDL](src/python/nsaph/analyze.py)
+* A [utility to infer database schema and generate DDL](doc/members/analyze.rst)
     from a CSV file
-* A [utility to link a table to GIS](src/python/nsaph/link_gis.py)
+* A [utility to link a table to GIS](doc/members/link_gis.rst)
   from a CSV file
-* A [wrapper around database connection to PostgreSQL](#database-connection-wrapper)
-* A [utility to import/export JSONLines](src/python/nsaph/util/pg_json_dump.py)
+* A [wrapper around database connection to PostgreSQL](#module-database-connection-wrapper)
+* A [utility to import/export JSONLines](doc/members/pg_json_dump.rst)
     files into/from PostgreSQL
-* An [Executor with a bounded queue](src/python/util/executors.py)
+* An [Executor with a bounded queue](doc/members/executors.rst)
 
 ## Project Structure
 
@@ -63,7 +64,7 @@ Doc directory contains documentation.
 Resource directory contains resources that must be loaded in 
 the data platform for its normal functioning. For example,
 they contain mappings between US states, counties, fips and zip codes.
-See details in [Resources](#Resources) section.
+See details in [Resources](#resources) section.
 
 Src directory contains software source code. 
 See details in [Software Sources](#software-sources) section.
@@ -128,15 +129,15 @@ actual processing. The main concept is a knowledge domain, or
 just a domain. Domain model is define in a YAML file as
 described in the [documentation](doc/Datamodels.md). The main
 module that processes the YAML definition of the domain
-is [domain.py](src/python/nsaph/data_model/domain.py). Another
-module, [inserter](src/python/nsaph/data_model/inserter.py)
+is [domain.py](doc/members/domain.rst). Another
+module, [inserter](doc/members/inserter.rst)
 handles parallel insertion of the data into domain tables.
 
 Auxiliary modules perform various maintenance tasks. 
-Module [index_builder](src/python/nsaph/loader/index_builder.py)
+Module [index_builder](doc/members/index_builder.rst)
 builds indices for a given tables or for all
 tables within a domain. 
-Module [utils](src/python/nsaph/data_model/utils.py)
+Module [utils](doc/members/utils.rst)
 provides convenience function wrappers and defines
 class DataReader that abstracts reading CSV and FST files.
 In other words, DataReader provides uniform interface
@@ -147,7 +148,7 @@ different formats.
 
 * `nsaph.db`
 
-Module [db](src/python/nsaph/db.py) is a PostgreSQL
+Module [db](doc/members/db.rst) is a PostgreSQL
 connection wrapper. It reads connection parameters from
 an `ini` file and connects to the database. It can
 transparently connect over _**ssh tunnel**_ when required.
@@ -158,14 +159,13 @@ transparently connect over _**ssh tunnel**_ when required.
 
 A set of utilities to manipulate data.
 
-Module [data_loader](src/python/nsaph/loader/data_loader.py) 
+Module [data_loader](doc/members/data_loader.rst) 
 Implements parallel loading data into a PostgreSQL database.
 It is also responsible for loading DDL and creation of view, 
 both virtual and materialized.
 
-Module [index_builder](src/python/nsaph/loader/index_builder.py)
+Module [index_builder](doc/members/index_builder.rst)
 is a utility to build indices and monitor the build progress.
-
 
 ##### Subpackage to describe and implement user requests [Incomplete]
 
@@ -175,11 +175,11 @@ Package `nsaph.requests` contains some code that is
 intended to be used for fulfilling user requests. Its 
 development is currently put on hold.
 
-Module [hdf5_export](src/python/nsaph/requests/hdf5_export.py) exports
+Module [hdf5_export](doc/members/hdf5_export.rst) exports
 result of SQL query as an HDF5 file. The structure of the HDF5 is
 described by a YAML request definition. 
 
-Module [query](src/python/nsaph/requests/query.py) generates SQL query
+Module [query](doc/members/query.rst) generates SQL query
 from a YAML request definition.
 
 ##### Subpackage with miscellaneous utilities
@@ -189,16 +189,16 @@ from a YAML request definition.
 Package `nsaph.util` contains: 
 
 * Support for packaging [resources](#resources)
-  in two modules [resources](src/python/nsaph/util/resources.py) 
-  and [pg_json_dump](src/python/nsaph/util/pg_json_dump.py). The 
+  in two modules [resources](doc/members/resources.rst) 
+  and [pg_json_dump](doc/members/pg_json_dump.rst). The 
   latter module imports and exports PostgreSQL (pg) tables
   as JSONLines format.
-* Module [net](src/python/nsaph/util/net.py) contains
+* Module [net](doc/members/net.rst) contains
   one method resolving host to `localhost`. This method is
   required by Airflow.
-* Module [executors](src/python/nsaph/util/executors.py) 
+* Module [executors](doc/members/executors.rst) 
   implements a  
-  [ThreadPoolExecutor](https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor)
+  [ThreadPoolExecutor](https://docs.rstthon.org/3/library/concurrent.futures.html#threadpoolexecutor)
   with a bounded queue. It is used to prevent out of memory (OOM)
   errors when processing huge files (to prevent loading
   the whole file into memory before dispatching it for processing).
@@ -217,8 +217,8 @@ Beside data model files, there are YAML files for:
   into corresponding pipeline repositories. 
 * Sample user requests for future downstream pipelines
   that create user workspaces from the database. File 
-  [example_request.yml](src/yml/example_request.yaml) is used by
-  [sample request handler](src/python/nsaph/requests/hdf5_export.py)
+  [example_request.yml](doc/members/example_request.yaml.rst) is used by
+  [sample request handler](doc/members/hdf5_export.rst)
 
 ### Resources
 
@@ -236,25 +236,25 @@ is built. Support for packaging resources during development and
 after a package is deployed is provided by 
 [resources](src/python/nsaph/util/resources.py) module.
 
-Another module, [pg_json_dump](src/python/nsaph/util/pg_json_dump.py),
+Another module, [pg_json_dump](doc/members/pg_json_dump.rst),
 provides support for packaging tables as resources in JSONLines
 format. This format is used natively by some DBMSs.
 
-### SQL and PL/pgSQL Utilities
+### SQL Utilities
 
 Utilities, implementing the following: 
 
-* [Functions](src/sql/utils.sql):
+* [Functions](doc/members/utils.sql.md):
     * Counting rows in tables
     * Finding a name of the column that contains year from most tables used
         in data platform
     * Creating a hash for [HLL aggregations](https://en.wikipedia.org/wiki/HyperLogLog)
 * Procedure:
-    * [A procedure](src/sql/utils.sql) granting `SELECT` privileges 
+    * [A procedure](doc/members/utils.sql.md) granting `SELECT` privileges 
       to a user on all NSAPH tables
-    * [A procedure to rename indices](src/sql/rename_indices.sql)
+    * [A procedure to rename indices](doc/members/rename_indices.sql.rst)
 * Set of SQL statements 
-    [to map tables from another database](src/sql/map_to_foreign_database.ddl)
+    [to map tables from another database](doc/members/map_to_foreign_database.ddl.rst)
     This can be used to map public tables available to anybody
     to a more secure database, containing health data
 

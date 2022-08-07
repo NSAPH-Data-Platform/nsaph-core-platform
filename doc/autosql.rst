@@ -2,4 +2,4 @@ SQL Documentation
 ^^^^^^^^^^^^^^^^^
 
 .. autosql::
-    :sqlsource: ../src/sql
+    :sqlsource: src/sql
