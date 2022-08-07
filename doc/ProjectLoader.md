@@ -104,7 +104,7 @@ via an API call.
 ## Dry runs (introspect only)
 
 To just introspect files in a directory and generate YAML schema for
-the project (see [domain schema specification](Datamodels.md) for 
+the project (see [domain schema specification](Datamodels.rst) for 
 the description of the format) without modifications in the database, 
 use dry run. On the command line, just give `--dryrun` option.
 

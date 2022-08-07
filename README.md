@@ -127,7 +127,7 @@ by generating appropriate DDL.
 Version 2 focuses on generating code required to do the 
 actual processing. The main concept is a knowledge domain, or 
 just a domain. Domain model is define in a YAML file as
-described in the [documentation](doc/Datamodels.md). The main
+described in the [documentation](doc/Datamodels.rst). The main
 module that processes the YAML definition of the domain
 is [domain.py](doc/members/domain.rst). Another
 module, [inserter](doc/members/inserter.rst)

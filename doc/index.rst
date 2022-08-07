@@ -8,17 +8,16 @@ NSAPH Core Data Platform
    :caption: Contents:
 
    README
-   doc/Datamodels
-   doc/DataLoader
-   doc/ProjectLoader
-   doc/TerritorialCodes
-   doc/SampleQuery
-   doc/UserRequests
-   doc/autosql
+   Datamodels
+   DataLoader
+   ProjectLoader
+   TerritorialCodes
+   SampleQuery
+   UserRequests
+   autosql
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`

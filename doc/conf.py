@@ -14,8 +14,8 @@ import os
 import sys
 from nsaph_utils.docutils.codeurl import URLDomain
 
-sys.path.insert(0, os.path.abspath('src/python'))
-sys.path.insert(0, os.path.abspath('src/sql'))
+sys.path.insert(0, os.path.abspath('../src/python'))
+sys.path.insert(0, os.path.abspath('../src/sql'))
 add_module_names = False
 autoclass_content = 'both'
 autodoc_member_order = 'bysource'
@@ -44,10 +44,9 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx_paramlinks',
     'sphinx.ext.autosectionlabel',
-    'nsaph_utils.docutils.recommonmark',
-    # 'myst_parser',
+    # 'nsaph_utils.docutils.recommonmark',
+    # # 'myst_parser',
     'sphinx_sql.sphinx_sql',
-    'sphinx_markdown_tables'
 ]
 
 myst_heading_anchors = 5
