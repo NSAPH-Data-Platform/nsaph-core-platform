@@ -14,7 +14,7 @@ NSAPH Core Data Platform
    TerritorialCodes
    SampleQuery
    UserRequests
-   autosql
+   SQLDocumentation
 
 Indices and tables
 ==================

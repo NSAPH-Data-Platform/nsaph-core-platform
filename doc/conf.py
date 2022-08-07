@@ -44,9 +44,6 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx_paramlinks',
     'sphinx.ext.autosectionlabel',
-    # 'nsaph_utils.docutils.recommonmark',
-    # # 'myst_parser',
-    'sphinx_sql.sphinx_sql',
 ]
 
 myst_heading_anchors = 5

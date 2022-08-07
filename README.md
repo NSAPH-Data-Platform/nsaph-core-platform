@@ -244,13 +244,13 @@ format. This format is used natively by some DBMSs.
 
 Utilities, implementing the following: 
 
-* [Functions](doc/members/utils.sql.md):
+* [Functions](doc/members/utils.sql.rst):
     * Counting rows in tables
     * Finding a name of the column that contains year from most tables used
         in data platform
     * Creating a hash for [HLL aggregations](https://en.wikipedia.org/wiki/HyperLogLog)
 * Procedure:
-    * [A procedure](doc/members/utils.sql.md) granting `SELECT` privileges 
+    * [A procedure](doc/members/utils.sql.rst) granting `SELECT` privileges 
       to a user on all NSAPH tables
     * [A procedure to rename indices](doc/members/rename_indices.sql.rst)
 * Set of SQL statements 
