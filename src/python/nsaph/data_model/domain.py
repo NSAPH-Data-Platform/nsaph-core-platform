@@ -528,7 +528,12 @@ class Domain:
             src = frm
         )
         if limit is not None:
-            sql += "LIMIT {:d}".format(limit)
+            if isinstance(limit, int):
+                sql += "LIMIT {:d}".format(limit)
+            elif isinstance(limit, str):
+                sql += "WHERE " + limit
+            else:
+                raise ValueError("Unsupported limit: " + str(limit))
         sql += ";\n"
         return sql
 

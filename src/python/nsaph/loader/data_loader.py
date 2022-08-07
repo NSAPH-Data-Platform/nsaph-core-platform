@@ -200,8 +200,11 @@ class DataLoader(LoaderBase):
             IndexBuilder.drop_all(connxn, schema, act = act)
 
     def run(self):
-        if self.context.data and self.context.action is None:
-            self.context.action = DataLoaderAction.load
+        if self.context.action is None:
+            if self.context.data:
+                self.context.action = DataLoaderAction.load
+            else:
+                self.context.action = DataLoaderAction.print
         if self.context.action == DataLoaderAction.drop:
             self.drop()
             return

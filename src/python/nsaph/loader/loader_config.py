@@ -49,6 +49,13 @@ class DataLoaderAction(Enum):
     insert = "insert"
     print = "print"
 
+    @classmethod
+    def new(cls, value: str):
+        if value is None:
+            return None
+        return cls(value)
+    #default = "default"
+
 
 class LoaderConfig(CommonConfig):
     """
@@ -59,7 +66,7 @@ class LoaderConfig(CommonConfig):
         "action",
         help = "Action to perform",
         type = str,
-        default="load",
+        required=False,
         valid_values = [v.value for v in DataLoaderAction]
     )
 
@@ -121,7 +128,7 @@ class LoaderConfig(CommonConfig):
         "limit",
         help = "Load at most specified number of records",
         required = False,
-        type = int
+        type = str
     )
 
     _buffer = Argument(
@@ -203,7 +210,7 @@ class LoaderConfig(CommonConfig):
         if attr == self._parallelization.name:
             return Parallelization(value)
         if attr == self._action.name:
-            return DataLoaderAction(value)
+            return DataLoaderAction.new(value)
         return value
 
 
