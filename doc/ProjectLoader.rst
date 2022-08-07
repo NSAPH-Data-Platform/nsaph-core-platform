@@ -1,18 +1,13 @@
-# Project (Directory) Loading Utility
+Project (Directory) Loading Utility
+===================================
 
-<!-- toc -->
+.. contents::
+    :local:
 
-- [Overview](#overview)
-- [Configuration options](#configuration-options)
-- [Usage from command line](#usage-from-command-line)
-- [Dry runs (introspect only)](#dry-runs-introspect-only)
-- [API Usage](#api-usage)
+Overview
+--------
 
-<!-- tocstop -->
-
-## Overview
-
-[Project Loader](members/project_loader.rst) 
+:doc:`Project Loader <members/project_loader>`
 is a command line tool to introspect and ingest into a database
 a directory, containing CSV (or CSV-like, e.g. FST, JSON, SAS, etc.) files.
 The directory can be structured, e.g. have nested subdirectories. All files
@@ -23,19 +18,23 @@ In the database, a schema is crated based on the given project name.
 For each file in the data set a table is created. The name
 of the table is constructed from the relative path of the
 incoming data file with OS path separators (e.g. '/') being
-replaced with underscores ('_'). 
-                                 
-Loading into the database is performed using 
-[Data Loader](members/data_loader.rst) functionality.
+replaced with underscores ('_').
 
-## Configuration options
+Loading into the database is performed using
+:doc:`Data Loader <members/data_loader>` functionality.
 
-Configuration options are provided by 
-[LoaderConfig](members/loader_config.rst) object.
+Configuration options
+---------------------
+
+Configuration options are provided by
+:doc:`LoaderConfig <members/loader_config>` object.
 Usually, they are provided as command line arguments but can also be provided
 via an API call.
 
-## Usage from command line
+Usage from command line
+-----------------------
+
+.. code-block::
 
     python -u -m nsaph.loader.project_loader
         [-h] [--drop]
@@ -58,7 +57,7 @@ via an API call.
         [--table TABLE]
         --domain DOMAIN
         [--registry REGISTRY]
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       --drop                Drops domain schema, default: False
@@ -70,7 +69,7 @@ via an API call.
                             None
       --pattern PATTERN [PATTERN ...]
                             pattern for files in a directory or an archive, e.g.
-                            "**/maxdata_*_ps_*.csv", default: None
+                            `**/maxdata_*_ps_*.csv`, default: None
       --reset               Force recreating table(s) if it/they already exist,
                             default: False
       --incremental         Commit every file and skip over files that have
@@ -99,22 +98,28 @@ via an API call.
       --registry REGISTRY   Path to domain registry. Registry is a directory or an
                             archive containing YAML files with domain definition.
                             Default is to use the built-in registry, default: None
-   
 
-## Dry runs (introspect only)
+
+Dry runs (introspect only)
+--------------------------
 
 To just introspect files in a directory and generate YAML schema for
-the project (see [domain schema specification](Datamodels.rst) for 
-the description of the format) without modifications in the database, 
-use dry run. On the command line, just give `--dryrun` option.
+the project (see :doc:`domain schema specification <Datamodels>` for
+the description of the format) without modifications in the database,
+use dry run. On the command line, just give :code:`--dryrun` option.
 
-## API Usage
+API Usage
+---------
 Example of API usage retrieving command line arguments:
+
+.. code-block:: python
 
     loader = ProjectLoader()
     loader.run()
-                           
+
 More advanced usage:
+
+.. code-block:: python
 
     config = LoaderConfig(__doc__).instantiate()
     config.pattern = "**/*.csv.gz"

@@ -259,4 +259,4 @@ Utilities, implementing the following:
     to a more secure database, containing health data
 
 Utilities used to map territorial codes are described in 
-[this document](doc/TerritorialCodes.md)
+[this document](doc/TerritorialCodes.rst)
