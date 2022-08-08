@@ -91,6 +91,27 @@ The following parameters can be defined for a table:
 +--------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------+
 | invalid.records    | no        | :ref:`action <Invalid Record>` to be performed upon encountering an invalid record (corrupted, incomplete, duplicate, etc.)                 |
 +--------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------+
+|create              | no        | If the table or view should be created from existing database objects, see :ref:`detailed description <Create statement>`                   |
++--------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------+
+
+Create statement
+^^^^^^^^^^^^^^^^
+
+Describes how a table or a view should be created.
+
++--------------------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Parameter          | Required?                   | Description                                                                                                                                                                                                                                         |
++====================+=============================+=====================================================================================================================================================================================================================================================+
+|type                | no                          | view / table                                                                                                                                                                                                                                        |
++--------------------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|select              | no                          | columns to put in :code:`SELECT` clause of CREATE statement                                                                                                                                                                                         |
++--------------------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|from                | no                          |  What to put into :code:`FROM` clause                                                                                                                                                                                                               |
++--------------------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|group by            | no                          | What to put into :code:`GROUP BY` clause                                                                                                                                                                                                            |
++--------------------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|populate            | no, default is :code:`True` | If :code:`False`, then a condition that can never be satisfied will be added as :code:`WHERE` clause, ehnce an empty table will be created that can be populated later. This is mostly used when additional triggers needed for population process. |
++--------------------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 Invalid Record
 ^^^^^^^^^^^^^^
@@ -176,18 +197,18 @@ or another deterministic expression **inside the database**.
 
 From `PostgreSQL Documentation <https://www.postgresql.org/docs/current/ddl-generated-columns.html>`_:
 
-> Theoretically, generated columns are for columns
-what a view is for tables. There are two kinds of
-generated columns: stored and virtual. A stored
-generated column is computed when it is written
-(inserted or updated) and occupies storage as if
-it were a normal column. A virtual generated column
-occupies no storage and is computed when it is read.
-Thus, a virtual generated column is similar to a
-view and a stored generated column is similar to a
-materialized view (except that it is always updated automatically).
+    Theoretically, generated columns are for columns
+    what a view is for tables. There are two kinds of
+    generated columns: stored and virtual. A stored
+    generated column is computed when it is written
+    (inserted or updated) and occupies storage as if
+    it were a normal column. A virtual generated column
+    occupies no storage and is computed when it is read.
+    Thus, a virtual generated column is similar to a
+    view and a stored generated column is similar to a
+    materialized view (except that it is always updated automatically).
 
->However, **PostgreSQL currently implements only STORED generated columns**.
+    However, **PostgreSQL currently implements only STORED generated columns**.
 
 Computed columns
 ^^^^^^^^^^^^^^^^
@@ -293,7 +314,7 @@ Database includes a table with codes for US states. It is taken from:
 
 https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/technical/nra/nri/results/?cid=nrcs143_013696
 
-The data leaves locally in [fips.py](members/fips.rst)
+The data leaves locally in :doc:`fips.py <members/fips>`
 
 County codes:
 

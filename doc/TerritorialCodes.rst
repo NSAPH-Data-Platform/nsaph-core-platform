@@ -65,6 +65,6 @@ Functions
     zip code in the given year, :code:`false` otherwise. In particular this function
     return :code:`false` if a :code:`year` is missing from mapping files.
 * :code:`public.validate_zip_fips(zip int, fips2 varchar, fips3 varchar) RETURNS bool`
-    returns true if a given combination of teh codes is a valid combination,
+    returns true if a given combination of the codes is a valid combination,
     i.e. if there are places that in the given state and county that have the
     given zip code.
