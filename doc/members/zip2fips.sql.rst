@@ -1,3 +1,5 @@
+:orphan:
+
 SQL to create direct ZIP => FIPS lookup table and helper functions
 ==================================================================
 

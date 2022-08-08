@@ -1,3 +1,5 @@
+:orphan:
+
 A procedure to rename indices
 =============================
 

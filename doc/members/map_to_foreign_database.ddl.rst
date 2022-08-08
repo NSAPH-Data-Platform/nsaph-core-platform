@@ -1,3 +1,5 @@
+:orphan:
+
 Set of SQL statements to map tables from another database
 =========================================================
 
