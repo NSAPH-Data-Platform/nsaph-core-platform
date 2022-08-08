@@ -83,7 +83,7 @@ def find_tables(column: str, tables: Dict) -> List[str]:
         return result
     if children:
         return find_tables(column, children)
-    raise Exception("Column named {} is not found in any of teh defined tables"
+    raise Exception("Column named {} is not found in any of the defined tables"
                     .format(column))
 
 

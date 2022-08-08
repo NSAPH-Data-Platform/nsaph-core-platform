@@ -30,6 +30,8 @@ database schema.
 #
 
 from enum import Enum
+from typing import Optional
+
 from nsaph_utils.utils.context import Context, Argument, Cardinality
 
 from nsaph.loader.common import CommonConfig
@@ -41,16 +43,31 @@ class Parallelization(Enum):
     none = "none"
 
 
+class DataLoaderAction(Enum):
+    drop = "drop"
+    load = "load"
+    insert = "insert"
+    print = "print"
+
+    @classmethod
+    def new(cls, value: str):
+        if value is None:
+            return None
+        return cls(value)
+    #default = "default"
+
+
 class LoaderConfig(CommonConfig):
     """
         Configurator class for data loader
     """
 
-    _drop = Argument(
-        "drop",
-        help = "Drops domain schema",
-        type = bool,
-        default=False
+    _action = Argument(
+        "action",
+        help = "Action to perform",
+        type = str,
+        required=False,
+        valid_values = [v.value for v in DataLoaderAction]
     )
 
     _data = Argument("data",
@@ -111,7 +128,7 @@ class LoaderConfig(CommonConfig):
         "limit",
         help = "Load at most specified number of records",
         required = False,
-        type = int
+        type = str
     )
 
     _buffer = Argument(
@@ -137,7 +154,7 @@ class LoaderConfig(CommonConfig):
     )
 
     def __init__(self, doc):
-        self.drop: bool = False
+        self.action: Optional[DataLoaderAction] = None
         """ 
         If this option is given, then the whole domain schema will be dropped
         """
@@ -192,6 +209,8 @@ class LoaderConfig(CommonConfig):
         value = super().validate(attr, value)
         if attr == self._parallelization.name:
             return Parallelization(value)
+        if attr == self._action.name:
+            return DataLoaderAction.new(value)
         return value
 
 

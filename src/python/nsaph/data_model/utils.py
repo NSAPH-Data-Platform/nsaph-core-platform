@@ -48,6 +48,8 @@ def split(node) -> (str, dict):
         name = entry
         break
     node = node[name]
+    if node is None:
+        return name, {}
     if isinstance(node, str):
         node = {"type": node}
     if not isinstance(node, dict):
@@ -61,7 +63,7 @@ def basename(table):
     returns just a basename of a table
 
     :param table: a fully qualified table name
-    :return: just the base name of the table, a piece of name after teh last dot
+    :return: just the base name of the table, a piece of name after the last dot
     """
     return table.split('.')[-1]
 

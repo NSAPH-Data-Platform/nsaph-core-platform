@@ -133,7 +133,7 @@ class IndexBuilder(LoaderBase):
             self.drop_all(connection, schema, table)
 
     @classmethod
-    def drop_all (cls, connection, schema: str, table: str = None):
+    def drop_all (cls, connection, schema: str, table: str = None, act = True):
         query = """
         SELECT 
             i.relname, 
@@ -156,7 +156,8 @@ class IndexBuilder(LoaderBase):
             for index in indices:
                 sql = "DROP INDEX {}.{}".format(schema, index)
                 logging.info(sql)
-                cursor.execute(sql)
+                if act:
+                    cursor.execute(sql)
         return
 
 

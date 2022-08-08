@@ -27,12 +27,12 @@ See
 
 import logging
 import re
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Set
 
 import copy
 
 import sqlparse
-from sqlparse.sql import Identifier, IdentifierList
+from sqlparse.sql import Identifier, IdentifierList, Token
 from sqlparse.tokens import Wildcard
 
 from nsaph_utils.utils.io_utils import as_dict
@@ -435,12 +435,49 @@ class Domain:
             action = validation["action"].lower()
             t2 = self.spillover_table(table_basename, definition)
             if t2:
-                ff = [f for f in features if "CONSTRAINT" not in f and "PRIMARY KEY" not in f]
+                if is_select_from:
+                    ff = [
+                        self.column_spec(column)
+                        for column in columns
+                    ]
+                else:
+                    ff = [
+                        f for f in features
+                            if "CONSTRAINT" not in f and "PRIMARY KEY" not in f
+                    ]
                 ff.append("REASON VARCHAR(16)")
                 ff.append("recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ")
                 create_table = self.create_table(t2) + \
                     " (\n\t{features}\n);".format(features=",\n\t".join(ff))
                 self.append_ddl(table, create_table)
+                ddl, _ = self.get_index_ddl(t2, "REASON")
+                self.add_index_by_ddl(table, ddl)
+                for column in columns:
+                    if not self.need_index(column):
+                        continue
+                    column_name, column_def = split(column)
+                    index_name = "{}_audit_{}".format(
+                        table_basename, column_name
+                    )
+                    c = {
+                        column_name: {
+                            "index": index_name
+                        }
+                    }
+                    ddl, _ = self.get_index_ddl(t2, c)
+                    self.add_index_by_ddl(table, ddl)
+                    index_def = {
+                        "columns": [
+                            "REASON",
+                            column_name
+                        ]
+                    }
+                    index_name = "audit_REASON_{}".format(column_name)
+                    ddl = self.get_multi_column_index_ddl(t2,
+                                                          index_name,
+                                                          index_def
+                    )
+                    self.add_index_by_ddl(table, ddl)
             self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
 
         if object_type != "view":
@@ -451,10 +488,7 @@ class Domain:
                 if onload:
                     self.append_ddl(table, ddl)
                 else:
-                    self.indices.append(ddl)
-                    if table not in self.indices_by_table:
-                        self.indices_by_table[table] = []
-                    self.indices_by_table[table].append(ddl)
+                    self.add_index_by_ddl(table, ddl)
 
         if "indices" in definition:
             indices = definition["indices"]
@@ -472,6 +506,37 @@ class Domain:
             for child in children:
                 self.ddl_for_node((child, children[child]), parent=node)
 
+    def generate_insert_from_select(self, table: str, limit: int = None) -> str:
+        definition = self.find(table)
+        if "create" not in definition:
+            raise ValueError("No create clause for table " + table)
+        create = definition["create"]
+        if "from" not in create:
+            raise ValueError("No from clause for table " + table)
+        frm = self.fqn(create["from"])
+        if "select" in create:
+            lines = [
+                '\t' + line
+                for line in create["select"].strip().split('\n')
+            ]
+            select = '\n'.join(lines)
+        else:
+            select = "\t*"
+        sql = "INSERT INTO {target}\nSELECT\n{select}\nFROM {src}\n".format(
+            target = self.fqn(table),
+            select = select,
+            src = frm
+        )
+        if limit is not None:
+            if isinstance(limit, int):
+                sql += "LIMIT {:d}".format(limit)
+            elif isinstance(limit, str):
+                sql += "WHERE " + limit
+            else:
+                raise ValueError("Unsupported limit: " + str(limit))
+        sql += ";\n"
+        return sql
+
     def create_object_from(self, table, definition, features, obj_type) -> str:
         create = definition["create"]
         frm = self.fqn(create["from"])
@@ -479,11 +544,16 @@ class Domain:
             select = create["select"].strip()
         else:
             select = "*"
-        create_table = "CREATE {} {} AS SELECT {} FROM {};\n".format(
+        if "populate" in create and create["populate"] is False:
+            condition = "WHERE 1 = 0"
+        else:
+            condition = ""
+        create_table = "CREATE {} {} AS SELECT {} \nFROM {}\n{};\n".format(
             obj_type,
             table,
             select,
-            frm
+            frm,
+            condition
         )
         for feature in features:
             if not is_constraint(feature):
@@ -496,27 +566,7 @@ class Domain:
         pdef = self.find(create["from"])
         selected_columns = self.get_select_from(definition)
         if selected_columns is not None:
-            has_wildcard = any([
-                i.ttype == Wildcard or (
-                    isinstance(i, Identifier) and i.is_wildcard()
-                )
-                for i in selected_columns
-            ])
-            cc = []
-            for c in self.get_columns(pdef):
-                cname, col = split(c)
-                identifiers = [
-                    i for i in selected_columns
-                    if isinstance(i, Identifier) and i.get_real_name() == cname
-                ]
-                if identifiers:
-                    sql_id = identifiers[0]
-                    if cname == sql_id.get_name():
-                        cc.append(c)
-                    else:
-                        cc.append({sql_id.get_name(): col})
-                elif has_wildcard:
-                    cc.append(c)
+            cc = self.map_selected_columns(selected_columns, definition, pdef)
         else:
             cc = self.get_columns(pdef)
         if "columns" in definition:
@@ -524,6 +574,44 @@ class Domain:
         else:
             definition["columns"] = cc
         return create_table
+
+    def map_selected_columns(self, selected_columns: List[Identifier],
+                             cdef: Dict, pdef: Dict) -> List[Dict]:
+        has_wildcard = any([
+            i.ttype == Wildcard or (
+                isinstance(i, Identifier) and i.is_wildcard()
+            )
+            for i in selected_columns
+        ])
+        cc = []
+        pcc = set()
+        parent_columns = self.get_columns_as_dict(pdef)
+        self_columns = self.get_columns_as_dict(cdef)
+        for c in selected_columns:
+            if isinstance(c, Identifier):
+                sql_id_name = c.get_name()
+                pc_name = c.get_real_name()
+            elif isinstance(c, Token) and c.value.lower() in ["file", "year"]:
+                sql_id_name = c.value
+                pc_name = c.value
+            else:
+                continue
+
+            if sql_id_name in self_columns:
+                #cc.append({sql_id_name: self_columns[sql_id_name]})
+                pass
+            elif pc_name in parent_columns:
+                cc.append({sql_id_name: parent_columns[pc_name]})
+                pcc.add(pc_name)
+            else:
+                cc.append(sql_id_name)
+
+        if has_wildcard:
+            for p_column in self.get_columns(pdef):
+                pc_name, pc_def = split(p_column)
+                if pc_name not in pcc:
+                    cc.append(p_column)
+        return cc
 
     def create_true_table(self, table, features) -> str:
         return self.create_table(table) + " (\n\t{features}\n);".format(
@@ -581,7 +669,16 @@ class Domain:
             method = method
         ), onload)
 
-    def add_index(self, table: str, name: str, definition: dict):
+    def add_index_by_ddl(self, table: str, ddl: str):
+        self.indices.append(ddl)
+        if table not in self.indices_by_table:
+            self.indices_by_table[table] = []
+        self.indices_by_table[table].append(ddl)
+
+    def get_multi_column_index_ddl(self,
+                                   table: str,
+                                   name: str,
+                                   definition: dict) -> str:
         if self.concurrent_indices:
             option = "CONCURRENTLY"
         else:
@@ -596,7 +693,7 @@ class Domain:
             pattern = UNIQUE_INDEX_DDL_PATTERN
         else:
             pattern = INDEX_DDL_PATTERN
-        ddl = pattern.format(
+        return pattern.format(
             name = INDEX_NAME_PATTERN.format(table = table.split('.')[-1],
                                              column = name),
             option = option,
@@ -604,10 +701,11 @@ class Domain:
             column = columns,
             method = method
         )
-        self.indices.append(ddl)
-        if table not in self.indices_by_table:
-            self.indices_by_table[table] = []
-        self.indices_by_table[table].append(ddl)
+
+    def add_index(self, table: str, name: str, definition: dict):
+        ddl = self.get_multi_column_index_ddl(table, name, definition)
+        self.add_index_by_ddl(table, ddl)
+        return
 
     @staticmethod
     def is_array(column) -> bool:
@@ -871,4 +969,13 @@ class Domain:
                     c["source"] = csource
                     columns.append({cname: c})
         return columns
+
+    @classmethod
+    def get_columns_as_dict(cls, definition: Dict) -> Dict:
+        columns = cls.get_columns(definition)
+        c_dict = dict()
+        for c in columns:
+            name, cdef = split(c)
+            c_dict[name] = cdef
+        return c_dict
 

@@ -60,6 +60,8 @@ class LoaderBase(ABC):
         if registry:
             if is_yaml_or_json(registry):
                 registry_path = registry
+                if not os.path.isfile(registry_path):
+                    raise ValueError("{} - is not a file".format(registry_path))
             elif not is_dir(registry):
                 raise ValueError("{} - is not a valid registry path".format(registry))
             elif os.path.isdir(registry):
