@@ -1,11 +1,8 @@
-NSAPH Data Loader
-=================
+# NSAPH Data Loader
 
-Usage
------
+## Usage
 
-.. code-block::
-
+```
     python -u -m nsaph.loader.data_loader [-h]
            [--data DATA [DATA ...]] [--pattern PATTERN [PATTERN ...]]
            [--reset] [--incremental] [--page PAGE] [--log LOG] [--limit LIMIT]
@@ -51,3 +48,4 @@ Usage
         --connection CONNECTION
                             Section in the database connection parameters file,
                             default: nsaph2
+```

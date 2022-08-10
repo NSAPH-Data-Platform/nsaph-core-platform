@@ -1,38 +1,40 @@
-NSAPH Core Data Platform
-==========================================================
+# NSAPH Core Data Platform
 
-`Documentation Home <https://nsaph-data-platform.github.io/nsaph-platform-docs/home.html>`_
+[Documentation Home](https://nsaph-data-platform.github.io/nsaph-platform-docs/home.html)
 
-.. toctree::
-   :maxdepth: 4
-   :hidden:
+```{toctree}
+---
+maxdepth: 4
+hidden: 
+---
+Datamodels
+DataLoader
+ProjectLoader
+TerritorialCodes
+SampleQuery
+UserRequests
+SQLDocumentation
+```
 
-   Datamodels
-   DataLoader
-   ProjectLoader
-   TerritorialCodes
-   SampleQuery
-   UserRequests
-   SQLDocumentation
+```{contents}
+---
+local:
+---
+```
 
-.. contents::
-    :local:
-
-Tool Examples
--------------
+## Tool Examples
 
 Examples of tools included in this package are:
 
-* :doc:`Universal Data Loader <members/data_loader>`
-* A :doc:`utility to monitor progress of long-running database <members/index>` processes like indexing.
-* A :doc:`utility to infer database schema and generate DDL <members/analyze>` from a CSV file
-* A :doc:`utility to link a table to GIS <members/link_gis>` from a CSV file
-* A :ref:`wrapper around database connection to PostgreSQL <Module Database Connection Wrapper>`
-* A :doc:`utility to import/export JSONLines <members/pg_json_dump>` files into/from PostgreSQL
-* An :doc:`Executor with a bounded queue <members/executors>`
+* [Universal Data Loader](members/data_loader)
+* A [utility to monitor progress of long-running database](members/index) processes like indexing.
+* A [utility to infer database schema and generate DDL](members/analyze) from a CSV file
+* A [utility to link a table to GIS](members/link_gis) from a CSV file
+* A [wrapper around database connection to PostgreSQL](#module-database-connection-wrapper)
+* A [utility to import/export JSONLines](members/pg_json_dump) files into/from PostgreSQL
+* An [Executor with a bounded queue](members/executors)
 
-Project Structure
------------------
+## Project Structure
 
 **The package is under intensive development, the project structure is in flux**
 
@@ -47,13 +49,12 @@ Doc directory contains documentation.
 Resource directory contains resources that must be loaded in
 the data platform for its normal functioning. For example,
 they contain mappings between US states, counties, fips and zip codes.
-See details in :ref:`Resources` section.
+See details in [Resources](#resources) section.
 
 Src directory contains software source code.
-See details in :ref:`Software Sources` section.
+See details in [Software Sources](#software-sources) section.
 
-Software Sources
-````````````````
+### Software Sources
 
 The directories under sources are:
 
@@ -83,24 +84,21 @@ Here is a brief overview:
 * **html** is a deprecated directory for HTML documents
 * **plpgsql** contains PostgreSQL procedures and functions
   implemented in PL/pgSQL language
-* **python** contains Python code. See :ref:`more details <Python packages>`.
+* **python** contains Python code. See [more details](#python-packages).
 * **r** contains R utilities. Probably will be deprecated
 * **superset** contains definitions of reusable Superset datasets and dashboards
 * **yml** contains various YAML files used by the platform.
 
-Python packages
-```````````````
+### Python packages
 
-NSAPH Package
-:::::::::::::
+#### NSAPH Package
 
 This is the main package containing the majority of the code.
-Modules and subpackages included in :code:`nsaph` package are described below.
+Modules and subpackages included in `nsaph` package are described below.
 
-Subpackage for Data Modelling
-.............................
+##### Subpackage for Data Modelling
 
-* :code:`nsaph.data_model`
+* `nsaph.data_model`
 
 Implements version 2 of the data modelling toolkit.
 
@@ -113,88 +111,84 @@ by generating appropriate DDL.
 Version 2 focuses on generating code required to do the
 actual processing. The main concept is a knowledge domain, or
 just a domain. Domain model is define in a YAML file as
-described in the :doc:`documentation <Datamodels>`. The main
+described in the [documentation](Datamodels). The main
 module that processes the YAML definition of the domain
-is :doc:`domain.py <members/domain>`. Another
-module, :doc:`inserter <members/inserter>`
+is [domain.py](members/domain). Another
+module, [inserter](members/inserter)
 handles parallel insertion of the data into domain tables.
 
 Auxiliary modules perform various maintenance tasks.
-Module :doc:`index_builder <members/index_builder>`
+Module [index_builder](members/index_builder)
 builds indices for a given tables or for all
 tables within a domain.
-Module :doc:`utils <members/utils>`
+Module [utils](members/utils)
 provides convenience function wrappers and defines
 class DataReader that abstracts reading CSV and FST files.
 In other words, DataReader provides uniform interface
 to reading columnar files in two (potentially more)
 different formats.
 
-Module Database Connection Wrapper
-..................................
+##### Module Database Connection Wrapper
 
-* :code:`nsaph.db`
+* `nsaph.db`
 
-Module :doc:`db <members/db>` is a PostgreSQL
+Module [db](members/db) is a PostgreSQL
 connection wrapper. It reads connection parameters from
-an :code:`ini` file and connects to the database. It can
+an `ini` file and connects to the database. It can
 transparently connect over **ssh tunnel** when required.
 
-Loader Subpackage
-.................
+##### Loader Subpackage
 
-* :code:`nsaph.loader`
+* `nsaph.loader`
 
 A set of utilities to manipulate data.
 
-Module :doc:`data_loader <members/data_loader>`
+Module [data_loader](members/data_loader)
 Implements parallel loading data into a PostgreSQL database.
 It is also responsible for loading DDL and creation of view,
 both virtual and materialized.
 
-Module :doc:`index_builder <members/index_builder>`
+Module [index_builder](members/index_builder)
 is a utility to build indices and monitor the build progress.
 
-Subpackage to describe and implement user requests [Incomplete]
-...............................................................
+##### Subpackage to describe and implement user requests [Incomplete]
 
-* :code:`nsaph.requests`
+* `nsaph.requests`
 
-Package :code:`nsaph.requests` contains some code that is
+Package `nsaph.requests` contains some code that is
 intended to be used for fulfilling user requests. Its
 development is currently put on hold.
 
-Module :doc:`hdf5_export <members/hdf5_export>` exports
+Module [hdf5_export](members/hdf5_export) exports
 result of SQL query as an HDF5 file. The structure of the HDF5 is
 described by a YAML request definition.
 
-Module :doc:`query <members/query>` generates SQL query
+Module [query](members/query) generates SQL query
 from a YAML request definition.
 
-Subpackage with miscellaneous utilities
-.......................................
+##### Subpackage with miscellaneous utilities
 
-* :code:`nsaph.util`
+* `nsaph.util`
 
-Package :code:`nsaph.util` contains:
+Package `nsaph.util` contains:
 
-* Support for packaging :ref:`resources <Resources>`
-  in two modules :doc:`resources <members/resources>`
-  and :doc:`pg_json_dump <members/pg_json_dump>`. The
+* Support for packaging [resources](#resources)
+  in two modules [resources](members/resources)
+  and [pg_json_dump](members/pg_json_dump). The
   latter module imports and exports PostgreSQL (pg) tables
   as JSONLines format.
-* Module :doc:`net <members/net>` contains
-  one method resolving host to :code:`localhost`. This method is
+* Module [net](members/net) contains
+  one method resolving host to `localhost`. This method is
   required by Airflow.
-* Module :doc:`executors <members/executors>`
+* Module [executors](members/executors)
   implements a
-  `ThreadPoolExecutor <https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor>`_
+  [ThreadPoolExecutor](https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor)
   with a bounded queue. It is used to prevent out of memory (OOM)
   errors when processing huge files (to prevent loading
   the whole file into memory before dispatching it for processing).
 
-YAML files
-``````````
+### YAML files
+
 The majority of files are data model definitions. For now, they
 are included in **nsaph** package because they are used by
 different utilities and thus, expected to be stored in
@@ -208,56 +202,53 @@ Beside data model files, there are YAML files for:
   into corresponding pipeline repositories.
 * Sample user requests for future downstream pipelines
   that create user workspaces from the database. File
-  :doc:`example_request.yml <members/example_request.yaml>` is used by
-  :doc:`sample request handler <members/hdf5_export>`
+  [example_request.yml](members/example_request.yaml) is used by
+  [sample request handler](members/hdf5_export)
 
-Resources
-`````````
+### Resources
 
 Resources are organized in the following way:
 
-.. code-block::
-
-    - ${database schema}/
-        - ddl file for ${resource1}
-        - content of ${resource1} in JSON Lines format (*.json.gz)
-        - ddl file for ${resource2}
-        - content of ${resource2} in JSON Lines format (*.json.gz)
+```
+- ${database schema}/
+    - ddl file for ${resource1}
+    - content of ${resource1} in JSON Lines format (*.json.gz)
+    - ddl file for ${resource2}
+    - content of ${resource2} in JSON Lines format (*.json.gz)
+```
 
 Resources can be packaged when a
-`wheel <https://pythonwheels.com/>`_
+[wheel](https://pythonwheels.com/)
 is built. Support for packaging resources during development and
 after a package is deployed is provided by
-:doc:`resources <members/resources>` module.
+[resources](members/resources) module.
 
-Another module, :doc:`pg_json_dump <members/pg_json_dump>`,
+Another module, [pg_json_dump](members/pg_json_dump),
 provides support for packaging tables as resources in JSONLines
 format. This format is used natively by some DBMSs.
 
-SQL Utilities
-`````````````
+### SQL Utilities
 
 Utilities, implementing the following:
 
-* :doc:`Functions <members/utils.sql>`:
+* [Functions](members/utils.sql):
     * Counting rows in tables
     * Finding a name of the column that contains year from most tables used in data platform
-    * Creating a hash for `HLL aggregations <https://en.wikipedia.org/wiki/HyperLogLog>`_
+    * Creating a hash for [HLL aggregations](https://en.wikipedia.org/wiki/HyperLogLog)
 * Procedure:
-    * :doc:`A procedure <members/utils.sql>` granting :code:`SELECT` privileges
+    * [A procedure](members/utils.sql) granting `SELECT` privileges
       to a user on all NSAPH tables
-    * :doc:`A procedure to rename indices <members/rename_indices.sql>`
+    * [A procedure to rename indices](members/rename_indices.sql)
 * Set of SQL statements:
-    :doc:`to map tables from another database <members/map_to_foreign_database.ddl>`
+    [to map tables from another database](members/map_to_foreign_database.ddl)
     This can be used to map public tables available to anybody
     to a more secure database, containing health data
 
 Utilities used to map territorial codes are described in
-:doc:`this document <TerritorialCodes>`
+[this document](TerritorialCodes)
 
 
-Indices and tables
-------------------
+## Indices and tables
 
-* :ref:`genindex`
-* :ref:`modindex`
+* [genindex](genindex)
+* [modindex](modindex)

@@ -85,6 +85,7 @@ setup(
         'marshmallow-sqlalchemy>=0.23.1',
         'mistune>=0.8.4',
         'mypy-extensions>=0.4.3',
+        'myst-parser',
         'natsort>=7.0.1',
 #       'netcdf',
         'networkx>=2.5',

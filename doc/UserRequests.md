@@ -1,11 +1,12 @@
-Preliminary Considerations for Handling User Requests
-=====================================================
+# Preliminary Considerations for Handling User Requests
 
-.. contents::
-    :local:
+```{contents}
+---
+local:
+---
+```
 
-Introduction
-------------
+## Introduction
 
 This document describes some considerations and
 a very preliminary format
@@ -14,12 +15,11 @@ possible implementations of exporting and packaging
 data.
 
 A very crude and basic
-:doc:`example <members/example_request.yaml>`
+[example](members/example_request.yaml)
 describes a request to export climate data for a set
 of places and dates.
 
-Structure
----------
+## Structure
 
  * **name**. This is a name of the request
  * **source**. Source of the request, it can indicate
@@ -38,7 +38,7 @@ Structure
    in the **source** section.
  * **restrict**. This section specifies filters to restrict
    the data included in the package. Each filter is specified
-   in the format :code:`variable: value | list of values`. If a
+   in the format `variable: value | list of values`. If a
    variable contains sub-variables (e.g., date has years,
    months, days, etc.). Then sub-variables and their values
    can be specified. Variables used in **restrict** section

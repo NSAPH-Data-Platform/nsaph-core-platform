@@ -1,13 +1,14 @@
-Project (Directory) Loading Utility
-===================================
+# Project (Directory) Loading Utility
 
-.. contents::
-    :local:
+```{contents}
+---
+local:
+---
+```
 
-Overview
---------
+## Overview
 
-:doc:`Project Loader <members/project_loader>`
+[Project Loader](members/project_loader)
 is a command line tool to introspect and ingest into a database
 a directory, containing CSV (or CSV-like, e.g. FST, JSON, SAS, etc.) files.
 The directory can be structured, e.g. have nested subdirectories. All files
@@ -21,21 +22,18 @@ incoming data file with OS path separators (e.g. '/') being
 replaced with underscores ('_').
 
 Loading into the database is performed using
-:doc:`Data Loader <members/data_loader>` functionality.
+[Data Loader](members/data_loader) functionality.
 
-Configuration options
----------------------
+## Configuration options
 
 Configuration options are provided by
-:doc:`LoaderConfig <members/loader_config>` object.
+[LoaderConfig](members/loader_config) object.
 Usually, they are provided as command line arguments but can also be provided
 via an API call.
 
-Usage from command line
------------------------
+## Usage from command line
 
-.. code-block::
-
+```
     python -u -m nsaph.loader.project_loader
         [-h] [--drop]
         [--data DATA [DATA ...]]
@@ -98,31 +96,29 @@ Usage from command line
       --registry REGISTRY   Path to domain registry. Registry is a directory or an
                             archive containing YAML files with domain definition.
                             Default is to use the built-in registry, default: None
+```
 
-
-Dry runs (introspect only)
---------------------------
+## Dry runs (introspect only)
 
 To just introspect files in a directory and generate YAML schema for
-the project (see :doc:`domain schema specification <Datamodels>` for
+the project (see [domain schema specification](Datamodels) for
 the description of the format) without modifications in the database,
 use dry run. On the command line, just give :code:`--dryrun` option.
 
-API Usage
----------
+## API Usage
+
 Example of API usage retrieving command line arguments:
 
-.. code-block:: python
-
+```python
     loader = ProjectLoader()
     loader.run()
+```
 
 More advanced usage:
 
-.. code-block:: python
-
+```python
     config = LoaderConfig(__doc__).instantiate()
     config.pattern = "**/*.csv.gz"
     loader = ProjectLoader(config)
     loader.run()
-
+```

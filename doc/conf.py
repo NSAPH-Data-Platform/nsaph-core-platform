@@ -44,14 +44,11 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx_paramlinks',
     'sphinx.ext.autosectionlabel',
+    'myst_parser',
 ]
 
 myst_heading_anchors = 5
-myst_ref_domains = ['nsaph']
-# myst_commonmark_only = True
 
-
-#html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
 
 # Add any paths that contain templates here, relative to this directory.
