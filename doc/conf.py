@@ -10,12 +10,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
-import sys
-from nsaph_utils.docutils.codeurl import URLDomain
 
-sys.path.insert(0, os.path.abspath('../src/python'))
-sys.path.insert(0, os.path.abspath('../src/sql'))
 add_module_names = False
 autoclass_content = 'both'
 autodoc_member_order = 'bysource'
@@ -58,7 +53,3 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '.nsaph', 'notes', 'venv']
-
-
-def setup(app):
-    app.add_domain(URLDomain)
