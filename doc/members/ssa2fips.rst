@@ -3,10 +3,9 @@
 
 :orphan:
 
-The adi Module
+The ssa2fips Module
 ============================================================================
 
-.. automodule:: nsaph.adi
+.. automodule:: nsaph.util.ssa2fips
    :members:
    :undoc-members:
-

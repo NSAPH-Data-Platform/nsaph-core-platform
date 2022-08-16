@@ -3,10 +3,9 @@
 
 :orphan:
 
-The adi Module
+The project_loader Module
 ============================================================================
 
-.. automodule:: nsaph.adi
+.. automodule:: nsaph.loader.project_loader
    :members:
    :undoc-members:
-

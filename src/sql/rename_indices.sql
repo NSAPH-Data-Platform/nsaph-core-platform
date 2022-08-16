@@ -17,6 +17,17 @@
 --  limitations under the License.
 --
 
+/*
+ Purpose:
+ An utility procedure aimed to rename indicies
+
+ Parameters:
+ schema_name | varchar | Target schema
+ table_name | varchar | Target table
+ what | varchar | An old index name
+ how | varchar | A new index name
+ */
+
 CREATE OR REPLACE PROCEDURE public.rename_indices(
         schema_name varchar,
         table_name varchar,
