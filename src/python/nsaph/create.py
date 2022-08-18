@@ -22,7 +22,7 @@ import argparse
 from nsaph import init_logging
 from nsaph.data_model.model import Table
 from nsaph.db import Connection
-from nsaph.reader import name, get_entries
+from nsaph_utils.utils.io_utils import get_entries, basename
 
 
 def create_table(table: Table, force: bool = False, db: str = None,
@@ -38,7 +38,7 @@ def create_table(table: Table, force: bool = False, db: str = None,
         cur = connection.cursor()
         table.create(cur)
         for e in entries:
-            print ("Adding: " + name(e))
+            print ("Adding: " + basename(e))
             table.add_data(cur, e)
         connection.commit()
 

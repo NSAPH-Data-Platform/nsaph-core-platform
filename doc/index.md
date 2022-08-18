@@ -34,7 +34,7 @@ Examples of tools included in this package are:
 * A [utility to import/export JSONLines](members/pg_json_dump) files into/from PostgreSQL
 * An [Executor with a bounded queue](members/executors)
 
-## Project Structure
+## Project Structure {#core-prj-struct}
 
 **The package is under intensive development, the project structure is in flux**
 
@@ -54,7 +54,7 @@ See details in [Resources](#resources) section.
 Src directory contains software source code.
 See details in [Software Sources](#software-sources) section.
 
-### Software Sources
+### Software Sources {#core-prj-sources}
 
 The directories under sources are:
 
@@ -248,7 +248,7 @@ Utilities used to map territorial codes are described in
 [this document](TerritorialCodes)
 
 
-## Indices and tables
+## Indices {#core-soft-idx}
 
 * [genindex](genindex)
 * [modindex](modindex)

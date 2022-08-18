@@ -8,7 +8,7 @@ local:
 ---
 ```
 
-## Introduction
+## Introduction to data modelling for NSAPH Data Platform
 
 Data models consist of database tables, relations between them
 (e.g. foreign keys), indices and conventions that govern things

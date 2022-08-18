@@ -51,7 +51,7 @@ All tables and functions are in schema "public".
 * `hud_zip2fips`
 * MATERIALIZED VIEW `public.zip2fips` for direct lookups
 
-### Functions
+### Functions {#territorial-codes-functions}
 
 * `public.zip_to_fips(year int, zip int) RETURNS int`
 * `public.zip_to_fips(year int, zip int) RETURNS varchar` - the same as
