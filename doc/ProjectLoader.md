@@ -6,7 +6,8 @@ local:
 ---
 ```
 
-## Overview {#project-loader-overview}
+(project-loader-overview)=
+## Overview 
 
 [Project Loader](members/project_loader)
 is a command line tool to introspect and ingest into a database

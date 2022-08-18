@@ -34,7 +34,8 @@ Examples of tools included in this package are:
 * A [utility to import/export JSONLines](members/pg_json_dump) files into/from PostgreSQL
 * An [Executor with a bounded queue](members/executors)
 
-## Project Structure {#core-prj-struct}
+(core-prj-struct)=
+## Project Structure 
 
 **The package is under intensive development, the project structure is in flux**
 
@@ -249,7 +250,8 @@ Utilities used to map territorial codes are described in
 [this document](TerritorialCodes)
 
 
-## Indices {#core-soft-idx}
+(core-soft-idx)=
+## Documentation Indices 
 
 * [genindex](genindex)
 * [modindex](modindex)
