@@ -54,7 +54,7 @@ See details in [Resources](#resources) section.
 Src directory contains software source code.
 See details in [Software Sources](#core-software-sources) section.
 
-(core-software-sources)
+(core-software-sources)=
 ### Software Sources 
 
 The directories under sources are:
