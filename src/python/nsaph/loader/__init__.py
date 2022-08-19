@@ -40,6 +40,13 @@ from nsaph.loader.monitor import DBActivityMonitor
 
 
 def diff(files: Iterable[str]) -> bool:
+    """
+    Given a list of files, check if they are all identical
+
+    :param files: a list of files
+    :return: True if all files in the list are identical one to another
+    """
+
     ff = list(files)
     for i in range(len(ff) - 1):
         ret = os.system("diff {} {}".format(ff[i], ff[i+1]))

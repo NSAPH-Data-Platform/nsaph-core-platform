@@ -7,6 +7,3 @@ Data loader base abstract API
    :members:
    :undoc-members:
 
-.. autoclass:: nsaph.loader.LoaderBase
-   :members:
-   :undoc-members:
