@@ -46,11 +46,11 @@ user=postgres
 password=*****
 
 [nsaph2]
-host=nsaph.rc.fas.harvard.edu
-database=nsaph2
-user=mbouzinier
+host=nsaph.cluster.uni.edu
+database=nsaph
+user=dbuser
 password=*********
-ssh_user=mbouzinier
+ssh_user=johndoe
 ```
 
 > Note that the first connection uses my local instance of PostgreSQL

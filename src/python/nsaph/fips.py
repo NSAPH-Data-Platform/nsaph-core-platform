@@ -1,12 +1,11 @@
-'''
-SELECT
-    state_id,
-    MIN(county_fips)/1000 AS fips
-FROM
-    public.us_iso
-GROUP BY state_id
-ORDER BY 2
-'''
+"""
+US State FIPS codes, represented as Python dictionary
+
+Source: https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/technical/nra/nri/results/?cid=nrcs143_013696
+
+Can be also used from command line to create JSON array of state FIPS codes
+"""
+
 #  Copyright (c) 2021. Harvard University
 #
 #  Developed by Research Software Engineering,
@@ -28,8 +27,15 @@ ORDER BY 2
 
 import json
 
-# Source: https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/technical/nra/nri/results/?cid=nrcs143_013696
-
+QUERY="""
+SELECT
+    state_id,
+    MIN(county_fips)/1000 AS fips
+FROM
+    public.us_iso
+GROUP BY state_id
+ORDER BY 2
+"""
 
 fips_list = [
     {"state_id":"AL", "fips":1},

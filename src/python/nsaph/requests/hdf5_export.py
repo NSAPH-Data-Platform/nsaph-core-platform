@@ -1,3 +1,7 @@
+"""
+A utility to export result of quering the database in HDF5 format
+"""
+
 #  Copyright (c) 2021. Harvard University
 #
 #  Developed by Research Software Engineering,
@@ -108,7 +112,17 @@ def store(parent, name:str, datasets: list, attrs):
         dataset.clear()
 
 
-def export(request: dict, rs: ResultSetDeprecated, path: str):
+def _export(request: dict, rs: ResultSetDeprecated, path: str):
+    """
+    Internal method. Use :func:export
+
+    :param request: A dictionary containing user request, normally the result
+        of parsed YAML file
+    :param rs: ResultSet obtained by executing the generated query
+    :param path:  Output path where to export HDF5 file
+    :return: None
+    """
+
     name = os.path.basename(path).split('.')[0]
     groups = None
     if "package" in request:
@@ -163,6 +177,28 @@ def export(request: dict, rs: ResultSetDeprecated, path: str):
         store(h5, str(row[groups[-1]]), datasets, attrs)
 
 
+def export(path_to_user_request: str, db_ini: str, connection_name: str):
+    """
+    Executes query specified by a user request and exports results
+    as HDF5 file
+
+    :param path_to_user_request: a path to YAML file containing user request
+        specification
+    :param db_ini: a path to database.ini file, containing connection
+        parameters
+    :param connection_name: section name in teh db.ini file
+
+    :return:
+    """
+
+    with Query(path_to_user_request, (db_ini, connection_name)) as q:
+        print(q.sql)
+        count = 0
+        rs = q.execute()
+        _export(q.request, rs, q.request["name"] + ".hdf5")
+    print("All done")
+
+
 if __name__ == '__main__':
     #init_logging()
     parser = argparse.ArgumentParser (description="Create table and load data")
@@ -184,9 +220,5 @@ if __name__ == '__main__':
         d = os.path.dirname(__file__)
         args.request = os.path.join(d, "../../../yml/example_request.yaml")
 
-    with Query(args.request, (args.db, args.section)) as q:
-        print(q.sql)
-        count = 0
-        rs = q.execute()
-        export(q.request, rs, q.request["name"] + ".hdf5")
+    export(args.request, args.db, args.section)
     print("All done")

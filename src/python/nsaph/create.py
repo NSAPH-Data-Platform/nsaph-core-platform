@@ -19,10 +19,15 @@
 
 import argparse
 
+from deprecated.sphinx import deprecated
+
 from nsaph import init_logging
 from nsaph.data_model.model import Table
 from nsaph.db import Connection
 from nsaph_utils.utils.io_utils import get_entries, basename
+
+
+@deprecated(reason="Use nsaph.loader.data_loader")
 
 
 def create_table(table: Table, force: bool = False, db: str = None,

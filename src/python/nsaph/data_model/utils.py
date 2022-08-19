@@ -1,3 +1,7 @@
+"""
+API used by data modelling and data loading utilities
+"""
+
 #  Copyright (c) 2021. Harvard University
 #
 #  Developed by Research Software Engineering,
@@ -69,6 +73,13 @@ def basename(table):
 
 
 def entry_to_path(entry: Any) -> str:
+    """
+    Returns valid path for an archive entry
+
+    :param entry: an archive entry or a path to file on the file system
+    :return: path within the arcjve or file system
+    """
+
     if isinstance(entry, tuple):
         path, _ = entry
         return path if isinstance(path, str) else path.name
@@ -76,6 +87,12 @@ def entry_to_path(entry: Any) -> str:
 
 
 class CSVLikeJsonReader:
+    """
+    Class, providing CSV Reader interface for JSON files.
+
+    Helps abstracting reading different file types.
+    """
+
     def __init__(self, path:str, columns: List, returns_mapping = False):
         self.path = path
         self.stream = None
@@ -115,6 +132,15 @@ class DataReader:
     """
     Generalized reader for columns-structured files, such as CSV, FST and
     sas7bdat
+
+    This class is Context manager and can be used with with block
+
+    Example::
+
+    with DataReader(file_path) as reader:
+        for row in reader.rows():
+            print(row)
+        
     """
 
     def __init__(self, path: str,

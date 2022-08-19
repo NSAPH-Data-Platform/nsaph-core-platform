@@ -1,3 +1,15 @@
+"""
+API to establish database connection
+
+Connection details and credentials are specified in
+database.ini file
+
+This module supports connecting via ssh tunnel.
+This happens automatically if the given section of
+database.ini contains ssh_user key.
+
+"""
+
 #  Copyright (c) 2021. Harvard University
 #
 #  Developed by Research Software Engineering,
@@ -24,6 +36,8 @@ import psycopg2
 import os
 import sshtunnel
 from configparser import ConfigParser
+
+from deprecated.sphinx import deprecated
 
 from nsaph import app_name
 
@@ -121,7 +135,7 @@ class Connection:
     def get_database_types(self):
         if not self.types:
             sql = "SELECT oid, typname from pg_catalog.pg_type"
-            cursor = self.connection.connections()
+            cursor = self.connection.cursor()
             cursor.execute(sql)
             rows = cursor.fetchall()
             self.types = {
@@ -159,6 +173,7 @@ def test_connection ():
     logging.info('Database connection closed.')
 
 
+@deprecated(reason="Use psycopg2.extras.RealDictCursor")
 class ResultSetDeprecated:
     SIZE = 10000
 

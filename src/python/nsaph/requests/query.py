@@ -1,3 +1,8 @@
+"""
+Utility to generate SQL query based on a YAML query specification
+"""
+
+
 #  Copyright (c) 2021. Harvard University
 #
 #  Developed by Research Software Engineering,
@@ -37,6 +42,10 @@ def fqn(t):
 
 
 class Query:
+    """
+    Class providing the API to generate SQL from a user request
+    """
+
     def __init__(self, user_request, connection):
         request = as_dict(user_request)
         src = Path(__file__).parents[3]
@@ -50,6 +59,8 @@ class Query:
             self.connection = Connection(*connection)
         self.cursor = None
         self.sql = None
+        '''Generated SQL'''
+
         self.metadata = None
 
     def execute(self):
@@ -57,9 +68,15 @@ class Query:
         return ResultSetDeprecated(cursor=self.cursor, metadata=self.metadata)
 
     def prepare(self):
+        """
+        Generates SQL. Result is stored as a class member sql
+
+        :return:  None
+        """
+
         connection = self.connection.connect()
         self.metadata = self.connection.get_database_types()
-        self.cursor = connection.connections()
+        self.cursor = connection.cursor()
         self.sql = generate(self.registry, self.request)
 
     def __enter__(self):
@@ -265,7 +282,7 @@ if __name__ == '__main__':
     init_logging()
     parser = argparse.ArgumentParser (description="Create table and load data")
     parser.add_argument("--request", "-r",
-                        help="Path to a table definition file for a table",
+                        help="Path to a YAML file containing user request",
                         default=None,
                         required=False)
     parser.add_argument("--db",

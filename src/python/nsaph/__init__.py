@@ -27,6 +27,14 @@ NSAPH_LOG = False
 
 
 def app_name() -> str:
+    """
+    Constructs application name. This application name can
+    be used to identify the application to teh database process
+    or in the log file
+
+    :return: A string, containing application name
+    """
+
     script = sys.argv[0]
     if script[0] == '-':
         script = None
@@ -43,6 +51,18 @@ def app_name() -> str:
 
 
 def init_logging(with_thread_id = False, name = None, level = logging.DEBUG):
+    """
+    Initializes logging. By default, log is written to a file and copied to
+    the standard output
+
+    :param with_thread_id: if True, then thread numerical id is added
+        to the log
+    :param name: name of the application to be used by logger. By default,
+        the name would be constructed by :func:app_name
+    :param level: Log level, default is DEBUG
+    :return:
+    """
+
     global NSAPH_LOG, NSAPH_APP_NAME
     if NSAPH_LOG:
         return

@@ -1,3 +1,5 @@
+
+
 #  Copyright (c) 2021. Harvard University
 #
 #  Developed by Research Software Engineering,
@@ -18,6 +20,7 @@
 #
 
 import argparse
+from deprecated.sphinx import deprecated
 
 from nsaph import init_logging
 from nsaph.data_model.model import Table
@@ -25,6 +28,8 @@ from nsaph.db import Connection
 
 ## Area Deprivation Index (ADI)
 ## https://www.neighborhoodatlas.medicine.wisc.edu/
+
+@deprecated(reason="We do not support automatic import of ADI dataset")
 
 def add_gis_columns(table: Table, db: str = None, section: str = None):
     with Connection(filename=db, section=section) as connection:
