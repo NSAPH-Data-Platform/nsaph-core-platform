@@ -27,7 +27,10 @@ from nsaph.db import Connection
 from nsaph_utils.utils.io_utils import get_entries, basename
 
 
-@deprecated(reason="Use nsaph.loader.data_loader")
+@deprecated(
+    reason="Use nsaph.loader.data_loader",
+    version="0.2"
+)
 
 
 def create_table(table: Table, force: bool = False, db: str = None,

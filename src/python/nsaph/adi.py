@@ -29,7 +29,10 @@ from nsaph.db import Connection
 ## Area Deprivation Index (ADI)
 ## https://www.neighborhoodatlas.medicine.wisc.edu/
 
-@deprecated(reason="We do not support automatic import of ADI dataset")
+@deprecated(
+    reason="We do not support automatic import of ADI dataset",
+    version="0.2"
+)
 
 def add_gis_columns(table: Table, db: str = None, section: str = None):
     with Connection(filename=db, section=section) as connection:

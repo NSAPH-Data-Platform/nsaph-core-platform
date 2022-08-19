@@ -173,7 +173,10 @@ def test_connection ():
     logging.info('Database connection closed.')
 
 
-@deprecated(reason="Use psycopg2.extras.RealDictCursor")
+@deprecated(
+    reason="Use psycopg2.extras.RealDictCursor",
+    version="0.2"
+)
 class ResultSetDeprecated:
     SIZE = 10000
 
