@@ -1,3 +1,7 @@
+"""
+A tool to print metadata of a SAS SAS7BDAT file
+"""
+
 #  Copyright (c) 2022. Harvard University
 #
 #  Developed by Research Software Engineering,

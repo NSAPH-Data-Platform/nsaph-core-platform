@@ -1,3 +1,7 @@
+"""
+A command line utility to import/export JSON files as database tables
+"""
+
 #  Copyright (c) 2021. Harvard University
 #
 #  Developed by Research Software Engineering,

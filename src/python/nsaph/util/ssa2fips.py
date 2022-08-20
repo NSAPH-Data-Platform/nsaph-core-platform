@@ -1,3 +1,13 @@
+"""
+Utility to create in-database mapping table between state and
+county codes used by SSA for Medicare claims and Federal Information
+Processing Series (FIPS) codes
+
+Data has been taken from National Bureau of Economic Research
+
+https://www.nber.org/research/data/ssa-federal-information-processing-series-fips-state-and-county-crosswalk
+"""
+
 #  Copyright (c) 2022. Harvard University
 #
 #  Developed by Research Software Engineering,
@@ -30,14 +40,6 @@ from nsaph.loader.common import DBConnectionConfig
 
 from nsaph_utils.utils.io_utils import as_csv_reader
 
-"""
-Utility to create in-database mapping table between state and 
-county codes used by SSA for Medicare claims and Federal Information 
-Processing Series (FIPS) codes 
-
-Data has been taken from
-[National Bureau of Economic Research](https://www.nber.org/research/data/ssa-federal-information-processing-series-fips-state-and-county-crosswalk)
-"""
 
 
 class SSAFile:

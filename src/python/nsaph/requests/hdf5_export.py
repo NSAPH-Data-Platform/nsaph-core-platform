@@ -186,7 +186,7 @@ def export(path_to_user_request: str, db_ini: str, connection_name: str):
         specification
     :param db_ini: a path to database.ini file, containing connection
         parameters
-    :param connection_name: section name in teh db.ini file
+    :param connection_name: section name in the db.ini file
 
     :return:
     """

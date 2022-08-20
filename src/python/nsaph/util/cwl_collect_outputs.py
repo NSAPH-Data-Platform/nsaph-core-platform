@@ -1,3 +1,8 @@
+"""
+Command line utility to copy outputs from
+a CWL tool or sub-workflow into the calling workflow
+
+"""
 #  Copyright (c) 2021. Harvard University
 #
 #  Developed by Research Software Engineering,

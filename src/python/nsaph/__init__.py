@@ -29,7 +29,7 @@ NSAPH_LOG = False
 def app_name() -> str:
     """
     Constructs application name. This application name can
-    be used to identify the application to teh database process
+    be used to identify the application to the database process
     or in the log file
 
     :return: A string, containing application name

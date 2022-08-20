@@ -231,7 +231,7 @@ index.
 
 Index definition can also include
 [index type](https://www.postgresql.org/docs/current/indexes-types.html)
-(e.g. btree, hash, etc.)  and data to be included with teh index.
+(e.g. btree, hash, etc.)  and data to be included with the index.
 
 ## Generation of the database schema (DDL)
 

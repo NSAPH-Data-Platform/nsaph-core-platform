@@ -31,12 +31,12 @@ Command line utilities to manipulate data
     Implements parallel loading and handling multiple file formats
   (CSV, FST, JSON, SAS, FWF)
 * [Project Loader](members/project_loader.rst) Recursively introspects and loads 
-    data directory into teh database
+    data directory into the database
 * [Index Builder](members/index_builder) Builds indices for a table or for all 
     tables in the data domain, reporting the progress
 * [Database Activity Monitor](members/monitor) API and command line utility
     to monitor database activity
-* [Vacuum](members/vacuum) Executes VACUUM command in teh database to tune
+* [Vacuum](members/vacuum) Executes VACUUM command in the database to tune
     tables for better query performance
 * [Common Configuration](members/common) Common configuration options
     for working with the database
@@ -54,4 +54,24 @@ Attempt to tackle User requests API. Incomplete work in progress
     based on a YAML query specification
 
 ## Package nsaph.utils
+
+Miscellaneous tools and APIs
+
+* [CWL Output collector](members/cwl_collect_outputs) Command line 
+    utility to copy outputs from a CWL tool or sub-workflow into 
+    the calling workflow
+* [Blocking Executor Pool](members/executors) Blocking executor pool to 
+    avoid memory overflow with long queues
+* [Localhost for Airflow](members/net) Overrides host resolver for Airflow, so
+    it can use localhost
+* [JSON to/from Table converter](members/pg_json_dump) A command line utility 
+    to import/export JSON files as database tables
+* [Resource finder](members/resources) An API to look for resources
+    in Python packages
+* [sas_explorer](members/sas_explorer) A tool to print metadata of a SAS 
+    SAS7BDAT file
+* [SSA to FIPS Mapping](members/ssa2fips) A utility to create in-database 
+    mapping table between SSA and FIPS codes 
+* [ZIP to FIPS mappings](members/zip2fips) A utility to download ZIP to 
+    FIPS mapping from HUD site
 
