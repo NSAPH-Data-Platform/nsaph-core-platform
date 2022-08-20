@@ -1,8 +1,8 @@
 # Python Core Platform Components 
 
-:::{seealso}
+```{seealso}
 [Python Module Index](modindex)
-:::
+```
  
 ## Package nsaph
 
@@ -75,3 +75,7 @@ Miscellaneous tools and APIs
 * [ZIP to FIPS mappings](members/zip2fips) A utility to download ZIP to 
     FIPS mapping from HUD site
 
+```{seealso}
+ [Python Module Index](modindex)
+```
+ 
