@@ -31,7 +31,7 @@ import re
 import sys
 import tarfile
 from collections import OrderedDict
-from typing import Dict, Callable, List, Union
+from typing import Dict, Callable, List, Union, Optional
 
 import numbers
 import yaml
@@ -50,7 +50,9 @@ PG_MAXINT = 2147483647
 integer = re.compile("-?\d+")
 float_number = re.compile("(-?\d*)\.(\d+)([e|E][-|+]?\d+)?")
 exponent = re.compile("(-?\d+)([e|E][-|+]?\d+)")
-date = re.compile("([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))")
+_date = "([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))"
+date = re.compile(_date)
+timestamp = re.compile(_date + "[T|t][0-9]{2}:[0-9]{2}")
 
 
 class Introspector:
@@ -127,6 +129,8 @@ class Introspector:
             raise Exception("No data in {}".format(self.file_path))
         m = len(rows)
         n = len(self.csv_columns)
+        scale = 0
+        precision = 0
         for c in range(0, n):
             c_type = None
             max_val = 0
@@ -140,11 +144,9 @@ class Introspector:
                 elif isinstance(v, float):
                     t = PG_NUMERIC_TYPE
                 elif isinstance(v, str):
-                    if date.fullmatch(v):
-                        t = "DATE"
-                    else:
-                        t = PG_STR_TYPE
-                        max_val = max(max_val, len(v))
+                    t, scale, precision, max_val = self.guess_str(
+                        v, None, scale, precision, max_val
+                    )
                 else:
                     raise ValueError(v)
                 try:
@@ -156,7 +158,7 @@ class Introspector:
                         .format(l - 1, c_type, l, t)
                     msg += "Value = {}".format(v)
                     raise Exception(msg)
-            self.types.append(self.db_type(c_type, max_val, None, None))
+            self.types.append(self.db_type(c_type, max_val, precision, scale))
         return
 
     @classmethod
@@ -282,9 +284,11 @@ class Introspector:
         ]
         return rows
 
-    def guess_str(self, v, v2, scale, precision, max_val):
-        if date.fullmatch(v):
-            t = "DATE"
+    def guess_str(self, v, v2: Optional[str], scale, precision, max_val):
+        if timestamp.fullmatch(v):
+            t = PG_TS_TYPE
+        elif date.fullmatch(v):
+            t = PG_DATE_TYPE
         elif v2 and v2 == '"{}"'.format(v):
             t = PG_STR_TYPE
             self.quoted_values = True
