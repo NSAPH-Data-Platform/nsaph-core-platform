@@ -36,6 +36,7 @@ class DBConnectionConfig(Context):
     )
 
     _db = Argument("db",
+        aliases=["database"],
         help = "Path to a database connection parameters file",
         type = str,
         default = "database.ini",
@@ -44,6 +45,7 @@ class DBConnectionConfig(Context):
 
     _connection = Argument(
         "connection",
+        aliases=["connection_name"],
         help = "Section in the database connection parameters file",
         type = str,
         default = "nsaph2",

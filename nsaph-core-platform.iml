@@ -5,7 +5,7 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/src/python" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.10 (nsaph, no conda)" jdkType="Python SDK" />
+    <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="nsaph-utils" />
   </component>

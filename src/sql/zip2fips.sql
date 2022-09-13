@@ -146,3 +146,43 @@ BEGIN
 END;
 $body$ LANGUAGE plpgsql
 ;
+
+CREATE OR REPLACE FUNCTION public.fips2state(
+    state_fips VARCHAR
+) RETURNS VARCHAR
+IMMUTABLE
+LANGUAGE plpgsql
+AS $body$
+DECLARE s VARCHAR;
+BEGIN
+    SELECT state_id FROM public.us_states WHERE fips2 = state_fips INTO s;
+    RETURN s;
+END;
+$body$
+;
+CREATE OR REPLACE FUNCTION public.fips2state(
+    state_fips INT
+) RETURNS VARCHAR
+IMMUTABLE
+LANGUAGE plpgsql
+AS $body$
+DECLARE s VARCHAR;
+BEGIN
+    SELECT state_id FROM public.us_states WHERE fips2 = btrim(to_char(state_fips, '00')) INTO s;
+    RETURN s;
+END;
+$body$
+;
+CREATE OR REPLACE FUNCTION public.fips2state_iso(
+    state_fips VARCHAR
+) RETURNS VARCHAR
+IMMUTABLE
+LANGUAGE plpgsql
+AS $body$
+DECLARE s VARCHAR;
+BEGIN
+    SELECT iso FROM public.us_states WHERE fips2 = state_fips INTO s;
+    RETURN s;
+END;
+$body$
+;
