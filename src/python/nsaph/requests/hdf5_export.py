@@ -210,7 +210,7 @@ if __name__ == '__main__':
                         help="Path to a database connection parameters file",
                         default="database.ini",
                         required=False)
-    parser.add_argument("--section",
+    parser.add_argument("--section", "--connection_name",
                         help="Section in the database connection parameters file",
                         default="postgresql",
                         required=False)
