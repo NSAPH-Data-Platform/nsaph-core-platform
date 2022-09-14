@@ -17,6 +17,8 @@
 --  limitations under the License.
 --
 
+CREATE EXTENSION IF NOT EXISTS  hll;
+
 CREATE OR REPLACE FUNCTION "public"."count_rows" (
     schema_name character varying, table_name character varying
 )  RETURNS bigint
@@ -24,8 +26,24 @@ CREATE OR REPLACE FUNCTION "public"."count_rows" (
 AS $body$
 DECLARE cnt bigint;
 BEGIN
-EXECUTE format('SELECT COUNT(*) FROM %I.%I', schema_name, table_name) into cnt;
-RETURN cnt;
+    EXECUTE format('SELECT COUNT(*) FROM %I.%I', schema_name, table_name) into cnt;
+    RETURN cnt;
+END;
+$body$ LANGUAGE plpgsql
+;
+
+CREATE OR REPLACE FUNCTION "public"."estimate_rows" (
+    schema_name character varying, table_name character varying
+)  RETURNS bigint
+  VOLATILE
+AS $body$
+DECLARE cnt bigint;
+BEGIN
+    SELECT reltuples::bigint
+        FROM pg_class
+        WHERE oid = (schema_name || '.' || table_name)::regclass
+        INTO cnt;
+    RETURN cnt;
 END;
 $body$ LANGUAGE plpgsql
 ;
@@ -76,7 +94,6 @@ $body$ LANGUAGE plpgsql
 CREATE OR REPLACE PROCEDURE public.grant_select(
         username varchar
     )
-    VOLATILE
 LANGUAGE plpgsql
 AS $body$
 DECLARE

@@ -225,6 +225,9 @@ class DataReader:
         name = self.path
         if isinstance(self.path, tuple):
             path, f = self.path
+            if isinstance(path, FWFReader):
+                self.open_fwf(path)
+                return self
             name = path if isinstance(path, str) else path.name
             nlower = name.lower()
             if nlower.endswith(".fst") or nlower.endswith(".sas7bdat"):
@@ -232,10 +235,10 @@ class DataReader:
                     raise Exception(
                         "Not implemented: reading FST or SAS files from archive"
                     )
-            elif ".json" in path.lower():
+            elif isinstance(path, str) and ".json" in path.lower():
                 self.open_json(path)
                 opened = True
-            else:
+            elif isinstance(path, str):
                 self.open_csv(path, f)
                 opened = True
         if not opened:
