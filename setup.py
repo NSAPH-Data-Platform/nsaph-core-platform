@@ -6,7 +6,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='nsaph',
-    version="0.0.3.5",
+    version="0.0.3.8",
     url='https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/nsaph',
     license='',
     author='Michael Bouzinier',
@@ -19,11 +19,12 @@ setup(
     packages=[
         'nsaph', 'nsaph.requests', 'nsaph.data_model', 'nsaph.loader',
         'nsaph.util',
-        'nsaph_resources', 'nsaph_models'
+        'nsaph_resources', 'nsaph_models', 'nsaph.sql'
     ],
     package_dir={
         "nsaph": "./src/python/nsaph",
         "nsaph_models": "./src/yml",
+        "nsaph.sql": "./src/sql",
         "nsaph_resources": "./resources",
         "nsaph_tools": "./src/cwl"
     },
@@ -156,6 +157,7 @@ setup(
     ],
     package_data = {
         "nsaph_models": ["*.yaml"],
+        "nsaph.sql": ["*.sql"],
         "nsaph_resources": ["**/*", "*/*/*", "*/*/*/*"],
         "nsaph_tools": ["**/*.cwl"]
     }

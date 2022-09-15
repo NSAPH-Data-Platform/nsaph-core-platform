@@ -23,6 +23,7 @@
  and state FIPS codes
  */
 
+DROP MATERIALIZED VIEW IF EXISTS public.zip2fips;
 CREATE MATERIALIZED VIEW public.zip2fips AS
 SELECT
     zip,

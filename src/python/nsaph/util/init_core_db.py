@@ -36,7 +36,10 @@ def load_data(args):
         print("Loading us_iso")
         ensure(db, "us_iso")
         db.commit()
-        print("Loading hud_zip2fips")
+        print("Loading SSA <-> FIPS Mapping")
+        ensure(db, "ssa")
+        db.commit()
+        print("Loading FIPS <-> ZIP Mapping (hud_zip2fips)")
         ensure(db, "hud_zip2fips")
         db.commit()
     return
@@ -58,6 +61,9 @@ def get_sql_dir(me: str) -> str:
     n = len(ppp) - 1
     while n > 0:
         if ppp[n] == "python":
+            break
+        if ppp[n] == "site-packages":
+            n += 2
             break
         n -= 1
     if n < 1:
