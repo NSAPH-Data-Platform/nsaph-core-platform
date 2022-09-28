@@ -50,6 +50,10 @@ class Connection:
         home = os.getenv("NSAPH_HOME")
         if home and not os.path.isabs(filename):
             filename = os.path.join(home, filename)
+        if not os.path.isfile(filename):
+            raise ValueError(
+                "File {} does not exist or is not readable".format(filename)
+            )
         parser = ConfigParser()
         parser.read(filename)
 
@@ -59,7 +63,7 @@ class Connection:
             for param in params:
                 parameters[param[0]] = param[1]
         else:
-            raise Exception('Section {0} not found in the {1} file'
+            raise ValueError('Section {0} not found in the {1} file'
                             .format(section, filename))
         return parameters
 

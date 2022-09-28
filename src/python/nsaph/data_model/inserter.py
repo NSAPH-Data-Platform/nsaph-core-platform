@@ -152,7 +152,7 @@ class Inserter:
             if l - l1 >= log_step:
                 self.log_progress()
                 l1 = l
-            if limit and l >= limit:
+            if limit and l >= int(limit):
                 break
         return l
 
@@ -433,6 +433,12 @@ class Inserter:
                 try:
                     value = row[i]
                 except:
+                    msg = "Error for column #{:d} ({})".format(
+                        i+1, str(self.mapping[i])
+                    )
+                    logging.exception(
+                        msg + "\nWhile processing row: " + str(row)
+                    )
                     raise
                 if not value or SpecialValues.is_missing(value):
                     if i in self.pk and self.audit is None:

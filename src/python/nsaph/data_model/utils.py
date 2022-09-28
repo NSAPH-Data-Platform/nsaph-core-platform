@@ -159,7 +159,18 @@ class DataReader:
         self.delimiter = delimiter
         self.buffer_size = buffer_size
         if quoting is not None:
-            self.quoting = quoting
+            if isinstance(quoting, int):
+                self.quoting = quoting
+            elif isinstance(quoting, str):
+                quoting = quoting.upper()
+                if quoting in ["QUOTE_ALL", "ALL"]:
+                    self.quoting = csv.QUOTE_ALL
+                elif quoting in ["QUOTE_MINIMAL", "MINIMAL"]:
+                    self.quoting = csv.QUOTE_MINIMAL
+                elif quoting in ["QUOTE_NONNUMERIC", "NONNUMERIC"]:
+                    self.quoting = csv.QUOTE_NONNUMERIC
+                elif quoting in ["QUOTE_NONE", "NONE"]:
+                    self.quoting = csv.QUOTE_NONE
         else:
             self.quoting = csv.QUOTE_NONNUMERIC
         if has_header is not None:

@@ -56,7 +56,7 @@ The following parameters can be defined fro domain:
 | description  | no        | description of this domain to be included in auto-generated documentation                                                                                  |
 | reference    | no        | URL with external documentation                                                                                                                            |
 | header       | no        | Boolean value, passed to CSV loader. Describes input source rather than data model itself                                                                  |
-| quoting      | no        | Numeric value, passed to CSV loader. Describes input source rather than data model itself (QUOTE_MINIMAL=0, QUOTE_ALL=1, QUOTE_NONNUMERIC=2, QUOTE_NONE=3) |
+| quoting      | no        | One of the following values: QUOTE_MINIMAL (or MINIMAL), QUOTE_ALL (or ALL), QUOTE_NONNUMERIC (or NONNUMERIC), QUOTE_NONE (or NONE), passed to CSV loader. Describes input source rather than data model itself. Numeric values are accepted for compatibility (QUOTE_MINIMAL=0, QUOTE_ALL=1, QUOTE_NONNUMERIC=2, QUOTE_NONE=3)  |
 
 ## Table
 
