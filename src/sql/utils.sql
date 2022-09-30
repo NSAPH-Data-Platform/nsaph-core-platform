@@ -91,6 +91,17 @@ END;
 $body$ LANGUAGE plpgsql
 ;
 
+CREATE OR REPLACE FUNCTION public.zip_as_text(zip anyelement) RETURNS VARCHAR
+IMMUTABLE
+LANGUAGE plpgsql
+AS $body$
+BEGIN
+    RETURN  btrim(to_char(zip::INT, '00000'));
+END;
+$body$ 
+;
+
+
 CREATE OR REPLACE PROCEDURE public.grant_select(
         username varchar
     )
