@@ -60,13 +60,31 @@ class LoaderBase(ABC):
     Base class for tools responsible for data loading and processing
     """
 
-    @staticmethod
-    def get_domain(name: str, registry: str = None) -> Domain:
+    @classmethod
+    def find_file_in_path(cls, fname: str):
+        files = set()
+        for d in sys.path:
+            files.update(glob.glob(
+                os.path.join(d, "**", fname),
+                recursive=True
+            ))
+        if not files:
+            raise ValueError("File {} not found".format(fname))
+        if len(files) > 1:
+            if not diff(files):
+                raise ValueError("Ambiguous files {}".format(';'.join(files)))
+        return  files.pop()
+
+    @classmethod
+    def get_domain(cls, name: str, registry: str = None) -> Domain:
         src = None
         registry_path = None
         if registry:
             if is_yaml_or_json(registry):
-                registry_path = registry
+                if os.path.dirname(registry) or os.path.exists(registry):
+                    registry_path = os.path.abspath(registry)
+                else:
+                    registry_path = cls.find_file_in_path(registry)
                 if not os.path.isfile(registry_path):
                     raise ValueError("{} - is not a file".format(registry_path))
             elif not is_dir(registry):
@@ -80,18 +98,7 @@ class LoaderBase(ABC):
         if not registry_path:
             registry_path = os.path.join(src, "yml", name + ".yaml")
         if not os.path.isfile(registry_path):
-            files = set()
-            for d in sys.path:
-                files.update(glob.glob(
-                    os.path.join(d, "**", name + ".yaml"),
-                    recursive=True
-                ))
-            if not files:
-                raise ValueError("File {} not found".format(name + ".yaml"))
-            if len(files) > 1:
-                if not diff(files):
-                    raise ValueError("Ambiguous files {}".format(';'.join(files)))
-            registry_path = files.pop()
+            registry_path = cls.find_file_in_path(name + ".yaml")
         if not os.path.isfile(registry_path):
             raise ValueError("File {} does not exist".format(os.path.abspath(registry_path)))
         domain = Domain(registry_path, name)
