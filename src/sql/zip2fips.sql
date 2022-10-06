@@ -187,3 +187,36 @@ BEGIN
 END;
 $body$
 ;
+
+CREATE OR REPLACE FUNCTION public.state2ssa2(
+    state_code VARCHAR
+) RETURNS VARCHAR
+IMMUTABLE
+LANGUAGE plpgsql
+AS $body$
+DECLARE s VARCHAR;
+BEGIN
+    SELECT ssa2 FROM public.us_states WHERE state_id = state_code INTO s;
+    RETURN s;
+END;
+$body$
+;
+
+CREATE OR REPLACE FUNCTION public.fips2ssa3(
+    county_code INT, y INT
+) RETURNS VARCHAR
+IMMUTABLE
+LANGUAGE plpgsql
+AS $body$
+DECLARE s VARCHAR;
+BEGIN
+    SELECT
+        ssa3 FROM public.ssa as s
+    WHERE
+        y = s.year
+        AND btrim(to_char(county_code, '00000')) = s.fips5
+    INTO s;
+    RETURN s;
+END;
+$body$
+;
