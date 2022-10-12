@@ -12,6 +12,9 @@ We use public data (climate, pollution, census) in the query,
 hence it can be executed in any environment.
 
 ## Setup
+                             
+To set up your execution environment, one can use either
+Python Virtual Environment or Conda environment.
 
 ### Create Python Virtual Environment
 
@@ -22,6 +25,12 @@ be done with commands like:
 python3 -m venv .nsaph
 source .nsaph/bin/activate
 ```
+                                                                      
+
+### Creating Conda environment
+
+To run the software on older operating systems, use Conda environment.
+
 
 ### Install NSAPH packages
 
@@ -32,6 +41,12 @@ using GitHub install:
 python -m pip install git+https://github.com/NSAPH-Data-Platform/nsaph-utils.git
 python -m pip install git+https://github.com/NSAPH-Data-Platform/nsaph-core-platform.git
 ```
+
+If you are getting errors installing `nsaph-utils` package or, if you see
+errors like "R Home is not defined", you might need to set up
+[Conda environment](#creating-conda-environment) 
+instead of Python Virtual Environment.
+
 
 ## Create connection definition file
 
