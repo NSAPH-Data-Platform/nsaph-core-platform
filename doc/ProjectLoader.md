@@ -22,6 +22,10 @@ of the table is constructed from the relative path of the
 incoming data file with OS path separators (e.g. '/') being
 replaced with underscores ('_').
 
+It might be a good idea, before actually ingesting data into the database to
+do a [dry run](#dry-runs-introspect-only) and visually examine the
+database schema created by Introspection utility.
+
 Loading into the database is performed using
 [Data Loader](members/data_loader) functionality.
 
@@ -31,6 +35,22 @@ Configuration options are provided by
 [LoaderConfig](members/loader_config) object.
 Usually, they are provided as command line arguments but can also be provided
 via an API call.
+                             
+Some configuration options can be provided in the registry YAML
+file. By default, if registry does not exist, a new YAML file 
+will be created with the following parameters:
+
+* header:  True ## i.e. CSV files are expected to have header line
+* quoting: QUOTE_MINIMAL, ## i.e. only strings with whitespaces are
+    expected to be quoted
+* index:   "unless excluded"  ## We will build indices for every column
+      unless it is explicitly excluded
+
+See [Domain options](Datamodels.md#domain) for the descriptions
+of these parameters.
+
+When a registry file is created it can be manually edited by user. The
+manual modifications will be preserved for subsequent runs.
 
 ## Usage from command line
 
@@ -98,6 +118,29 @@ via an API call.
                             archive containing YAML files with domain definition.
                             Default is to use the built-in registry, default: None
 ```
+         
+## Sample command
+
+The following command creates a schema named `my_schema` and loads 
+tables from all files with extension `.csv` found recursively under the 
+directory `/data/incoming/valuable/data/`:
+
+    python -u -m nsaph.loader.project_loader --domain my_schema --data /data/incoming/valuable/data/ --registry my_temp_schema.yaml --reset --pattern *.csv --db database.ini --connection postgres
+
+It uses `database.ini` file in the current directory 
+(where the program is started) and a section named `postgres` inside it. 
+It creates temporary file 
+`my_temp_schema.yaml` also in the current directory. If such a file 
+already exists, it will be loaded and the settings found in it will override 
+the defaults. Option `--reset` would delete all existing tables with 
+the same names and recreate them.
+
+The following is the same command but with parallel execution using 4 
+threads writing into the database and with increased page size for writing 
+into the database. It is optimized for hosts with more RAM.
+
+    python -u -m nsaph.loader.project_loader --domain my_schema --data /data/incoming/valuable/data/ --reset --registry my_temp_schema.yaml --pattern *.csv --db database.ini --connection postgres --threads 4 --page 10000
+
 
 ## Dry runs (introspect only)
 
@@ -105,6 +148,14 @@ To just introspect files in a directory and generate YAML schema for
 the project (see [domain schema specification](Datamodels) for
 the description of the format) without modifications in the database,
 use dry run. On the command line, just give :code:`--dryrun` option.
+
+Dry run will create "registry" file that can be manually examined and 
+modified. The following command described [above](#sample-command)
+will perform dry run:
+
+    python -u -m nsaph.loader.project_loader --domain my_schema --data /data/incoming/valuable/data/ --registry my_temp_schema.yaml --dryrun --pattern *.csv --db database.ini --connection postgres
+
+This command will create file named `my_temp_schema.yaml`.    
 
 ## API Usage
 

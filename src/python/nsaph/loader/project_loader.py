@@ -69,7 +69,7 @@ class ProjectLoader(DataLoader):
         d = domain[name]
         d["schema"] = name
         d["header"] = True
-        d["quoting"] = 0
+        d["quoting"] = 'QUOTE_MINIMAL'
         d["index"] = "unless excluded"
         d["tables"] = dict()
         with open(file_path, "wt") as f:
