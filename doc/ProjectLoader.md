@@ -14,7 +14,8 @@ is a command line tool to introspect and ingest into a database
 a directory, containing CSV (or CSV-like, e.g. FST, JSON, SAS, etc.) files.
 The directory can be structured, e.g. have nested subdirectories. All files
 matching a certain name pattern at any nested subdirectory level
-are included in the data set.
+are included in the data set. It can also load a single file if a file
+rather than a directory is given as `--data` argument.
 
 In the database, a schema is crated based on the given project name.
 For each file in the data set a table is created. The name
@@ -140,6 +141,10 @@ threads writing into the database and with increased page size for writing
 into the database. It is optimized for hosts with more RAM.
 
     python -u -m nsaph.loader.project_loader --domain my_schema --data /data/incoming/valuable/data/ --reset --registry my_temp_schema.yaml --pattern *.csv --db database.ini --connection postgres --threads 4 --page 10000
+                                           
+To load a single file one can use a command like this:
+
+    python -u -m nsaph.loader.project_loader --domain my_schema --data /data/incoming/valuable/test_file.csv --registry my_temp_schema.yaml --reset --db database.ini --connection postgres
 
 
 ## Dry runs (introspect only)
@@ -153,7 +158,7 @@ Dry run will create "registry" file that can be manually examined and
 modified. The following command described [above](#sample-command)
 will perform dry run:
 
-    python -u -m nsaph.loader.project_loader --domain my_schema --data /data/incoming/valuable/data/ --registry my_temp_schema.yaml --dryrun --pattern *.csv --db database.ini --connection postgres
+    python -u -m nsaph.loader.project_loader --domain my_schema --data /data/incoming/valuable/data/ --registry my_temp_schema.yaml --dryrun --pattern *.csv 
 
 This command will create file named `my_temp_schema.yaml`.    
 

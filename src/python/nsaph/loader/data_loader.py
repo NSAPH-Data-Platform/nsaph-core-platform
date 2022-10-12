@@ -42,7 +42,7 @@ from nsaph.data_model.utils import DataReader, entry_to_path
 from nsaph.loader import LoaderBase
 from nsaph.loader.loader_config import LoaderConfig, Parallelization, \
     DataLoaderAction
-from nsaph_utils.utils.io_utils import get_entries, is_dir, sizeof_fmt
+from nsaph_utils.utils.io_utils import get_entries, is_dir, sizeof_fmt, fopen
 
 
 class DataLoader(LoaderBase):
@@ -134,7 +134,7 @@ class DataLoader(LoaderBase):
         objects = []
         for path in self.context.data:
             if not is_dir(path):
-                objects.append(path)
+                objects.append((path, lambda e: fopen(e, "rt")))
                 continue
             if self.context.pattern:
                 ptn = "using pattern {}".format(self.context.pattern)
