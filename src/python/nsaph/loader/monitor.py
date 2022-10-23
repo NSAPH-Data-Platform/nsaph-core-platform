@@ -116,10 +116,26 @@ class DBMonitorConfig(DBConnectionConfig):
                 if attr[0] == '_' and attr[1] != '_'
             ]
 
-
 class DBActivityMonitor:
-    def __init__(self, context: DBMonitorConfig = None):
-        if not context:
+    @classmethod
+    def get_instance (cls, context: DBConnectionConfig) -> DBMonitorConfig:
+        if isinstance(context, DBMonitorConfig):
+            return context
+        if isinstance(context, DBConnectionConfig):
+            obj = DBMonitorConfig(None, __doc__)
+            obj.connection = context.connection
+            obj.db = context.db
+            obj.verbose = context.verbose
+            return obj
+        raise TypeError(
+            "{} cannot be cast to DBMonitorConfig"
+            .format(str(context))
+        )
+
+    def __init__(self, context: DBConnectionConfig = None):
+        if context:
+            context = self.get_instance(context)
+        else:
             context = DBMonitorConfig(None, __doc__).instantiate()
         self.context = context
         self.connection = None
