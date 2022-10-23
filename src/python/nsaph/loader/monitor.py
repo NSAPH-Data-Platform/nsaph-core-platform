@@ -22,13 +22,13 @@ currently running indexing processes
 #
 
 import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 from psycopg2.extras import RealDictCursor
 from psycopg2.extensions import connection
 
 from nsaph.db import Connection
 from nsaph.loader.common import DBConnectionConfig
-
+from nsaph_utils.utils.context import Argument, Cardinality
 
 INDEX_MON_SQL12 = """
     SELECT 
@@ -82,18 +82,58 @@ ACTIVITY_BY_PID = ACTIVITY_QUERY + "WHERE pid = {pid} or leader_pid = {pid}"
 ACTIVITY_BY_DB = ACTIVITY_QUERY + "WHERE datname = '{}'"
 
 
+class DBMonitorConfig(DBConnectionConfig):
+    _pid = Argument("pid",
+        help = "Display monitoring information only for selected process ids",
+        type = int,
+        required = False,
+        aliases = ["p"],
+        default = None,
+        cardinality = Cardinality.multiple
+    )
+
+    _state = Argument("state",
+        help = "Show only processes in the given state",
+        type = str,
+        required = False,
+        default=None,
+        cardinality = Cardinality.single
+    )
+
+    def __init__(self, subclass, doc):
+        self.pid:List[int] = []
+        ''' process id list '''
+
+        self.state:Optional[str] = None
+        ''' Display only processes in the given state '''
+
+        if subclass is None:
+            super().__init__(DBMonitorConfig, doc)
+        else:
+            super().__init__(subclass, doc)
+            self._attrs += [
+                attr[1:] for attr in DBMonitorConfig.__dict__
+                if attr[0] == '_' and attr[1] != '_'
+            ]
+
+
 class DBActivityMonitor:
-    def __init__(self, context: DBConnectionConfig = None):
+    def __init__(self, context: DBMonitorConfig = None):
         if not context:
-            context = DBConnectionConfig(None, __doc__).instantiate()
+            context = DBMonitorConfig(None, __doc__).instantiate()
         self.context = context
         self.connection = None
 
     def run(self):
         for msg in self.get_indexing_progress():
             print(msg)
-        for msg in self.get_activity():
-            print(msg)
+        if self.context.pid:
+            for pid in self.context.pid:
+                for msg in self.get_activity(pid):
+                    print(msg)
+        else:
+            for msg in self.get_activity():
+                print(msg)
 
     def _connect(self):
         self.connection = Connection(self.context.db,
@@ -164,6 +204,9 @@ class DBActivityMonitor:
                         leaders.append(row.copy())
         for l in [leaders, workers]:
             for p in l:
+                if self.context.state is not None:
+                    if p["state"] != self.context.state:
+                        continue
                 if self.context.verbose:
                     activity = Activity(p, now, -1)
                 else:

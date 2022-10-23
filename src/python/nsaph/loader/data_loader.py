@@ -97,6 +97,11 @@ class DataLoader(LoaderBase):
         for ddl in self.domain.indices_by_table[fqn]:
             print(ddl)
 
+    @staticmethod
+    def execute_sql(sql: str, connxn):
+        with (connxn.cursor()) as cursor:
+            cursor.execute(sql)
+
     def insert_from_select(self):
         if not self.context.table:
             raise ValueError("Table name is required for INSERT FROM SELECT")
@@ -106,8 +111,10 @@ class DataLoader(LoaderBase):
         print(sql)
         if act:
             with self._connect() as connxn:
-                with (connxn.cursor()) as cursor:
-                    cursor.execute(sql)
+                self.execute_with_monitor(
+                    what=lambda: self.execute_sql(sql, connxn),
+                    connxn=connxn
+                )
         return
 
     def is_parallel(self) -> bool:

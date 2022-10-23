@@ -27,6 +27,13 @@ import sys
 import yaml
 
 
+def encode(name: str):
+    if len(name) < 13:
+        return name + '_'
+    else:
+        return name[:9] + str(hash(name) % 1000) + '_'
+
+
 def collect(name: str, path: str):
     with open(path) as f:
         cwl = yaml.safe_load(f)
@@ -39,7 +46,7 @@ def collect(name: str, path: str):
               format(os.path.basename(path)))
         for o in outputs:
             t = outputs[o]["type"]
-            print("  {}:".format(o))
+            print("  {}:".format(encode(name) + o))
             print("    type: {}".format(t))
             print("    outputSource: {}/{}".format(name, o))
 

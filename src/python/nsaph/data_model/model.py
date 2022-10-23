@@ -37,7 +37,7 @@ PG_MAXINT = 2147483647
 
 METADATA_TYPE_KEY = "type"
 METADATA_TYPE_MODEL = "model_specification"
-INDEX_DDL_PATTERN = "CREATE INDEX {option} {name} ON {table} USING {method} ({column});"
+INDEX_DDL_PATTERN = "CREATE INDEX {option} {name} ON {table} USING {method} ({column}) {include};"
 UNIQUE_INDEX_DDL_PATTERN = "CREATE UNIQUE INDEX {option} {name} ON {table} USING {method} ({column});"
 INDEX_NAME_PATTERN = "{table}_{column}_idx"
 
@@ -197,7 +197,7 @@ class Table:
                     name = n,
                     table=self.table,
                     column=column,
-                    method = method)
+                    method = method, include = "")
         return n, ddl
 
     def add_column(self, name, type, extraction_method):

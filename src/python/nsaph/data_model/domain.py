@@ -233,9 +233,14 @@ class Domain:
         return s
 
     def fqn(self, table):
-        if self.schema:
+        if self.schema and '.' not in table:
             return self.schema + '.' + table
         return table
+
+    def ufqn(self, table):
+        parts = [p.strip() for p in table.split('.')]
+        pp = [p for p in parts if p != self.domain]
+        return '.'.join(pp)
 
     def find(self, table: str, root = None) -> Optional[dict]:
         if not root:
@@ -244,6 +249,7 @@ class Domain:
             tables = root["children"]
         else:
             return None
+        table = self.ufqn(table)
         if table in tables:
             return tables[table]
         for t in tables:
@@ -392,12 +398,13 @@ class Domain:
             #     WHERE {id} IS NOT NULL
             #     GROUP BY {id}
 
+
             create_table = CREATE_VIEW.format(
                 OBJECT=object_type,
                 name=table,
                 flag = "IF NOT EXISTS" if self.sloppy else "",
                 features = ",\n\t".join(features),
-                source=create["from"]
+                source=self.fqn(create["from"])
             )
             if "group by" in create:
                 group_by = ','.join(create["group by"])
@@ -539,11 +546,26 @@ class Domain:
 
     def create_object_from(self, table, definition, features, obj_type) -> str:
         create = definition["create"]
-        frm = self.fqn(create["from"])
+        create_from: str = create["from"]
+        join = "natural join"
+        if join in create_from.lower():
+            frm = [f.strip() for f in create_from.lower().split(join)]
+            from_clause = ' {} '.format(join).join([
+                self.fqn(f) for f in frm
+            ])
+        else:
+            from_clause = self.fqn(create_from)
+            frm = [from_clause]
         if "select" in create:
             select = create["select"].strip()
         else:
             select = "*"
+        if obj_type != "table" and "columns" in definition:
+            add_columns = [
+                feature for feature in features
+                    if not is_constraint(feature)
+            ]
+            select += ",\n" + ",\n".join(add_columns)
         if "populate" in create and create["populate"] is False:
             condition = "WHERE 1 = 0"
         else:
@@ -552,23 +574,40 @@ class Domain:
             obj_type,
             table,
             select,
-            frm,
+            from_clause,
             condition
         )
-        for feature in features:
-            if not is_constraint(feature):
-                feature = "COLUMN " + feature
-            create_table += "ALTER {} {} ADD {};\n".format(
-                obj_type,
-                table,
-                feature
-            )
-        pdef = self.find(create["from"])
+        if obj_type == "table":
+            for feature in features:
+                if not is_constraint(feature):
+                    feature = "COLUMN " + feature
+                create_table += "ALTER {} {} ADD {};\n".format(
+                    obj_type,
+                    table,
+                    feature
+                )
         selected_columns = self.get_select_from(definition)
-        if selected_columns is not None:
-            cc = self.map_selected_columns(selected_columns, definition, pdef)
-        else:
-            cc = self.get_columns(pdef)
+        cc = []
+        for parent in frm:
+            pdef = self.find(parent)
+            if pdef is None:
+                raise ValueError(
+                    "Table {} is not defined in domain {}"
+                    .format(parent, self.domain)
+                )
+            if selected_columns is not None:
+                cc.extend(
+                    self.map_selected_columns(
+                        selected_columns, definition, pdef
+                    )
+                )
+            elif pdef is not None:
+                cc.extend(self.get_columns(pdef))
+            else:
+                raise ValueError(
+                    "For {}: neither columns to select are specified, nor "
+                    "a parent '{}' is found".format(table, parent)
+                )
         if "columns" in definition:
             definition["columns"].extend(cc)
         else:
@@ -642,6 +681,7 @@ class Domain:
         iname = None
         onload = False
         cname, column = split(column)
+        included = ""
         if "index" in column:
             index = column["index"]
             if isinstance(index, str) and index != 'true':
@@ -653,6 +693,12 @@ class Domain:
                     method = index["using"]
                 if "required_before_loading_data" in index:
                     onload = True
+                if "include" in index:
+                    inc = index["include"]
+                    if isinstance(inc, list):
+                        inc = ','.join([str(s) for s in inc])
+                    included = "INCLUDE ({})".format(inc)
+
         if method:
             pass
         elif self.is_array(column):
@@ -666,7 +712,8 @@ class Domain:
             name = iname,
             table = table,
             column = cname,
-            method = method
+            method = method,
+            include=included
         ), onload)
 
     def add_index_by_ddl(self, table: str, ddl: str):
@@ -693,13 +740,21 @@ class Domain:
             pattern = UNIQUE_INDEX_DDL_PATTERN
         else:
             pattern = INDEX_DDL_PATTERN
+        if "include" in keys:
+            inc = definition["include"]
+            if isinstance(inc, list):
+                inc = ','.join([str(s) for s in inc])
+            included = "INCLUDE ({})".format(inc)
+        else:
+            included = ""
         return pattern.format(
             name = INDEX_NAME_PATTERN.format(table = table.split('.')[-1],
                                              column = name),
             option = option,
             table = table,
             column = columns,
-            method = method
+            method = method,
+            include = included
         )
 
     def add_index(self, table: str, name: str, definition: dict):

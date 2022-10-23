@@ -6,7 +6,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='nsaph',
-    version="0.0.3.12",
+    version="0.0.3.13",
     url='https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/nsaph',
     license='',
     author='Michael Bouzinier',
