@@ -24,6 +24,8 @@ a CWL tool or sub-workflow into the calling workflow
 
 import os
 import sys
+from argparse import ArgumentParser
+
 import yaml
 
 
@@ -34,7 +36,9 @@ def encode(name: str):
         return name[:9] + str(hash(name) % 1000) + '_'
 
 
-def collect(name: str, path: str):
+def collect(step: str, path: str, name = None):
+    if name is None:
+        name = step
     with open(path) as f:
         cwl = yaml.safe_load(f)
         outputs = cwl["outputs"]
@@ -48,9 +52,32 @@ def collect(name: str, path: str):
             t = outputs[o]["type"]
             print("  {}:".format(encode(name) + o))
             print("    type: {}".format(t))
-            print("    outputSource: {}/{}".format(name, o))
+            print("    outputSource: {}/{}".format(step, o))
+
+
+def parse_args():
+    parser = ArgumentParser (
+        description="Collect outputs from CWL sub-workflow and print"
+                    "outputs section to be added for enveloping workflow"
+    )
+    parser.add_argument(
+        dest="step",
+        help="Step name in the outer (calling) workflow"
+    )
+    parser.add_argument(
+        dest = "path",
+        help="Path to sub-workflow CWL file"
+    )
+    parser.add_argument(
+        "--name",
+        help="Name to be used as output prefix, defaults to the step name",
+        required=False
+    )
+
+    return parser.parse_args()
 
 
 if __name__ == '__main__':
-    collect(sys.argv[1], sys.argv[2])
+    arguments = parse_args()
+    collect(arguments.step, arguments.path, arguments.name)
             
