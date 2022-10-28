@@ -50,6 +50,8 @@ def collect(step: str, path: str, name = None):
               format(os.path.basename(path)))
         for o in outputs:
             t = outputs[o]["type"]
+            if t.lower() in ["stdout", "stderr"]:
+                t = "File"
             print("  {}:".format(encode(name) + o))
             print("    type: {}".format(t))
             print("    outputSource: {}/{}".format(step, o))
