@@ -119,6 +119,55 @@ END;
 $body$;
 ;
 
+CREATE OR REPLACE PROCEDURE public.grant_access()
+LANGUAGE plpgsql
+AS $body$
+DECLARE
+    is_super bool;
+    username VARCHAR;
+BEGIN
+    username := 'nsaph_admin';
+    IF CURRENT_USER = username THEN
+        RETURN;
+    END IF;
+    select usesuper from pg_user where usename = CURRENT_USER into is_super;
+    IF is_super THEN
+        CALL public.grant_select(username);
+    ELSE
+        EXECUTE format($$ REASSIGN OWNED BY CURRENT_USER TO %I $$, username);
+    END IF;
+END;
+$body$;
+;
+
+CREATE OR REPLACE PROCEDURE public.owner_to(
+        username varchar
+    )
+LANGUAGE plpgsql
+AS $body$
+DECLARE
+    sch text;
+    tbl text;
+BEGIN
+    FOR sch IN SELECT nspname FROM pg_namespace WHERE nspowner > 100
+    LOOP
+        EXECUTE format($$ ALTER SCHEMA %I OWNER TO %I $$, sch, username);
+        FOR tbl IN
+            SELECT tablename FROM pg_tables WHERE schemaname = sch
+        LOOP
+            EXECUTE format($$ ALTER TABLE %I.%I OWNER TO %I $$, sch, tbl, username);
+        END LOOP ;
+        FOR tbl IN
+            SELECT viewname FROM pg_views WHERE schemaname = sch
+        LOOP
+            EXECUTE format($$ ALTER VIEW %I.%I OWNER TO %I $$, sch, tbl, username);
+        END LOOP ;
+    END LOOP;
+END;
+$body$;
+;
+
+
 CREATE OR REPLACE FUNCTION public.hll_arr_agg(
     arr anyarray
 ) RETURNS HLL
