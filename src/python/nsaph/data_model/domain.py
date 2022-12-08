@@ -335,6 +335,16 @@ class Domain:
         identifiers = [i for i in token.get_identifiers()]
         return identifiers
 
+    def add_column_indices(self, table: str, columns: List):
+        for column in columns:
+            if not self.need_index(column):
+                continue
+            ddl, onload = self.get_index_ddl(table, column)
+            if onload:
+                self.append_ddl(table, ddl)
+            else:
+                self.add_index_by_ddl(table, ddl)
+
     def ddl_for_node(self, node, parent = None) -> None:
         table_basename, definition = node
         columns = self.get_columns(definition)
@@ -358,6 +368,9 @@ class Domain:
             if "from" in create:
                 if isinstance(create["from"], list):
                     self.skip(table)
+                    if object_type != "view":
+                        self.add_column_indices(table, columns)
+                        self.add_multi_column_indices(table, definition)
                     return
                 if isinstance(create["from"], str) and '*' in create["from"]:
                     self.skip(table)
@@ -488,15 +501,15 @@ class Domain:
             self.add_fk_validation(table, pk_columns, action, t2, columns, ptable, fk_columns)
 
         if object_type != "view":
-            for column in columns:
-                if not self.need_index(column):
-                    continue
-                ddl, onload = self.get_index_ddl(table, column)
-                if onload:
-                    self.append_ddl(table, ddl)
-                else:
-                    self.add_index_by_ddl(table, ddl)
+            self.add_column_indices(table, columns)
+        self.add_multi_column_indices(table, definition)
 
+        if "children" in definition:
+            children = {t: definition["children"][t] for t in definition["children"]}
+            for child in children:
+                self.ddl_for_node((child, children[child]), parent=node)
+
+    def add_multi_column_indices(self, table: str, definition: Dict):
         if "indices" in definition:
             indices = definition["indices"]
         elif "indexes"  in definition:
@@ -507,11 +520,6 @@ class Domain:
         if indices:
             for index in indices:
                 self.add_index(table, index, indices[index])
-
-        if "children" in definition:
-            children = {t: definition["children"][t] for t in definition["children"]}
-            for child in children:
-                self.ddl_for_node((child, children[child]), parent=node)
 
     def generate_insert_from_select(self, table: str, limit: int = None) -> str:
         definition = self.find(table)
