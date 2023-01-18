@@ -432,6 +432,9 @@ class Domain:
                     reverse_map[c] if c in reverse_map else c
                     for c in create["group by"]
                 ]
+            elif "nullable group by" in create:
+                group_by = ','.join(create["nullable group by"])
+                create_table += "\nGROUP BY {columns}\n".format(columns=group_by)
             else:
                 create_table = create_table.strip() + ';'
         else:
