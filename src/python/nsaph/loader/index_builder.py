@@ -77,15 +77,19 @@ class IndexBuilder(LoaderBase):
             context = IndexerConfig(__doc__).instantiate()
         super().__init__(context)
         self.context: IndexerConfig = context
+        self.exception = None
 
     def run(self):
         self.execute_with_monitor(self.execute, on_monitor=self.print_stat)
+        if self.exception is not None:
+            raise self.exception
 
     def execute(self):
         try:
             self._execute()
-        except:
+        except BaseException as ex:
             logging.exception("Exception building indices")
+            self.exception = ex
             raise
 
     def _execute(self):
