@@ -69,6 +69,8 @@ class Vacuum(LoaderBase):
                 logging.info(str(datetime.now()) + ": " + sql)
                 self.execute_with_monitor(lambda: cursor.execute(sql),
                                           connxn=connection)
+                if self.exception is not None:
+                    raise self.exception
                 logging.info("Done")
 
     def log_activity(self, connxn):

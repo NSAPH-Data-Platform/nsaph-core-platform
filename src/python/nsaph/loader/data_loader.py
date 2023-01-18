@@ -115,6 +115,8 @@ class DataLoader(LoaderBase):
                     what=lambda: self.execute_sql(sql, connxn),
                     connxn=connxn
                 )
+            if self.exception is not None:
+                raise self.exception
         return
 
     def is_parallel(self) -> bool:
@@ -191,6 +193,8 @@ class DataLoader(LoaderBase):
                     lambda: self.domain.create(connxn, [self.table]),
                     connxn=connxn
                 )
+            if self.exception is not None:
+                raise self.exception
         except:
             logging.exception("Exception resetting table {}".format(self.table))
             raise

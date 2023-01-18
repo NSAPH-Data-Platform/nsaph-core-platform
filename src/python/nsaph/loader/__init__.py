@@ -113,6 +113,7 @@ class LoaderBase(ABC):
         self.domain.init()
         self.table = context.table
         self.monitor = DBActivityMonitor(context)
+        self.exception = None
 
     def _connect(self) -> connection:
         c = Connection(self.context.db, self.context.connection).connect()
