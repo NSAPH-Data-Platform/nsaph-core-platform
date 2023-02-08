@@ -440,7 +440,7 @@ class Inserter:
                         msg + "\nWhile processing row: " + str(row)
                     )
                     raise
-                if not value or SpecialValues.is_missing(value):
+                if SpecialValues.is_missing(value):
                     if i in self.pk and self.audit is None:
                         return False
                     else:
