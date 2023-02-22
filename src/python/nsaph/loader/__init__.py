@@ -116,9 +116,8 @@ class LoaderBase(ABC):
         self.exception = None
 
     def _connect(self) -> connection:
-        c = Connection(self.context.db, self.context.connection).connect()
-        if self.context.autocommit is not None:
-            c.autocommit = self.context.autocommit
+        c = Connection(self.context.db, self.context.connection)\
+            .connect(self.context.autocommit)
         return c
 
     def get_pid(self, connxn: connection) -> int:
@@ -127,29 +126,13 @@ class LoaderBase(ABC):
             for row in cursor:
                 return row[0]
 
-    def execute_with_monitor(self, what: Callable,
+    def execute_with_monitor(self,
+                             what: Callable,
                              connxn: connection = None,
                              on_monitor: Callable = None):
         if not on_monitor:
             pid = self.get_pid(connxn)
-            on_monitor = lambda: self.log_activity(pid)
-        x = threading.Thread(target=what)
-        x.start()
-        n = 0
-        step = 100
-        while x.is_alive():
-            time.sleep(0.1)
-            n += 1
-            if (n % step) == 0:
-                on_monitor()
-                if n > 100000:
-                    step = 6000
-                elif n > 10000:
-                    step = 600
-        x.join()
+            on_monitor = lambda: self.monitor.log_activity(pid)
+        DBActivityMonitor.execute(what, on_monitor)
 
-    def log_activity(self, pid: int):
-        activity = self.monitor.get_activity(pid)
-        for msg in activity:
-            logging.info(msg)
 

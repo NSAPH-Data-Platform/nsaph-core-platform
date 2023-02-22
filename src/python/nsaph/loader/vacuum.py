@@ -73,11 +73,6 @@ class Vacuum(LoaderBase):
                     raise self.exception
                 logging.info("Done")
 
-    def log_activity(self, connxn):
-        activity = self.monitor.get_activity(connxn)
-        for msg in activity:
-            logging.info(msg)
-
 
 if __name__ == '__main__':
     Vacuum().run()

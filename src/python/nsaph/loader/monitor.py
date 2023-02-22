@@ -22,7 +22,10 @@ currently running indexing processes
 #
 
 import datetime
-from typing import List, Dict, Optional
+import logging
+import threading
+import time
+from typing import List, Dict, Optional, Callable
 from psycopg2.extras import RealDictCursor
 from psycopg2.extensions import connection
 
@@ -78,8 +81,55 @@ FROM
 
 """
 
+LOCK_QUERY = """
+SELECT blocked_locks.pid     AS blocked_pid,
+         blocked_activity.usename  AS blocked_user,
+         blocking_locks.pid     AS blocking_pid,
+         blocking_activity.usename AS blocking_user,
+         blocked_activity.application_name AS blocked_application,
+         blocking_activity.application_name AS blocking_application
+FROM  pg_catalog.pg_locks         blocked_locks
+    JOIN pg_catalog.pg_stat_activity blocked_activity  
+        ON blocked_activity.pid = blocked_locks.pid
+    JOIN pg_catalog.pg_locks         blocking_locks 
+        ON blocking_locks.locktype = blocked_locks.locktype
+            AND blocking_locks.DATABASE IS NOT DISTINCT FROM blocked_locks.DATABASE
+            AND blocking_locks.relation IS NOT DISTINCT FROM blocked_locks.relation
+            AND blocking_locks.page IS NOT DISTINCT FROM blocked_locks.page
+            AND blocking_locks.tuple IS NOT DISTINCT FROM blocked_locks.tuple
+            AND blocking_locks.virtualxid IS NOT DISTINCT FROM blocked_locks.virtualxid
+            AND blocking_locks.transactionid IS NOT DISTINCT FROM blocked_locks.transactionid
+            AND blocking_locks.classid IS NOT DISTINCT FROM blocked_locks.classid
+            AND blocking_locks.objid IS NOT DISTINCT FROM blocked_locks.objid
+            AND blocking_locks.objsubid IS NOT DISTINCT FROM blocked_locks.objsubid
+            AND blocking_locks.pid != blocked_locks.pid
+    JOIN pg_catalog.pg_stat_activity blocking_activity 
+        ON blocking_activity.pid = blocking_locks.pid
+WHERE 
+    NOT blocked_locks.GRANTED;
+"""
+
+
 ACTIVITY_BY_PID = ACTIVITY_QUERY + "WHERE pid = {pid} or leader_pid = {pid}"
 ACTIVITY_BY_DB = ACTIVITY_QUERY + "WHERE datname = '{}'"
+
+
+class Lock:
+    def __init__(self, data: List):
+        self.blocked_pid = data[0]
+        self.blocking_pid = data[2]
+        self.blocked_user = data[1]
+        self.blocking_user = data[3]
+        self.blocked_app = data[4]
+        self.blocking_app = data[5]
+
+    def __str__(self) -> str:
+        msg = "{}[{:d}] is blocked by {}@{}[{}]".format(
+            self.blocked_app, self.blocked_pid,
+            self.blocking_user, self.blocking_app, self.blocking_pid
+        )
+        return super().__str__()
+
 
 
 class DBMonitorConfig(DBConnectionConfig):
@@ -139,8 +189,12 @@ class DBActivityMonitor:
             context = DBMonitorConfig(None, __doc__).instantiate()
         self.context = context
         self.connection = None
+        self.blocks: Dict[int,Lock] = dict()
 
     def run(self):
+        self.get_blocks()
+        for lock in self.blocks.values():
+            print(str(lock))
         for msg in self.get_indexing_progress():
             print(msg)
         if self.context.pid:
@@ -157,6 +211,15 @@ class DBActivityMonitor:
                         silent=True,
                         app_name_postfix=".monitor")
         return self.connection.connect()
+
+    def get_blocks(self):
+        with self._connect() as cnxn:
+            with cnxn.cursor() as cursor:
+                cursor.execute(LOCK_QUERY)
+                for row in cursor:
+                    lock = Lock(row)
+                    self.blocks[lock.blocked_pid] = lock
+        return
 
     def get_indexing_progress(self) -> List[str]:
         with self._connect() as cnxn:
@@ -224,15 +287,38 @@ class DBActivityMonitor:
                     if p["state"] != self.context.state:
                         continue
                 if self.context.verbose:
-                    activity = Activity(p, now, -1)
+                    activity = Activity(p, self.blocks, now, -1)
                 else:
-                    activity = Activity(p, now)
+                    activity = Activity(p, self.blocks, now)
                 msgs.append(str(activity))
         return msgs
 
+    @staticmethod
+    def execute(what: Callable, on_monitor: Callable):
+        x = threading.Thread(target=what)
+        x.start()
+        n = 0
+        step = 100
+        while x.is_alive():
+            time.sleep(0.1)
+            n += 1
+            if (n % step) == 0:
+                on_monitor()
+                if n > 100000:
+                    step = 6000
+                elif n > 10000:
+                    step = 600
+        x.join()
+
+    def log_activity(self, pid: int):
+        activity = self.get_activity(pid)
+        for msg in activity:
+            logging.info(msg)
+        return
+
 
 class Activity:
-    def __init__(self, activity: Dict, now: datetime, msg_len = 32):
+    def __init__(self, activity: Dict, known_blocks, now: datetime, msg_len=32):
         self.now = now
         self.msg_len = msg_len
         self.database = activity["datname"]
@@ -240,6 +326,7 @@ class Activity:
         self.leader = int(activity["leader_pid"]) if activity["leader_pid"] else None
         self.app = activity["application_name"]
         self.state = activity["state"] if activity["state"] else "wait"
+        self.blocked_by = ""
         if self.state == "wait" or (
             self.state == "active"
             and activity["wait_event_type"]
@@ -248,6 +335,8 @@ class Activity:
             self.wait = "{} waiting for {}".format(
                 activity["wait_event"], activity["wait_event_type"]
             )
+            if self.pid in known_blocks:
+                self.blocked_by = " [{}]".format(known_blocks[self.pid])
         else:
             self.wait = ""
         self.xid = activity["backend_xid"]
@@ -290,6 +379,8 @@ class Activity:
                 str(self.last),
                 str(self.now - self.last)
             )
+        if self.blocked_by:
+            msg += self.blocked_by
         if self.query:
             if self.msg_len < 0:
                 msg += ". Executing: \n{}".format(self.query)

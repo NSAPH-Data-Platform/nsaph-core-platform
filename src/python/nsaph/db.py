@@ -100,21 +100,34 @@ class Connection:
         self.silent = silent
         self.types = None
 
+    def pid(self) -> int:
+        return self.get_pid(self.connection)
+
+    @staticmethod
+    def get_pid(connection) -> int:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_backend_pid()")
+            for row in cursor:
+                return row[0]
+
     def connect_to_database(self, params):
         if not self.silent:
             logging.info('Connecting to the PostgreSQL database...')
         conn = psycopg2.connect(**params)
         return conn
 
-    def connect(self):
+    def connect(self, autocommit = None):
         if "ssh_user" in self.parameters:
             self.connection = self.connect_via_tunnel()
         else:
             self.connection = self.connect_to_database(self.parameters)
+        if autocommit is not None:
+            self.connection.autocommit = autocommit
         info = self.connection.info
+        pid = self.pid()
         if not self.silent:
-            logging.info("Connected to: {}@{}:{}/{}"
-                  .format(info.user, info.host, info.port, info.dbname))
+            logging.info("Connected to: {}@{}:{}/{}[{:d}]"
+                  .format(info.user, info.host, info.port, info.dbname, pid))
         return self.connection
 
     def connect_via_tunnel(self):
