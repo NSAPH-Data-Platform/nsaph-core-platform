@@ -31,7 +31,7 @@ from typing import Iterable, Callable
 from nsaph_utils.utils.io_utils import is_yaml_or_json, is_dir
 from psycopg2.extensions import connection
 
-from nsaph import init_logging
+from nsaph import init_logging, app_name
 from nsaph.data_model.domain import Domain
 from nsaph.loader.common import CommonConfig
 from nsaph.db import Connection
@@ -105,7 +105,12 @@ class LoaderBase(ABC):
         return domain
 
     def __init__(self, context: LoaderConfig):
-        init_logging()
+        app = app_name()
+        if context.table:
+            name = context.table + '-' + app
+        else:
+            name = app
+        init_logging(name=app)
         self.context = None
         self.domain = self.get_domain(context.domain, context.registry)
         if isinstance(context, LoaderConfig) and context.sloppy:
