@@ -32,6 +32,51 @@ END;
 $body$ LANGUAGE plpgsql
 ;
 
+CREATE OR REPLACE FUNCTION public.count_rows (
+    schema_name varchar,
+    table_name varchar,
+    column_name varchar,
+    column_value INT
+)  RETURNS int8
+    VOLATILE
+AS $body$
+DECLARE
+    cnt INT8;
+BEGIN
+    EXECUTE format('SELECT COUNT(*) FROM %I.%I WHERE %I = %s',
+            schema_name,
+            table_name,
+            column_name,
+            column_value
+        )
+        into cnt;
+    RETURN cnt;
+END;
+$body$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION public.count_rows (
+    schema_name varchar,
+    table_name varchar,
+    column_name varchar,
+    column_value VARCHAR
+)  RETURNS int8
+    VOLATILE
+AS $body$
+DECLARE
+    cnt INT8;
+BEGIN
+    EXECUTE format('SELECT COUNT(*) FROM %I.%I WHERE %I = %L',
+            schema_name,
+            table_name,
+            column_name,
+            column_value
+        )
+        into cnt;
+    RETURN cnt;
+END;
+$body$ LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION "public"."estimate_rows" (
     schema_name character varying, table_name character varying
 )  RETURNS bigint
@@ -189,3 +234,4 @@ BEGIN
 END;
 $body$
 ;
+
