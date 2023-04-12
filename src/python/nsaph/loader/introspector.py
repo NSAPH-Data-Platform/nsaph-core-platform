@@ -40,9 +40,6 @@ from sas7bdat import SAS7BDAT
 
 from nsaph.pg_keywords import *
 from nsaph_utils.utils.pyfst import FSTReader
-from rpy2.rinterface_lib.sexp import NACharacterType
-from rpy2.robjects import NA_Character, NA_Complex, NA_Integer, NA_Real, \
-    NA_Logical
 
 PG_MAXINT = 2147483647
 
