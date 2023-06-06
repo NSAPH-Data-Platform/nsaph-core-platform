@@ -66,10 +66,10 @@ combination of zip code and county code exists.
     ZIP code area and the county divided by the total number 
     of residential addresses in the entire ZIP. The 
     county with the highest ratio is selected as the return value. The FIPS
-    code for such county is returned as an integer.
+    code for such county is returned as an integer (e.g., 12).
 * `public.zip_to_fips3(year int, zip int) RETURNS varchar(3)` - the same as
-    the above, but return value is a 3-character string (VARCHAR(3)) padded by 
-    zeros.
+    the above, but return value is a 3-character string (`VARCHAR(3)`) 
+    padded by zeros (e.g., '012').
 * `public.is_zip_to_fips_exact(year int, zip int) RETURNS bool` returns
     `true` if county fips code can be unambiguously inferred from the given
     zip code in the given year, `false` otherwise. In particular this function
