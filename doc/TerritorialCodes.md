@@ -53,15 +53,27 @@ All tables and functions are in schema "public".
 
 (territorial-codes-functions)=
 ### Functions 
+                                                            
+The functions below are defined in [zip2fips.sql](members/zip2fips.sql)
+and used to map zip codes to county FIPS codes or to validate that a given
+combination of zip code and county code exists.
 
-* `public.zip_to_fips(year int, zip int) RETURNS int`
-* `public.zip_to_fips(year int, zip int) RETURNS varchar` - the same as
-    the above, just a different return type
+* `public.zip_to_fips(year int, zip int) RETURNS int`. This function 
+    looks for all counties that intersect the provided zip code area in 
+    the given year. 
+    The intersecting counties are then sorted by the ratio of residential 
+    addresses within the zip code area that fall into each county. The 
+    county with the highest ratio is selected as the return value. The FIPS
+    code for such county is returned as an integer.
+* `public.zip_to_fips3(year int, zip int) RETURNS varchar(3)` - the same as
+    the above, but return value is a 3-character string (VARCHAR(3)) padded by 
+    zeros.
 * `public.is_zip_to_fips_exact(year int, zip int) RETURNS bool` returns
     `true` if county fips code can be unambiguously inferred from the given
     zip code in the given year, `false` otherwise. In particular this function
     return `false` if a `year` is missing from mapping files.
 * `public.validate_zip_fips(zip int, fips2 varchar, fips3 varchar) RETURNS bool`
     returns true if a given combination of the codes is a valid combination,
-    i.e. if there are places that in the given state and county that have the
+    i.e. if there are exist (or ever existed) any residential, business or 
+    other addresses in the given state and county that have the
     given zip code.
