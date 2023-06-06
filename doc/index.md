@@ -245,6 +245,13 @@ Utilities, implementing the following:
     [to map tables from another database](members/map_to_foreign_database.ddl)
     This can be used to map public tables available to anybody
     to a more secure database, containing health data
+* [Tables and functions](members/zip2fips.sql) to map between different
+    territorial codes, including USPS ZIP codes, Census ZCTA codes, 
+    FIPS codes for US states
+    and counties, SSA codes for codes for US states
+    and counties. See more information in the 
+    [Mapping between different territorial codes](TerritorialCodes.md)
+    page.
 
 Utilities used to map territorial codes are described in
 [this document](TerritorialCodes)
