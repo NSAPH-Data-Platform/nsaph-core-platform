@@ -16,7 +16,7 @@ territorial codes, such as USPS ZIP codes, Census ZCTA codes,
 FIPS codes for US states
 and counties, SSA codes for codes for US states
 and counties. See more information in the
-[Mapping between different territorial codes](doc/TerritorialCodes.md)
+[Mapping between different territorial codes](https://nsaph-data-platform.github.io/nsaph-platform-docs/common/core-platform/doc/TerritorialCodes.html)
 
 ## Deployment
 

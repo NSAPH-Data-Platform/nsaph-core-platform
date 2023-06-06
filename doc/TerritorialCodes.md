@@ -59,10 +59,12 @@ and used to map zip codes to county FIPS codes or to validate that a given
 combination of zip code and county code exists.
 
 * `public.zip_to_fips(year int, zip int) RETURNS int`. This function 
-    looks for all counties that intersect the provided zip code area in 
-    the given year. 
-    The intersecting counties are then sorted by the ratio of residential 
-    addresses within the zip code area that fall into each county. The 
+    looks for all counties that intersected the provided zip code area in 
+    the given year. The intersecting counties are then sorted 
+    by the ratio of county residential addresses within the zip code area: 
+    the number of residential addresses in the intersection of the  
+    ZIP code area and the county divided by the total number 
+    of residential addresses in the entire ZIP. The 
     county with the highest ratio is selected as the return value. The FIPS
     code for such county is returned as an integer.
 * `public.zip_to_fips3(year int, zip int) RETURNS varchar(3)` - the same as
