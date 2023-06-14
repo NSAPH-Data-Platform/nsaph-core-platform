@@ -90,7 +90,7 @@ setup(
         'natsort>=7.0.1',
 #       'netcdf',
         'networkx>=2.5',
-        'nsaph-utils>=0.0.5.19',
+        'nsaph-utils>=0.1.1',
         'numpy',
         'openapi-spec-validator>=0.2.9',
         "openpyxl",
@@ -147,7 +147,8 @@ setup(
         'Werkzeug>=0.16.1',
         'zipp>=3.3.1',
         'zope.deprecation>=4.4.0',
-        'sshtunnel'
+        'sshtunnel',
+        'xlrd'
     ],
     extras_require = {
         "FST": [
