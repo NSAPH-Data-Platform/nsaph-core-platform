@@ -33,6 +33,9 @@ from typing import Dict, List
 
 import openpyxl
 import xlrd
+
+from nsaph.util.pg_json_dump import populate
+from nsaph.util.resources import get_resources
 from nsaph_utils.utils.io_utils import download, HEADERS
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -66,6 +69,14 @@ class XReader:
                 break
         return
 
+    @staticmethod
+    def ensure_join_type(columns: List[str], values: Dict[str,str]):
+        if "zip_join_type" not in columns:
+            if values["ZIP_CODE"] == values["ZCTA"]:
+                values["zip_join_type"] = "Zip matches ZCTA"
+            else:
+                values["zip_join_type"] = "Spatial join to ZCTA"
+
     def read(self) -> List[Dict]:
         if self.year is None:
             self.get_year()
@@ -95,16 +106,11 @@ class XReader:
                     if columns[i - 1] not in self.ignored_columns
             }
             values["year"] = self.year
-            if "zip_join_type" not in columns:
-                if values["ZIP_CODE"] == values["ZCTA"]:
-                    values["zip_join_type"] = "Zip matches ZCTA"
-                else:
-                    values["zip_join_type"] = "Spatial join to ZCTA"
+            self.ensure_join_type(columns, values)
             data.append(values)
         return data
 
     def map(self, columns: List[str]) -> List[str]:
-
         mapped = []
         for c in columns:
             if c in self.COLUMNS:
@@ -138,13 +144,15 @@ class XReader:
         titles = [
             ws.cell_value(0, i) for i in column_range
         ]
+        columns = self.map(titles)
         logging.info("Processing: " + self.path)
         data: List[Dict] = []
         for rowx in range(1, ws.nrows):
             values = {
-                titles[colx]: ws.cell_value(rowx, colx) for colx in column_range
+                columns[colx]: ws.cell_value(rowx, colx) for colx in column_range
             }
             values["year"] = self.year
+            self.ensure_join_type(columns, values)
             data.append(values)
         return data
 
@@ -152,6 +160,7 @@ class XReader:
 class Importer:
     URL_PATTERN = "https://udsmapper.org/wp-content/uploads/2022/10/Z{ip}CodetoZCTACrosswalk{year}UDS.xls{x}"
     YEARS = [y for y in range(2009, 2022)]
+    TABLE = "public.zip2zcta"
 
     def __init__(self, arguments):
         self.db = arguments.db
@@ -170,10 +179,13 @@ class Importer:
                     break
         if url is None:
             raise ValueError("Cannot find URL for year " + str(year))
-        logging.info("Downloading: " + url)
         xlsx = os.path.basename(url)
-        with open(xlsx, "wb") as out:
-            download(url, out)
+        if not os.path.isfile(xlsx):
+            logging.info("Downloading: " + url)
+            with open(xlsx, "wb") as out:
+                download(url, out)
+        else:
+            logging.info("Using existing file: " + xlsx)
         return xlsx
 
     def process(self, output):
@@ -184,30 +196,69 @@ class Importer:
                 data = reader.read()
                 for line in data:
                     json.dump(line, out)
+                    out.write("\n")
         return
 
-    def ingest(self):
+    def drop(self):
+        self.execute_db_update("DROP TABLE IF EXISTS {} CASCADE".format(self.TABLE))
+
+    def create(self):
+        resource = get_resources(self.TABLE)
+        ddl_path = resource['ddl']
+        with open(ddl_path) as f:
+            ddl = ''.join([
+                line for line in f
+            ])
+        self.execute_db_update(ddl)
+        return
+
+    def populate(self, path_to_data: str):
         with Connection(self.db, self.conn) as cnxn:
-            pass
+            with cnxn.cursor() as cursor:
+                populate(cursor, self.TABLE, path_to_data)
             cnxn.commit()
 
-        
+    def vacuum(self):
+        self.execute_db_update("VACUUM (VERBOSE, PARALLEL 6, ANALYZE) public.zip2zcta;")
 
+    def ingest(self, path_to_data: str):
+        self.drop()
+        self.create()
+        self.populate(path_to_data)
+        self.vacuum()
+        return
+
+    def execute_db_update(self, sql: str):
+        with Connection(self.db, self.conn) as cnxn:
+            with cnxn.cursor() as cursor:
+                logging.info(sql)
+                cursor.execute(sql)
+            cnxn.commit()
 
 if __name__ == '__main__':
+    os.system("rm *.log")
     init_logging()
-    parser = ArgumentParser (description="Import/Export resources")
+    parser = ArgumentParser (description="Import ZIP code to ZCTA mappings (crosswalk)")
     parser.add_argument("--db",
                         help="Path to a database connection parameters file",
                         default="database.ini",
                         required=False)
-    parser.add_argument("--connection",
+    parser.add_argument("--connection", "-c",
                         help="Section in the database connection parameters file",
                         default="nsaph2",
+                        required=False)
+    parser.add_argument("--action", "-a",
+                        help="Section in the database connection parameters file",
+                        choices=["download", "ingest", "all"],
+                        default="all",
                         required=False)
 
     arguments = parser.parse_args()
 
     importer = Importer(arguments)
-    importer.process("zip2zcta.json.gz")
+    if arguments.action in ["download", "all"]:
+        importer.process("zip2zcta.json.gz")
+    if arguments.action in ["ingest", "all"]:
+        importer.ingest("zip2zcta.json.gz")
+
     

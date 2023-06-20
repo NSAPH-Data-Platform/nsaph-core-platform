@@ -73,11 +73,18 @@ def flush(cursor, table, rows):
     columns = [column for column in rows[0]]
     sql = "INSERT INTO {} ({}) VALUES \n\t".format(table, ','.join(columns))
     values = [
-        "({})".format(','.join([quote(row[column]) for column in columns]))
+        "({})".format(','.join([
+            quote(row[column]) if row[column] is not None else "NULL"
+            for column in columns
+        ]))
         for row in rows
     ]
     sql += ",\n\t".join(values)
-    cursor.execute(sql)
+    try:
+        cursor.execute(sql)
+    except:
+        logging.error(sql)
+        raise
 
 
 @contextmanager
@@ -134,6 +141,23 @@ def ensure(conn: connection, table: str):
     import_table(conn=conn, table=table, replace=False)
 
 
+def populate(cursor, table, data_path):
+    n = 0
+    with gzip.open(data_path, "rt") as fd:
+        rows = []
+        for line in fd:
+            rows.append(json.loads(line))
+            n += 1
+            if len(rows) > 100:
+                flush(cursor, table, rows)
+                rows.clear()
+            if (n % 10000) == 0:
+                print('*', end="")
+        if len(rows) > 0:
+            flush(cursor, table, rows)
+    logging.info("Inserted: {:d} records into {}".format(n, table))
+
+
 def import_table(conn: connection, table: str, replace = True):
     if '.' not in table:
         table = "public." + table
@@ -149,24 +173,10 @@ def import_table(conn: connection, table: str, replace = True):
             line for line in f
         ])
     data_path = resource["json.gz"]
-    n = 0
     with conn.cursor() as cursor:
         logging.info(ddl)
         cursor.execute(ddl)
-        with gzip.open(data_path, "rt") as fd:
-            rows = []
-            for line in fd:
-                rows.append(json.loads(line))
-                n += 1
-                if len(rows) > 100:
-                    flush(cursor, table, rows)
-                    rows.clear()
-                if (n % 10000) == 0:
-                    print('*', end="")
-            if len(rows) > 0:
-                flush(cursor, table, rows)
-
-    logging.info("Inserted: {:d} records into {}".format(n, table))
+        populate(cursor, table, data_path)
     return
 
 
