@@ -19,6 +19,7 @@
 
 -- Table maps USPS ZIP codes to ZCTA codes used by US Census
 
+DROP TABLE IF EXISTS public.zip2zcta;
 CREATE TABLE
     public.zip2zcta
     (
