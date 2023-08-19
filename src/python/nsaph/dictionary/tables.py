@@ -209,7 +209,19 @@ class Domain:
             node1 = qstr(r.x)
             node2 = qstr(r.y)
             label = r.as_edge_attr()
-            print(f"\t{node1} -> {node2} [label={label}];", file=out)
+            if r.type == "aggregation":
+                width = 5
+                color = "blue"
+            elif r.type == "union":
+                width = 2
+                color = "chocolate"
+            elif r.type == "parent-child":
+                width = 2
+                color = "darkorchid"
+            else:
+                width = 1
+                color = "black"
+            print(f"\t{node1} -> {node2} [label={label};penwidth={width};color={color}];", file=out)
         print("}", file=out)
 
 
