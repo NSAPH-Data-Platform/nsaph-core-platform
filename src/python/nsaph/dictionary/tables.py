@@ -20,10 +20,12 @@
 """
 Module to create list of tables from the Domain Data Model
 """
+import os.path
 import re
 import sys
 from typing import Dict, Optional, List
 
+from nsaph.dictionary.columns import Column
 from nsaph_utils.utils.io_utils import as_dict
 
 
@@ -33,6 +35,12 @@ def fqn(schema: str, name: str) -> str:
 
 def qstr(s):
     return f'"{str(s)}"'
+
+
+def hstr(s):
+    s = s.replace("\n", "<br/>")
+    return f'<{str(s)}>'
+
 
 class Table:
     @classmethod
@@ -57,6 +65,7 @@ class Table:
         self.parent = None
         self.type: str = "Table"
         self.master = None
+        create_block = None
         if "create" in table_block:
             create_block:Dict[str, Dict] = table_block["create"]
             self.aggregation = self.get_aggregation(schema, name, create_block)
@@ -101,9 +110,67 @@ class Table:
             relation = None
         if relation is not None:
             Domain.relations.append(relation)
+        self.columns = dict()
+        if "columns" in table_block:
+            columns_block = table_block["columns"]
+            for column_block in columns_block:
+                column = Column(fqn(self.schema, self.name), column_block)
+                self.columns[column.name.lower()] = column
+        if self.master is not None and create_block and "select" in create_block:
+            select_block = create_block["select"]
+            if '*' in select_block:
+                self.columns.update(self.master.columns)
+        self.predecessors = None
 
     def __str__(self) -> str:
         return self.type + " " + fqn(self.schema, self.name)
+
+    def get_predecessors(self):
+        if self.predecessors is None:
+            self.predecessors = []
+            for relation in Domain.relations:
+                if relation.y == self:
+                    self.predecessors.append(relation)
+        return self.predecessors
+
+    def get_column_links(self, column: Column) -> List:
+        pc = column.predecessors
+        pt = self.get_predecessors()
+        links = []
+        for c in pc:
+            for r in pt:
+                t = r.x
+                if c.lower() in t.columns:
+                    link = ColumnLink(r, t.columns[c], column)
+                    links.append(link)
+        return links
+
+    def calculate_column_lineage(self, column: Column, nodes: List[Column], edges: List):
+        nodes.append(column)
+        links = self.get_column_links(column)
+        for link in links:
+            edges.append(link)
+            link.relation.x.calculate_column_lineage(link.x, nodes, edges)
+        return
+
+    def column_lineage_to_dot(self, column_name: str, out):
+        column = self.columns[column_name]
+        nodes: List[Column] = []
+        edges: List[ColumnLink] = []
+        self.calculate_column_lineage(column, nodes, edges)
+        print("digraph {", file=out)
+        for node in nodes:
+            node_id = qstr(node.fqn)
+            node_label = hstr(node.describe())
+            print(f"\t{node_id} [label={node_label}];", file=out)
+        for edge in edges:
+            node1 = qstr(edge.x.fqn)
+            node2 = qstr(edge.y.fqn)
+            attrs = edge.relation.as_edge_attr()
+            alist = [f'{key}={attrs[key]}' for key in attrs]
+            astring = ','.join(alist)
+            print(f"\t{node1} -> {node2} [{astring}];", file=out)
+        print("}", file=out)
 
 
 class Aggregation:
@@ -163,14 +230,36 @@ class Relation:
     def label(self):
         return self.data if self.data is not None else ''
 
-    def as_edge_attr(self):
+    def as_edge_attr(self) -> Dict:
+        attrs = dict()
         if self.data is None:
-            return qstr(self.type)
-        return f'"{self.type} {self.label()}"'
+            attrs["label"] = qstr(self.type)
+        else:
+            attrs["label"] = f'"{self.type} {self.label()}"'
+        if self.type == "aggregation":
+            attrs["penwidth"] = 5
+            attrs["color"] = "blue"
+        elif self.type == "union":
+            attrs["penwidth"] = 2
+            attrs["color"] = "chocolate"
+        elif self.type == "parent-child":
+            attrs["penwidth"] = 2
+            attrs["color"] = "darkorchid"
+        else:
+            attrs["penwidth"] = 1
+            attrs["color"] = "black"
+        return attrs
 
     def __str__(self) -> str:
         data = self.label()
         return f'{self.type}: {str(self.x)} => {str(self.y)} {data}'
+
+
+class ColumnLink:
+    def __init__(self, r: Relation, x: Column, y: Column):
+        self.relation = r
+        self.x = x
+        self.y = y
 
 
 class Domain:
@@ -208,26 +297,41 @@ class Domain:
         for r in cls.relations:
             node1 = qstr(r.x)
             node2 = qstr(r.y)
-            label = r.as_edge_attr()
-            if r.type == "aggregation":
-                width = 5
-                color = "blue"
-            elif r.type == "union":
-                width = 2
-                color = "chocolate"
-            elif r.type == "parent-child":
-                width = 2
-                color = "darkorchid"
-            else:
-                width = 1
-                color = "black"
-            print(f"\t{node1} -> {node2} [label={label};penwidth={width};color={color}];", file=out)
+            attrs = r.as_edge_attr()
+            alist = [f'{key}={attrs[key]}' for key in attrs]
+            astring = ','.join(alist)
+            print(f"\t{node1} -> {node2} [{astring}];", file=out)
         print("}", file=out)
+
+    @classmethod
+    def generate_graphs(cls, of: str = None, print_lineage = True, generate_image = True):
+        if of is None:
+            of = "tables.dot"
+        with open(of, "w") as graph:
+            cls.to_dot(graph)
+        if generate_image:
+            os.system(f"dot -T png -O {of}")
+        if print_lineage:
+            if not os.path.isdir("tables"):
+                os.mkdir("tables")
+            for t in cls.tables:
+                d = os.path.join("tables", t)
+                if not os.path.isdir(d):
+                    os.mkdir(d)
+                table = cls.tables[t]
+                for c in table.columns:
+                    f = os.path.join(d, c) + ".dot"
+                    with open(f, "w") as graph:
+                        table.column_lineage_to_dot(c, graph)
+                    if generate_image:
+                        os.system(f"dot -T png -O {f}")
+
 
 
 if __name__ == '__main__':
     for a in sys.argv[1:]:
         Domain.add(a)
     Domain.list()
-    Domain.to_dot()
+    Domain.generate_graphs(generate_image=False)
+
 
