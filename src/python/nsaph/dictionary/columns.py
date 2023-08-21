@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Set
 import sqlparse
 import yaml
 from sqlparse.sql import IdentifierList, Token, Parenthesis, Function, Identifier
+import html
 
 
 def noop(x):
@@ -45,6 +46,8 @@ class Column:
         self.datatype = "string"
         self.column_type = ""
         self.expression = None
+        self.copied = False
+        self.casts = dict()
         if self.block is None:
             return
         if "description" in self.block:
@@ -67,6 +70,9 @@ class Column:
                     self.parse_expr(src_block["code"])
             elif isinstance(src_block, str):
                 self.parse_expr(src_block)
+        if "cast" in self.block:
+            for t in self.block["cast"]:
+                self.casts[t] = self.block["cast"][t]
         return
 
     def describe(self) -> str:
@@ -80,12 +86,52 @@ class Column:
                 for key in self.description:
                     if key == "text":
                         continue
-                    text += key + ': ' + str(self.description[key])
+                    text += key + ': ' + str(self.description[key]) + '\n'
         except:
             print("ERROR:")
             print(str(self.description))
         if self.expression:
             text += "\n\n" + self.expression + '\n'
+        return text
+
+    def describe_html(self) -> str:
+        text = "\n<TABLE>\n"
+        text += "<tr>"
+        text += f'<td align = "center" border = "0"><FONT POINT-SIZE="20"><b>{self.fqn}</b></FONT></td>'
+        text += f'<td align = "center" border = "0">{self.datatype}</td>'
+        text += "</tr>\n"
+
+        if self.column_type:
+            text += f'<tr><td  align = "center" border = "0"><i>{self.column_type}</i></td></tr>\n'
+
+        if self.reference:
+            text += f'<tr><td  align = "center" border = "0" href="{self.column_type}"><i>additional information</i></td></tr>\n'
+        if self.description and "text" in self.description:
+            value = html.escape(self.description["text"])
+            text += f'<tr><td  align = "center" border = "0">{value}</td></tr>\n'
+
+        n = 0
+        if self.description is not None:
+            for key in self.description:
+                if key == "text":
+                    continue
+                value = html.escape(str(self.description[key]))
+                text += f'\t<tr><td align = "left">{key}</td><td align = "left">{value}</td></tr>\n'
+                if n == 0:
+                    text += "<hr/>\n"
+                n += 1
+        if self.expression:
+            if n > 0:
+                text += "<hr/>\n"
+                n = 0
+            value = html.escape(self.expression)
+            text += f'\t<tr><td align = "left">{value}</td></tr>\n'
+        for key in self.casts:
+            if n > 0:
+                text += "<hr/>\n"
+            value = html.escape(str(self.casts[key]))
+            text += f'<tr><td align = "left">{key} &rarr;</td><td align = "left">{value}</td></tr>\n'
+        text += "\n</TABLE>\n"
         return text
 
     def parse_expr(self, exp: str):

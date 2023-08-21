@@ -316,8 +316,8 @@ class Domain:
     def skip(self, table: str):
         self.append_ddl(table, "-- {} skipped;".format(table))
 
-    @staticmethod
-    def get_select_from(definition) -> Optional[List[Identifier]]:
+    @classmethod
+    def get_select_from(cls, definition) -> Optional[List[Identifier]]:
         if "create" not in definition:
             return None
         create = definition["create"]

@@ -25,6 +25,7 @@ import re
 import sys
 from typing import Dict, Optional, List
 
+import nsaph.data_model.domain
 from nsaph.dictionary.columns import Column
 from nsaph_utils.utils.io_utils import as_dict
 
@@ -55,7 +56,7 @@ class Table:
 
     def __init__(self, schema: str, name: str, table_block: dict):
         print("Adding: " + fqn(schema, name))
-        Domain.tables[fqn(schema, name)] = self
+        DomainDict.tables[fqn(schema, name)] = self
         self.name = name
         self.schema = schema
         self.block = table_block
@@ -81,7 +82,7 @@ class Table:
                             self.join = Join(schema, from_block)
                         else:
                             tname = fqn(schema, from_block)
-                            self.master = Domain.tables[tname]
+                            self.master = DomainDict.tables[tname]
         if "children" in table_block:
             children_block = table_block["children"]
             assert isinstance(children_block, dict)
@@ -89,7 +90,7 @@ class Table:
                 child_table = Table(schema, child, children_block[child])
                 child_table.parent = self
                 relation = Relation("parent-child", self, child_table)
-                Domain.relations.append(relation)
+                DomainDict.relations.append(relation)
         if self.aggregation is not None:
             relation = Relation("aggregation", self.aggregation.parent, self, self.aggregation.on)
         elif self.parent is not None:
@@ -99,17 +100,17 @@ class Table:
         elif self.join is not None:
             for t in self.join.tables:
                 relation = Relation("join", t, self, self.join.on)
-                Domain.relations.append(relation)
+                DomainDict.relations.append(relation)
             relation = None
         elif self.union is not None:
             for t in self.union.tables:
                 relation = Relation("union", t, self)
-                Domain.relations.append(relation)
+                DomainDict.relations.append(relation)
             relation = None
         else:
             relation = None
         if relation is not None:
-            Domain.relations.append(relation)
+            DomainDict.relations.append(relation)
         self.columns = dict()
         if "columns" in table_block:
             columns_block = table_block["columns"]
@@ -117,9 +118,16 @@ class Table:
                 column = Column(fqn(self.schema, self.name), column_block)
                 self.columns[column.name.lower()] = column
         if self.master is not None and create_block and "select" in create_block:
+            identifiers = nsaph.data_model.domain.Domain.get_select_from(table_block)
             select_block = create_block["select"]
             if '*' in select_block:
-                self.columns.update(self.master.columns)
+                for c in self.master.columns:
+                    p_column = self.master.columns[c]
+                    column_block = {c: p_column.block}
+                    column = Column(fqn(self.schema, self.name), column_block)
+                    column.expression = None
+                    column.copied = True
+                    self.columns[column.name.lower()] = column
         self.predecessors = None
 
     def __str__(self) -> str:
@@ -128,7 +136,7 @@ class Table:
     def get_predecessors(self):
         if self.predecessors is None:
             self.predecessors = []
-            for relation in Domain.relations:
+            for relation in DomainDict.relations:
                 if relation.y == self:
                     self.predecessors.append(relation)
         return self.predecessors
@@ -162,12 +170,18 @@ class Table:
         print("digraph {", file=out)
         for node in nodes:
             node_id = qstr(node.fqn)
-            node_label = hstr(node.describe())
-            print(f"\t{node_id} [label={node_label}];", file=out)
+            node_label = '<' + node.describe_html() + '>'
+            print(f"\t{node_id} [label={node_label},shape=box];", file=out)
         for edge in edges:
             node1 = qstr(edge.x.fqn)
             node2 = qstr(edge.y.fqn)
             attrs = edge.relation.as_edge_attr()
+            if edge.y.copied:
+                attrs["label"] = "Copied"
+            elif "transformation" in attrs["label"]:
+                attrs["label"] = attrs["label"].replace("transformation", "transformed")
+            elif "aggregation" in attrs["label"]:
+                attrs["label"] = attrs["label"].replace("aggregation", "aggregated")
             alist = [f'{key}={attrs[key]}' for key in attrs]
             astring = ','.join(alist)
             print(f"\t{node1} -> {node2} [{astring}];", file=out)
@@ -176,10 +190,10 @@ class Table:
 
 class Aggregation:
     def __init__(self, schema: str, name: str, parent: str, columns: List):
-        self.table = Domain.tables[fqn(schema, name)]
+        self.table = DomainDict.tables[fqn(schema, name)]
         if '.' not in parent:
             parent = fqn(schema, parent)
-        self.parent = Domain.tables[parent]
+        self.parent = DomainDict.tables[parent]
         self.columns = columns
         self.on = "On " + ", ".join(self.columns)
 
@@ -191,9 +205,9 @@ class Union:
             if '.' not in t:
                 t = fqn(schema, t)
             pattern = re.compile(t.replace('*', ".*"))
-            for t2 in Domain.tables:
+            for t2 in DomainDict.tables:
                 if pattern.fullmatch(t2):
-                    self.tables.append(Domain.tables[t2])
+                    self.tables.append(DomainDict.tables[t2])
         return
 
 
@@ -217,7 +231,7 @@ class Join:
             table = table.strip()
             if '.' not in table:
                 table = fqn(schema, table)
-            self.tables.append(Domain.tables[table])
+            self.tables.append(DomainDict.tables[table])
         return
 
 
@@ -234,9 +248,9 @@ class Relation:
     def as_edge_attr(self) -> Dict:
         attrs = dict()
         if self.data is None:
-            attrs["label"] = qstr(self.type)
+            attrs["label"] = '\t' + qstr(self.type)
         else:
-            attrs["label"] = f'"{self.type} {self.label()}"'
+            attrs["label"] = f'"\t{self.type} {self.label()}"'
         if self.type == "aggregation":
             attrs["penwidth"] = 5
             attrs["color"] = "blue"
@@ -263,7 +277,7 @@ class ColumnLink:
         self.y = y
 
 
-class Domain:
+class DomainDict:
     tables: Dict[str, Table] = dict()
     relations: List[Relation] = []
 
@@ -313,6 +327,7 @@ class Domain:
         if generate_image:
             os.system(f"dot -T png -O {of}")
         if print_lineage:
+            n = 0
             if not os.path.isdir("tables"):
                 os.mkdir("tables")
             for t in cls.tables:
@@ -326,13 +341,19 @@ class Domain:
                         table.column_lineage_to_dot(c, graph)
                     if generate_image:
                         os.system(f"dot -T png -O {f}")
+                        n += 1
+                        if (n % 10) == 0:
+                            print('*', end='')
+                            if (n % 300) == 0:
+                                print()
+                                print(t)
 
 
 
 if __name__ == '__main__':
     for a in sys.argv[1:]:
-        Domain.add(a)
-    Domain.list()
-    Domain.generate_graphs(generate_image=False)
+        DomainDict.add(a)
+    DomainDict.list()
+    DomainDict.generate_graphs(generate_image=False)
 
 
