@@ -138,9 +138,10 @@ class Table:
         pt = self.get_predecessors()
         links = []
         for c in pc:
+            c = c.lower()
             for r in pt:
                 t = r.x
-                if c.lower() in t.columns:
+                if c in t.columns:
                     link = ColumnLink(r, t.columns[c], column)
                     links.append(link)
         return links
