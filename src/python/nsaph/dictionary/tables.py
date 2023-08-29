@@ -354,6 +354,6 @@ if __name__ == '__main__':
     for a in sys.argv[1:]:
         DomainDict.add(a)
     DomainDict.list()
-    DomainDict.generate_graphs(generate_image=False)
+    DomainDict.generate_graphs(generate_image=True)
 
 

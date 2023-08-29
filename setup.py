@@ -90,7 +90,7 @@ setup(
         'natsort>=7.0.1',
 #       'netcdf',
         'networkx>=2.5',
-        'nsaph-utils>=0.1.1',
+        'nsaph-utils @ git+https://github.com/NSAPH-Data-Platform/nsaph-utils.git@develop',
         'numpy',
         'openapi-spec-validator>=0.2.9',
         "openpyxl",
