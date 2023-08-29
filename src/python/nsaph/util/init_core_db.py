@@ -62,7 +62,7 @@ def get_sql_dir(me: str) -> str:
     while n > 0:
         if ppp[n] == "python":
             break
-        if ppp[n] == "site-packages":
+        if ppp[n] in ["site-packages", "dist-packages"]:
             n += 2
             break
         n -= 1
