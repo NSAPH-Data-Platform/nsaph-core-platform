@@ -35,6 +35,7 @@ setup(
         'attrs>=19.3.0',
         'Babel>=2.8.0',
         'bagit>=1.7.0',
+        'boto3',
         'CacheControl>=0.11.7',
         'cached-property>=1.5.2',
         'cattrs>=1.0.0',

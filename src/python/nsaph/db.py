@@ -9,7 +9,7 @@ This happens automatically if the given section of
 database.ini contains ssh_user key.
 
 """
-
+import json
 #  Copyright (c) 2021. Harvard University
 #
 #  Developed by Research Software Engineering,
@@ -36,6 +36,8 @@ import psycopg2
 import os
 import sshtunnel
 from configparser import ConfigParser
+import boto3
+from botocore.exceptions import ClientError
 
 from deprecated.sphinx import deprecated
 
@@ -45,6 +47,9 @@ from nsaph import app_name
 class Connection:
     default_filename = 'database.ini'
     default_section = 'postgresql'
+    aws_default_region = "us-east-1"
+    aws_default_secret_name = "nsaph/public/dorieh/"
+
     @classmethod
     def read_config(cls, filename, section):
         home = os.getenv("NSAPH_HOME")
@@ -66,6 +71,36 @@ class Connection:
             raise ValueError('Section {0} not found in the {1} file'
                             .format(section, filename))
         return parameters
+
+    @classmethod
+    def get_aws_secret(cls, region_name = None, secret_name = None):
+        if secret_name is None:
+            secret_name = cls.aws_default_secret_name
+        if region_name is None:
+            region_name = cls.aws_default_region
+
+        # Create a Secrets Manager client
+        session = boto3.session.Session()
+        client = session.client(
+            service_name='secretsmanager',
+            region_name=region_name
+        )
+
+        try:
+            get_secret_value_response = client.get_secret_value(
+                SecretId=secret_name
+            )
+        except ClientError as e:
+            # For a list of exceptions thrown, see
+            # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+            raise e
+
+        # Decrypts secret using the associated KMS key.
+        secret = get_secret_value_response['SecretString']
+        return secret
+
+    # Your code goes here.
+
 
     @staticmethod
     def host_name():
@@ -92,6 +127,28 @@ class Connection:
         if not section:
             section = Connection.default_section
         self.parameters = self.read_config(filename, section)
+        if "secret" in self.parameters and self.parameters["secret"].startswith("aws:"):
+            pp = self.parameters["secret"].split(':')
+            region = self.aws_default_region
+            name = self.aws_default_secret_name
+            for x in pp:
+                xx = x.split('=')
+                if xx[0] == "region":
+                    region = xx[1]
+                elif xx[0] == "name":
+                    name = xx[1]
+            data = json.loads(self.get_aws_secret(region, name))
+            print(data)
+            del self.parameters["secret"]
+            for key in ["password", "database"]:
+                if key in data:
+                    self.parameters[key] = data[key]
+            for key in ["host", "port"]:
+                # to account for port forwarding
+                if key in data and key not in self.parameters:
+                    self.parameters[key] = data[key]
+            if "username" in data:
+                self.parameters["user"] = data["username"]
         if "application_name" not in self.parameters:
             name = "nsaph:" + app_name() + app_name_postfix
             self.parameters["application_name"] = name
