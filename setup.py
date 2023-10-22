@@ -7,7 +7,7 @@ with open("README.md", "r") as readme:
 setup(
     name='nsaph',
     version="0.0.4.3",
-    url='https://gitlab-int.rc.fas.harvard.edu/rse/francesca_dominici/nsaph',
+    url='https://github.com/NSAPH-Data-Platform/nsaph-core-platform',
     license='',
     author='Michael Bouzinier',
     author_email='mbouzinier@g.harvard.edu',
