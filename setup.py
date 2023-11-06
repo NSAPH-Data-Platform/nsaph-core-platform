@@ -6,7 +6,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='nsaph',
-    version="0.0.4.3",
+    version="0.0.4.4",
     url='https://github.com/NSAPH-Data-Platform/nsaph-core-platform',
     license='',
     author='Michael Bouzinier',
@@ -63,6 +63,7 @@ setup(
         'graphviz>=0.14.2',
         'gunicorn>=20.0.4',
         'h5py',
+        'hydra-core',
         'humanfriendly>=8.2',
         'idna>=2.10',
         'importlib-metadata>=2.0.0',
