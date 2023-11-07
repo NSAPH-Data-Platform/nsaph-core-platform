@@ -1,8 +1,14 @@
+import logging
+import os.path
 from typing import List
 
+from nsaph import init_logging
 from nsaph.db import Connection
 from nsaph.dbt.dbt_config import DBTConfig
 
+
+class TestFailedError(Exception):
+    pass
 
 class DBTRunner:
     def __init__(self, context: DBTConfig = None):
@@ -10,6 +16,10 @@ class DBTRunner:
             context = DBTConfig(None, __doc__).instantiate()
         self.context = context
         self.scripts = self.context.script
+        self.test_names = [
+            os.path.splitext(os.path.basename(t))[0] for t in self.scripts
+        ]
+        init_logging(name="run-tests-" + "-".join(self.test_names))
         self.runs = 0
         self.successes = 0
         self.failures = 0
@@ -51,11 +61,16 @@ class DBTRunner:
                         lengths[i] = len(str(values[i]))
                 test_cases.append(values)
             lengths = [l + 1 for l in lengths]
-            print(self.report_row(columns, lengths))
+            logging.info(self.report_row(columns, lengths))
             for row in test_cases:
                 s = self.report_row(row, lengths)
-                print(s)
-            print("Passed: {:d}; Failed: {:d}".format(passes, failures))
+                if row[pi] == "passed":
+                    logging.info(s)
+                elif row[pi] == "failed":
+                    logging.error(s)
+                else:
+                    logging.warning(s)
+            logging.info("Passed: {:d}; Failed: {:d}".format(passes, failures))
             self.runs      += len(test_cases)
             self.successes += passes
             self.failures  += failures
@@ -73,8 +88,10 @@ class DBTRunner:
         self.reset()
         self.run()
         if self.failures > 0:
-            raise AssertionError("There are failures")
-        print("All tests succeeded")
+            err = TestFailedError(f"There are {str(self.failures)} failures")
+            logging.exception("Tests FAILED", err)
+            raise err
+        logging.info("All tests succeeded")
 
 
 if __name__ == '__main__':

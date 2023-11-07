@@ -180,7 +180,10 @@ class TableFingerprint:
                 cursor.execute(sql)
                 for row in cursor:
                     v = row[0]
-        condition = f"({sql}) = '{str(v)}'"
+        if v is None:
+            condition = f"({sql}) IS NULL"
+        else:
+            condition = f"({sql}) = '{str(v)}'"
         test_case = self.test_case_sql(name, test, condition)
         return test_case
 
