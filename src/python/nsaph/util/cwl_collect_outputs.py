@@ -54,7 +54,7 @@ def collect(step: str, path: str, name = None, output = sys.stdout, what=None):
                   format(os.path.basename(path)), file=output)
             for o in outputs:
                 t = outputs[o]["type"]
-                if t.lower() in ["stdout", "stderr"]:
+                if isinstance(t, str) and t.lower() in ["stdout", "stderr"]:
                     t = "File"
                 print("  {}:".format(encode(name) + o), file=output)
                 print("    type: {}".format(t), file=output)

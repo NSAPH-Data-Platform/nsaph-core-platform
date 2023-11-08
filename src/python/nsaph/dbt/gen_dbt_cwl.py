@@ -136,7 +136,13 @@ class CWLTestGenerator:
 
 
 if __name__ == '__main__':
-    generator = CWLTestGenerator(sys.argv[1], sys.argv[2])
+    arg1 = sys.argv[1]
+    if len(sys.argv) > 2:
+        arg2 = sys.argv[2]
+    else:
+        dirname, basename = os.path.split(arg1)
+        arg2 = os.path.join(dirname, "test_" + basename)
+    generator = CWLTestGenerator(arg1, arg2)
     generator.generate()
 
 
