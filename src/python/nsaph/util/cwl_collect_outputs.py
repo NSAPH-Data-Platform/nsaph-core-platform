@@ -1,6 +1,9 @@
 """
-Command line utility to copy outputs from
-a CWL tool or sub-workflow into the calling workflow
+Command line utility to generate output sections from
+a CWL tool or sub-workflow. 
+
+Generated sections then can be copied and pasted into
+any calling workflow
 
 """
 #  Copyright (c) 2021. Harvard University
