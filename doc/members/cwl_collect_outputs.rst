@@ -1,11 +1,6 @@
 Utility to generate outputs sections for a CWL Tool
 ============================================================================
 
-Command line utility to generate output sections from
-a CWL tool or sub-workflow.
-
-Generated sections then can be copied and pasted into
-any calling workflow
 
 .. automodule:: nsaph.util.cwl_collect_outputs
    :members:
