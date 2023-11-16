@@ -1,10 +1,8 @@
 Utility to generate test queries
 ================================
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Usage
-
+Usage
+-----
 
   python -m nsaph.dbt.create_test [-h] --script SCRIPT [SCRIPT ...]
         [--autocommit] [--db DB] [--connection CONNECTION]
@@ -30,8 +28,8 @@ Options:
 
 
 
-API
----
+Details
+-------
 
 .. automodule:: nsaph.dbt.create_test
    :members:

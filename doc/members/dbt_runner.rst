@@ -1,9 +1,8 @@
 Utility to generate test queries
 ================================
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Usage
+Usage
+-----
 
 
  python -m nsaph.dbt.dbt_runner [-h] --script SCRIPT [SCRIPT ...]
@@ -30,8 +29,8 @@ Options:
 
 
 
-API
----
+Details
+-------
 
 .. automodule:: nsaph.dbt.dbt_runner
    :members:
