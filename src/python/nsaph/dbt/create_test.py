@@ -1,5 +1,26 @@
 """
-A utility to generate a test based on a sample table
+A utility to generate a test based on a sample table.
+
+The tool introspects a table, given as an input
+and generates a set of queries each of which tests that the data in
+a certain column has not changed.
+
+The queries are output into a file that can be executed
+as a single SQL query producing a table with the following columns:
+
+1. Name of the column being tested
+2. What value is compared not to change:
+    MD5 hash, number of distinct records, mean value or variance
+3. Whether the value has changed (indicated by string `failed`) or remained
+    the same (indicated by string `passed`)
+
+Individual queries are separated by a comment strings:
+
+* `-- Test case end`
+* `-- Test case start`
+
+so a test runner can execute them individually if desired
+
 """
 #  Copyright (c) 2021. Harvard University
 #
@@ -20,14 +41,8 @@ A utility to generate a test based on a sample table
 #  limitations under the License.
 #
 
-import datetime
-import logging
-import threading
-import time
 from enum import Enum
 from typing import List, Dict, Optional, Callable
-from psycopg2.extras import RealDictCursor
-from psycopg2.extensions import connection
 
 from nsaph import init_logging
 from nsaph.db import Connection
