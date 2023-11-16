@@ -9,10 +9,10 @@ The queries are output into a file that can be executed
 as a single SQL query producing a table with the following columns:
 
 1. Name of the column being tested
-2. What value is compared not to change:
-    MD5 hash, number of distinct records, mean value or variance
+2. What value is being tested not to change:
+MD5 hash, number of distinct records, mean value or variance
 3. Whether the value has changed (indicated by string `failed`) or remained
-    the same (indicated by string `passed`)
+the same (indicated by string `passed`)
 
 Individual queries are separated by a comment strings:
 

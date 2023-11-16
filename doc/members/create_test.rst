@@ -5,8 +5,8 @@ Utility to generate test queries
    :maxdepth: 1
    :caption: Usage
 
-::
-python -m nsaph.dbt.create_test [-h] --script SCRIPT [SCRIPT ...]
+
+  python -m nsaph.dbt.create_test [-h] --script SCRIPT [SCRIPT ...]
         [--autocommit] [--db DB] [--connection CONNECTION]
         [--verbose] [--table TABLE]
 
@@ -28,7 +28,7 @@ Options:
   --table TABLE, -t TABLE
                         Name of the table to manipulate, default: None
 
-::
+
 
 API
 ---
