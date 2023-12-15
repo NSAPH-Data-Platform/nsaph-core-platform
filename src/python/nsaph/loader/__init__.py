@@ -138,6 +138,9 @@ class LoaderBase(ABC):
         if not on_monitor:
             pid = self.get_pid(connxn)
             on_monitor = lambda: self.monitor.log_activity(pid)
-        DBActivityMonitor.execute(what, on_monitor)
+        try:
+            DBActivityMonitor.execute(what, on_monitor)
+        except Exception as x:
+            self.exception = x
 
 
