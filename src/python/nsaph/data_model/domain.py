@@ -27,7 +27,7 @@ See
 
 import logging
 import re
-from typing import Optional, Dict, List, Tuple, Set
+from typing import Optional, Dict, List, Tuple
 
 import copy
 
@@ -35,6 +35,7 @@ import sqlparse
 from sqlparse.sql import Identifier, IdentifierList, Token
 from sqlparse.tokens import Wildcard
 
+from nsaph.operations.domain_operations import DomainOperations
 from nsaph_utils.utils.io_utils import as_dict
 
 from nsaph.data_model.utils import basename, split
@@ -272,20 +273,8 @@ class Domain:
         return result
 
     def drop(self, table, connection) -> list:
-        tables = self.find_dependent(table)
-        with connection.cursor() as cursor:
-            for t in tables:
-                obj = tables[t]
-                if "create" in obj:
-                    kind = obj["create"]["type"]
-                else:
-                    kind = "TABLE"
-                sql = "DROP {TABLE} IF EXISTS {} CASCADE".format(t, TABLE=kind)
-                logging.info(sql)
-                cursor.execute(sql)
-            if not connection.autocommit:
-                connection.commit()
-        return [t for t in tables]
+        logging.warning("This method is deprecated")
+        return DomainOperations.drop(self, table, connection)
 
     def spillover_table(self, table, definition):
         if "invalid.records" in definition:
@@ -900,23 +889,8 @@ class Domain:
         return False
 
     def create(self, connection, list_of_tables = None):
-        with connection.cursor() as cursor:
-            if list_of_tables:
-                statements = [ddl for ddl in  self.common_ddl]
-                for t in list_of_tables:
-                    statements += self.ddl_by_table[self.fqn(t)]
-                # statements = [
-                #     s for s in self.ddl if self.matches(s, list_of_tables) or s.startswith("CREATE SCHEMA")
-                # ]
-            else:
-                statements = self.ddl
-            for statement in statements:
-                logging.info(statement)
-            sql = "\n".join(statements)
-            cursor.execute(sql)
-            if not connection.autocommit:
-                connection.commit()
-            logging.info("Schema and all tables for domain {} have been created".format(self.domain))
+        logging.warning("This method is deprecated")
+        return DomainOperations.create(self, connection, list_of_tables)
 
     def add_fk_validation(self, table, pk, action, target, columns, pt, fk_columns):
         columns_as_dict = {}

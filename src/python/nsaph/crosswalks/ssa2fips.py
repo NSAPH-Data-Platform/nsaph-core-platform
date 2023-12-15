@@ -37,6 +37,7 @@ from nsaph.db import Connection
 from nsaph.data_model.domain import Domain
 
 from nsaph.loader.common import DBConnectionConfig
+from nsaph.operations.domain_operations import DomainOperations
 
 from nsaph_utils.utils.io_utils import as_csv_reader
 
@@ -179,7 +180,7 @@ class SSA2FIPS:
             table=t, columns=",".join(columns)
         )
         with self._connect() as cnxn:
-            self.domain.drop("ssa", cnxn)
+            DomainOperations.drop(self.domain, "ssa", cnxn)
             with cnxn.cursor() as cursor:
                 for ddl in self.domain.ddl:
                     print(ddl)
