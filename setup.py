@@ -18,7 +18,7 @@ setup(
     #packages=find_packages(where="src/python"),
     packages=[
         'nsaph', 'nsaph.requests', 'nsaph.data_model', 'nsaph.loader',
-        'nsaph.util', 'nsaph.dbt',
+        'nsaph.util', 'nsaph.dbt', 'nsaph.apprunner',
         'nsaph_resources', 'nsaph_models', 'nsaph.sql', 'nsaph.commonwl'
     ],
     package_dir={
