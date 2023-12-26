@@ -42,6 +42,7 @@ from nsaph.data_model.utils import DataReader, entry_to_path
 from nsaph.loader import LoaderBase
 from nsaph.loader.loader_config import LoaderConfig, Parallelization, \
     DataLoaderAction
+from nsaph.operations.domain_operations import DomainOperations
 from nsaph_utils.utils.io_utils import get_entries, is_dir, sizeof_fmt, fopen
 
 
@@ -186,13 +187,18 @@ class DataLoader(LoaderBase):
         try:
             with self._connect() as connxn:
                 if not self.context.sloppy:
-                    tables = self.domain.drop(self.table, connxn)
+                    tables = DomainOperations.drop(self.domain, self.table, connxn)
                     for t in tables:
                         IndexBuilder.drop_all(connxn, self.domain.schema, t)
                 self.execute_with_monitor(
-                    lambda: self.domain.create(connxn, [self.table]),
+                    lambda: DomainOperations.create(self.domain, connxn, [self.table], ex_handler=self),
                     connxn=connxn
                 )
+                if self.exception is None:
+                    try:
+                        connxn.isolation_level
+                    except Exception as oe:
+                        self.exception = oe
             if self.exception is not None:
                 raise self.exception
         except:
