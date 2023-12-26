@@ -140,7 +140,8 @@ class CWLGenerator:
 
     def copy_tool(self, tool: str):
         tool = self.find_tool(tool)
-        d = os.path.dirname(os.path.abspath(self.pipeline))
+        d = self.get_work_dir()
         shutil.copy(tool, d)
 
-
+    def get_work_dir(self):
+        return os.path.dirname(os.path.abspath(self.pipeline))

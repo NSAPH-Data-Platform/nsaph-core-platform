@@ -260,6 +260,7 @@ class CWLAppRunnerGenerator(CWLGenerator):
         }
 
         outf = self.get_registry_file_name()
+        outf = os.path.join(self.get_work_dir(), outf)
         if "tables" in content:
             tables_dict = content["tables"]
         else:
