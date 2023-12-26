@@ -6,7 +6,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='nsaph',
-    version="0.0.4.5",
+    version="0.0.4.6",
     url='https://github.com/NSAPH-Data-Platform/nsaph-core-platform',
     license='',
     author='Michael Bouzinier',
@@ -19,14 +19,14 @@ setup(
     packages=[
         'nsaph', 'nsaph.requests', 'nsaph.data_model', 'nsaph.loader',
         'nsaph.util', 'nsaph.dbt',
-        'nsaph_resources', 'nsaph_models', 'nsaph.sql'
+        'nsaph_resources', 'nsaph_models', 'nsaph.sql', 'nsaph.commonwl'
     ],
     package_dir={
         "nsaph": "./src/python/nsaph",
         "nsaph_models": "./src/yml",
         "nsaph.sql": "./src/sql",
         "nsaph_resources": "./resources",
-        "nsaph_tools": "./src/cwl"
+        "nsaph.commonwl": "./src/commonwl"
     },
     install_requires=[
         'alembic>=1.4.3',
@@ -103,6 +103,7 @@ setup(
         'prov>=1.5.1',
         'psutil>=5.7.2',
         'psycopg2-binary>=2.8.6',
+        'PyGithub',
         'Pygments>=2.7.1',
         'PyJWT>=1.7.1',
         'pyparsing>=2.4.7',
@@ -167,6 +168,6 @@ setup(
         "nsaph_models": ["*.yaml"],
         "nsaph.sql": ["*.sql"],
         "nsaph_resources": ["**/*", "*/*/*", "*/*/*/*"],
-        "nsaph_tools": ["**/*.cwl"]
+        "nsaph.commonwl": ["*.cwl"]
     }
 )
