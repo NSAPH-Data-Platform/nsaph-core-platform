@@ -217,6 +217,7 @@ class Importer:
             with cnxn.cursor() as cursor:
                 populate(cursor, self.TABLE, path_to_data)
             cnxn.commit()
+        #self.execute_db_update()
 
     def vacuum(self):
         self.execute_db_update("VACUUM (VERBOSE, PARALLEL 6, ANALYZE) public.zip2zcta;")
@@ -248,7 +249,7 @@ if __name__ == '__main__':
                         default="nsaph2",
                         required=False)
     parser.add_argument("--action", "-a",
-                        help="Section in the database connection parameters file",
+                        help="",
                         choices=["download", "ingest", "all"],
                         default="all",
                         required=False)
