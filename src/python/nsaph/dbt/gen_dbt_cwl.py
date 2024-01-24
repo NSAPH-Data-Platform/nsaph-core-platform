@@ -40,10 +40,12 @@ from typing import Dict
 import yaml
 
 from nsaph.util.cwl_collect_outputs import collect
+from nsaph.util.cwl_generator import CWLGenerator
 
 
-class CWLTestGenerator:
+class CWLTestGenerator(CWLGenerator):
     def __init__(self, path_to_pipeline: str, path_to_test: str):
+        super().__init__(path_to_test)
         assert path_to_pipeline.endswith(".cwl")
         assert path_to_test.endswith(".cwl")
         self.path_to_pipeline = path_to_pipeline
@@ -59,27 +61,15 @@ class CWLTestGenerator:
         return
 
     def generate(self):
-        self.write_header()
-        self.write_inputs()
+        self.write_header(
+            requirements=self.cwl.get("requirements"),
+            comment=f"Test harness for {self.basename}"
+        )
+        self.write_test_inputs()
         self.write_steps()
         self.write_outputs()
 
-    def write_header(self):
-        requirements = self.cwl.get("requirements")
-        with open(self.test, "wt") as test:
-            print("#!/usr/bin/env cwl-runner", file=test)
-            print(f"### Test harness for {self.basename}", file=test)
-            print(file=test)
-            print("cwlVersion: v1.2", file=test)
-            print("class: Workflow", file=test)
-            print(file=test)
-            if requirements:
-                block = yaml.dump({"requirements": requirements}, indent=2)
-                print(block, file=test)
-                print(file=test)
-        return
-
-    def write_inputs(self):
+    def write_test_inputs(self):
         with open(self.test, "at") as test:
             print("# All inputs of original pipeline, remove what is not needed"
                   , file=test)
@@ -88,10 +78,7 @@ class CWLTestGenerator:
                 "type": "File",
                 "doc": "File containing SQL test script"
             }
-            if inputs:
-                block = yaml.dump({"inputs": inputs}, indent=2)
-                print(block, file=test)
-                print(file=test)
+            self.write_inputs(inputs)
         return
 
     def write_steps(self):
