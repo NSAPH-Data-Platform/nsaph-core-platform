@@ -6,7 +6,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='nsaph',
-    version="0.0.4.7",
+    version="0.0.4.8",
     url='https://github.com/NSAPH-Data-Platform/nsaph-core-platform',
     license='',
     author='Michael Bouzinier',
@@ -19,6 +19,7 @@ setup(
     packages=[
         'nsaph', 'nsaph.requests', 'nsaph.data_model', 'nsaph.loader',
         'nsaph.util', 'nsaph.dbt', 'nsaph.apprunner',
+        'nsaph.operations',
         'nsaph_resources', 'nsaph_models', 'nsaph.sql', 'nsaph.commonwl'
     ],
     package_dir={
