@@ -31,9 +31,28 @@ CREATE TABLE
         ZIP_TYPE VARCHAR(64),
         ZCTA CHAR(12),
         ZCTA_INT INT GENERATED ALWAYS AS (
-            CASE WHEN ZCTA ~ '^[0-9]+$' THEN ZCTA::INT END
-            ) STORED,
+            --CASE WHEN ZCTA ~ '^[0-9]+$' THEN ZCTA::INT END
+            CASE
+                WHEN (btrim(ZCTA) ~ '^[0-9]+$')
+                    THEN (zcta)::INTEGER
+                    ELSE -1
+            END
+        ) STORED,
         zip_join_type VARCHAR(50),
+        territory VARCHAR(10) GENERATED ALWAYS AS (
+            CASE
+                WHEN ("state" IN ('AK', 'PR', 'HI', 'VI', 'GU', 'MP', 'AS'))
+                    THEN 'OFFSHORE'
+                    ELSE '48'
+            END
+        ) STORED,
+        zip_type_norm CHAR(1) GENERATED ALWAYS AS (
+            CASE
+                WHEN (lower(zip_type) IN ('p', 'post office or large volume customer')) THEN 'P'
+                WHEN (lower(zip_type) IN ('s', 'u', 'zip code area')) THEN 'S'
+                ELSE 'O'
+            END
+        ) STORED
         PRIMARY KEY (YEAR, ZIP_CODE, ZCTA)
     );
 
@@ -47,6 +66,8 @@ CREATE INDEX z_zt_idx ON public.zip2zcta (ZIP_TYPE);
 CREATE INDEX z_y_zcta_idx ON public.zip2zcta (year, ZCTA);
 CREATE INDEX zi_y_zcta_idx ON public.zip2zcta (year, ZCTA_INT);
 CREATE INDEX zi_y_zip_idx ON public.zip2zcta (year, ZIP_CODE_INT);
+CREATE INDEX z_zt2_idx ON public.zip2zcta (zip_type_norm);
+CREATE INDEX z_t1_idx ON public.zip2zcta (territory);
 
 CREATE OR REPLACE FUNCTION public.validate_zip2zcta() RETURNS TRIGGER
     LANGUAGE plpgsql
