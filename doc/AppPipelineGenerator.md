@@ -107,7 +107,7 @@ you can execute the pipeline with the following command in
 the working directory, for example using CWL reference implementation
 built into Dorieh (cwl-runner).
 
-    cwl-runner pipeline.cwl --database $path_to_your connection_def_file --connection_name $connection_name
+    cwl-runner pipeline.cwl --database $path_to_your_connection_def_file --connection_name $connection_name
 
 for example:
 
