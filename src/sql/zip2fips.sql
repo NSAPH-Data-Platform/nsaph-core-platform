@@ -30,8 +30,12 @@ SELECT
     YEAR,
     MONTH,
     string_agg(DISTINCT fips2s, ',') AS states,
-    (   SELECT
-            fips3s
+    string_agg(DISTINCT usps_zip_pref_state, ',') AS pref_state,
+    string_agg(DISTINCT usps_zip_pref_city, ',') AS city,
+    CASE WHEN string_agg(DISTINCT usps_zip_pref_state, ',') IS NOT NULL
+    THEN  public.state2fips(string_agg(DISTINCT usps_zip_pref_state, ','))
+    ELSE (   SELECT
+            fips2s
         FROM
             public.hud_zip2fips AS y
         WHERE
@@ -41,7 +45,20 @@ SELECT
         ORDER BY
             res_ratio DESC
         LIMIT
-            1) AS fips3,
+            1)
+        END AS fips2,
+    (   SELECT
+        fips3s
+        FROM
+        public.hud_zip2fips AS y
+        WHERE
+        y.zip = x.zip
+        AND y.year = x.year
+        AND y.month = x.month
+        ORDER BY
+        res_ratio DESC
+        LIMIT
+        1) AS fips3,
     (   SELECT
             res_ratio
         FROM
@@ -74,6 +91,8 @@ GROUP BY
 
 CREATE INDEX z2f_yz1_idx on public.zip2fips (year, zip) include (fips3);
 CREATE INDEX z2f_z2_idx on public.zip2fips (zip);
+CREATE INDEX z2f_f2_idx on public.zip2fips (fips2);
+CREATE INDEX z2f_f3_idx on public.zip2fips (fips3);
 CREATE INDEX z2f_r_idx on public.zip2fips (ratio);
 CREATE INDEX z2f_c_idx on public.zip2fips (num_counties);
 CREATE INDEX z2f_exact_idx on public.zip2fips ((1)) WHERE not exact;
@@ -87,6 +106,7 @@ AS $body$
 DECLARE fips int;
 BEGIN
     IF _year < 2010 THEN _year := 2010; END IF;
+    IF _year > 2021 THEN _year := 2021; END IF;
     SELECT fips3 into fips FROM public.zip2fips
         WHERE year = _year and zip = _zip
     LIMIT 1;
@@ -111,6 +131,58 @@ END;
 $body$ LANGUAGE plpgsql
 ;
 
+CREATE OR REPLACE FUNCTION "public"."zip_to_state" (
+    _year int, _zip int
+)  RETURNS char(5)
+  IMMUTABLE
+AS $body$
+DECLARE fips varchar;
+BEGIN
+    fips := public.zip_to_fips5(_year, _zip);
+    RETURN public.fips2state(substring(fips, 1, 2));
+END;
+$body$ LANGUAGE plpgsql
+;
+
+CREATE OR REPLACE FUNCTION "public"."zip_to_city" (
+    _year int, _zip int
+)  RETURNS char(5)
+  IMMUTABLE
+AS $body$
+DECLARE cty varchar;
+BEGIN
+    IF _year < 2010 THEN _year := 2010; END IF;
+    IF _year > 2021 THEN _year := 2021; END IF;
+    SELECT city into cty FROM public.zip2fips
+    WHERE year = _year and zip = _zip
+    LIMIT 1;
+    IF cty is NULL AND _year < 2021 THEN
+        RETURN public.zip_to_city(_year + 1, _zip);
+END IF;
+RETURN cty;
+END;
+$body$ LANGUAGE plpgsql
+;
+
+CREATE OR REPLACE FUNCTION "public"."zip_to_fips5" (
+    _year int, _zip int
+)  RETURNS char(5)
+  IMMUTABLE
+AS $body$
+DECLARE fips varchar;
+BEGIN
+    IF _year < 2010 THEN _year := 2010; END IF;
+    IF _year > 2021 THEN _year := 2021; END IF;
+        SELECT fips2 || fips3 into fips FROM public.zip2fips
+        WHERE year = _year and zip = _zip
+    LIMIT 1;
+    IF fips is NULL AND _year < 2021 THEN
+        RETURN public.zip_to_fips5(_year + 1, _zip);
+END IF;
+RETURN fips;
+END;
+$body$ LANGUAGE plpgsql
+;
 
 CREATE OR REPLACE FUNCTION "public"."is_zip_to_fips_exact" (
     _year int, _zip int
@@ -174,6 +246,22 @@ BEGIN
 END;
 $body$
 ;
+
+CREATE OR REPLACE FUNCTION public.state2fips(
+    state_code VARCHAR
+) RETURNS VARCHAR
+IMMUTABLE
+LANGUAGE plpgsql
+AS $body$
+DECLARE s VARCHAR;
+BEGIN
+    SELECT fips2 FROM public.us_states WHERE state_id = state_code INTO s;
+    RETURN s;
+END;
+$body$
+;
+
+
 CREATE OR REPLACE FUNCTION public.fips2state_iso(
     state_fips VARCHAR
 ) RETURNS VARCHAR
