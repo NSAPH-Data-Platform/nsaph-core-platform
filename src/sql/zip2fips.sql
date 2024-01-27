@@ -17,6 +17,20 @@
 --  limitations under the License.
 --
 
+CREATE OR REPLACE FUNCTION public.state2fips(
+    state_code VARCHAR
+) RETURNS VARCHAR
+IMMUTABLE
+LANGUAGE plpgsql
+AS $body$
+DECLARE s VARCHAR;
+BEGIN
+    SELECT fips2 FROM public.us_states WHERE state_id = state_code INTO s;
+    RETURN s;
+END;
+$body$
+;
+
 /*
  Purpose:
  Responsible for in-database mapping between postal zip codes
@@ -242,20 +256,6 @@ AS $body$
 DECLARE s VARCHAR;
 BEGIN
     SELECT state_id FROM public.us_states WHERE fips2 = btrim(to_char(state_fips, '00')) INTO s;
-    RETURN s;
-END;
-$body$
-;
-
-CREATE OR REPLACE FUNCTION public.state2fips(
-    state_code VARCHAR
-) RETURNS VARCHAR
-IMMUTABLE
-LANGUAGE plpgsql
-AS $body$
-DECLARE s VARCHAR;
-BEGIN
-    SELECT fips2 FROM public.us_states WHERE state_id = state_code INTO s;
     RETURN s;
 END;
 $body$
