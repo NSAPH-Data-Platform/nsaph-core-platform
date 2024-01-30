@@ -6,7 +6,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='nsaph',
-    version="0.1.0",
+    version="0.1.1",
     url='https://github.com/NSAPH-Data-Platform/nsaph-core-platform',
     license='',
     author='Michael Bouzinier',
@@ -99,6 +99,7 @@ setup(
         "openpyxl",
         'pandas',
         'paramiko',
+        'pyarrow',
         'pendulum>=1.4.4',
         'prison>=0.1.3',
         'prov>=1.5.1',
