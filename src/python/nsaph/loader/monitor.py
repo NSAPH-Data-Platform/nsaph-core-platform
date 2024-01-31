@@ -374,10 +374,14 @@ class Activity:
                 str(self.now - self.xact_start)
             )
         if self.wait:
+            if self.now and self.last:
+                wait_duration = self.now - self.last
+            else:
+                wait_duration = "Unknown"
             msg += ". {} from {} for {}".format(
                 self.wait.capitalize(),
                 str(self.last),
-                str(self.now - self.last)
+                str(wait_duration)
             )
         if self.blocked_by:
             msg += self.blocked_by

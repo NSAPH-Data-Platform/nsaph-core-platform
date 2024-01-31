@@ -4,6 +4,7 @@ A command line utility to export results of SQL query as Parquet files
 import logging
 import os.path
 from argparse import ArgumentParser
+from datetime import datetime
 from typing import Dict, Callable, Optional, List
 
 #  Copyright (c) 2021. Harvard University
@@ -40,14 +41,18 @@ from nsaph.db import Connection
 
 
 @contextmanager
-def result_set(conn: connection, sql: str):
-    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+def result_set(conn: connection, sql: str, cursor_name: str, batch_size: int):
+    with conn.cursor(cursor_factory=RealDictCursor, name=cursor_name) as cursor:
+        cursor.itersize = batch_size
         cursor.execute(sql)
         yield cursor
 
 
 class PgPqQuery:
     def __init__(self, cnxn: connection, sql: str, destination: str):
+        self.batch_size = 2000
+        self.name = "parquet_query_" + str(datetime.now())\
+            .replace(' ', '_').replace('-', '_').replace(':', '_').replace('.', '_')
         self.sql = sql
         self.connection = cnxn
         self.destination = destination
@@ -88,6 +93,8 @@ class PgPqQuery:
         }
         self.schema = pa.schema(schema)
         self.count = 0
+        self.count_batches = 0
+        logging.info("Query has been set up")
         return
 
     def metadata_sql(self) -> str:
@@ -126,21 +133,25 @@ class PgPqQuery:
 
     def export(self):
         self.count = 0
+        logging.info("Starting export.")
         scanner = Scanner.from_batches(source=self.batches(), schema = self.schema)
         ds.write_dataset(scanner, self.destination, partitioning=self.parquet_partitioning, format="parquet")
         return 
 
     def batch(self, data: List[Dict]):
+        if self.count_batches == 0:
+            logging.info(f"Received the first batch of {str(len(data))} records.")
         self.count += len(data)
-        logging.info(f"Flushing {str(len(data))} records. Total: {str(self.count)}")
+        self.count_batches += 1
+        if self.batch_size > 100000 or (self.count_batches % 100) == 0:
+            logging.info(f"Received the {self.count_batches}-th batch of {len(data)} records. Total: {self.count}")
         return RecordBatch.from_pylist(mapping=data, schema=self.schema)
 
     def batches(self):
-        batch_size = 10000
-        with result_set(self.connection, self.sql) as rs:
+        with result_set(self.connection, self.sql, self.name, self.batch_size) as rs:
             data = []
             for row in rs:
-                if len(data) >= batch_size:
+                if len(data) >= self.batch_size:
                     yield self.batch(data)
                     data.clear()
                 data.append(self.transform(row))
