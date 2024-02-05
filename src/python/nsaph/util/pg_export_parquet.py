@@ -330,9 +330,10 @@ class PgPqPartitionedQuery(PgPqBase):
 
     def export(self):
         self.count = 0
+        i1 = index_of(self.sql, "select")
         for partition in self.partitions:
             where = " AND ".join(
-                f"{column}={partition[column]}" for column in partition
+                f"{self.qualify_column(self.sql, column, i1)}={partition[column]}" for column in partition
             )
             sql = self.sql + "\nWHERE " + where
             executor = PgPqSingleQuery(self.connection, sql, self.destination, "delete_matching", self.schema)
