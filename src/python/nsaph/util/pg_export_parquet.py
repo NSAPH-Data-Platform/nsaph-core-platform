@@ -293,7 +293,7 @@ class PgPqPartitionedQuery(PgPqBase):
                 j -= 1
             while sql[j].isalnum():
                 j -= 1
-            qualifier = sql[j:i-1].strip()
+            qualifier = sql[j:i].strip()
             return f"{qualifier}.{column}"
         else:
             return column
