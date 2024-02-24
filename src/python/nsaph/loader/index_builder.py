@@ -97,7 +97,7 @@ class IndexBuilder(LoaderBase):
 
         if self.context.table is not None:
             indices = domain.indices_by_table[
-                nsaph.dictionary.element.fqn(self.context.table)]
+                domain.fqn(self.context.table)]
         else:
             indices = domain.indices
         print(indices)
@@ -114,7 +114,7 @@ class IndexBuilder(LoaderBase):
 
     def build(self, index, cnxn):
         name = find_name(index)
-        fqn = nsaph.dictionary.element.fqn(name)
+        fqn = self.domain.fqn(name)
         with (cnxn.cursor()) as cursor:
             if self.context.reset:
                 sql = "DROP INDEX IF EXISTS {name}".format(name=fqn)

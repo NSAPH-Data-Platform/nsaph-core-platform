@@ -93,7 +93,7 @@ class DataLoader(LoaderBase):
             print(ddl)
 
     def print_table_ddl(self, table: str):
-        fqn = nsaph.dictionary.element.fqn(table)
+        fqn = self.domain.fqn(table)
         for ddl in self.domain.ddl_by_table[fqn]:
             print(ddl)
         for ddl in self.domain.indices_by_table[fqn]:
@@ -173,7 +173,7 @@ class DataLoader(LoaderBase):
         return objects
 
     def has_been_ingested(self, file:str, table):
-        tfqn = nsaph.dictionary.element.fqn(table)
+        tfqn = self.domain.fqn(table)
         sql = "SELECT 1 FROM {} WHERE {} = '{}' LIMIT 1"\
             .format(tfqn, ORIGINAL_FILE_COLUMN, file)
         logging.debug(sql)

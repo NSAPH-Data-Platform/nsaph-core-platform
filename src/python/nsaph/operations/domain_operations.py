@@ -69,8 +69,7 @@ class DomainOperations:
                 if list_of_tables:
                     statements = [ddl for ddl in  domain.common_ddl]
                     for t in list_of_tables:
-                        statements += domain.ddl_by_table[
-                            nsaph.dictionary.element.fqn(t)]
+                        statements += domain.ddl_by_table[domain.fqn(t)]
                 else:
                     statements = domain.ddl
                 for statement in statements:

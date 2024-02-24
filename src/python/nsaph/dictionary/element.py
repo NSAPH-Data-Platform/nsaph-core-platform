@@ -133,7 +133,6 @@ class Graph:
         print(file=file)
 
 
-
 def fqn(schema: str, name: str) -> str:
     return schema + '.' + name
 

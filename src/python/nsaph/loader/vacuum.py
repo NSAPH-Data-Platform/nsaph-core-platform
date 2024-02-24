@@ -55,7 +55,7 @@ class Vacuum(LoaderBase):
         domain = self.domain
 
         if self.context.table is not None:
-            tables = [nsaph.dictionary.element.fqn(self.context.table)]
+            tables = [self.domain.fqn(self.context.table)]
         else:
             tables = [t for t in domain.ddl_by_table]
 
