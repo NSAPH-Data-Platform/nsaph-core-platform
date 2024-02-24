@@ -108,6 +108,7 @@ in a special audit table.
 |-------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------|
 | type        | yes       | Database type                                                                                                                            |
 | source      | no        | [source](#source) of the data                                                                                                            |
+| requires    | no        | List of tables and views required to compute this column. Should be used if `source` is a SQL statement referencing other tables.        |
 | index       | no        | Override default to build an index based on this column. Possible values: true/false/dictionary, specifying index name and/or parameters |
 | description | no        | description of this domain to be included in auto-generated documentation                                                                |
 | reference   | no        | URL with external documentation                                                                                                          |

@@ -26,6 +26,7 @@ and monitoring the build progress
 import logging
 from datetime import datetime
 
+import nsaph.dictionary.element
 from nsaph.loader import LoaderBase, CommonConfig
 from nsaph_utils.utils.context import Argument, Cardinality
 
@@ -95,7 +96,8 @@ class IndexBuilder(LoaderBase):
         domain = self.domain
 
         if self.context.table is not None:
-            indices = domain.indices_by_table[domain.fqn(self.context.table)]
+            indices = domain.indices_by_table[
+                nsaph.dictionary.element.fqn(self.context.table)]
         else:
             indices = domain.indices
         print(indices)
@@ -112,7 +114,7 @@ class IndexBuilder(LoaderBase):
 
     def build(self, index, cnxn):
         name = find_name(index)
-        fqn = self.domain.fqn(name)
+        fqn = nsaph.dictionary.element.fqn(name)
         with (cnxn.cursor()) as cursor:
             if self.context.reset:
                 sql = "DROP INDEX IF EXISTS {name}".format(name=fqn)

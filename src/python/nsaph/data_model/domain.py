@@ -1,7 +1,7 @@
 """
 Domain is a Python module dedicated to
 generation of various SQL required for manipulation
-with data in a certain knowledge domain
+with data in certain knowledge domain
 
 See 
 """
@@ -319,6 +319,10 @@ class Domain:
             if isinstance(t, IdentifierList):
                 token = t
                 break
+            elif t.ttype[0] == "Wildcard":
+                return [t]
+            elif isinstance(t, Identifier):
+                return [t]
         if token is None:
             return None
         identifiers = [i for i in token.get_identifiers()]

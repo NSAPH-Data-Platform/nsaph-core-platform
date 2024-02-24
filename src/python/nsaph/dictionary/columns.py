@@ -20,45 +20,42 @@ from typing import Dict, List, Optional, Set
 
 import sqlparse
 import yaml
-from sqlparse.sql import IdentifierList, Token, Parenthesis, Function, Identifier
+from sqlparse.sql import IdentifierList, Parenthesis, Function, Identifier
 import html
+
+from nsaph.dictionary.element import HTML, DataModelElement, qstr, attrs2string
+from nsaph.data_model.domain import Domain
 
 
 def noop(x):
     return
 
 
-class Column:
+class Column(DataModelElement):
     def __init__(self, table_name: str, column_block: Dict):
         if isinstance(column_block, dict):
             for name in column_block:
                 self.name = name
-                self.block = column_block[name]
+                super().__init__(column_block[name])
                 break
         else:
             self.name = str(column_block)
-            self.block = None
-        self.fqn = table_name + '.' + self.name
+            super().__init__(None)
+        self.qualified_name = table_name + '.' + self.name
         self.predecessors: Set[str] = set()
         self.functions: List[str] = []
-        self.reference: Optional[str] = None
-        self.description: Optional[Dict] = None
         self.datatype = "string"
         self.column_type = ""
-        self.expression = None
+        self.expression = []
         self.copied = False
         self.casts = dict()
+        self.requires = []
         if self.block is None:
             return
-        if "description" in self.block:
-            descr = self.block["description"]
-            if isinstance(descr, dict):
-                self.description = descr
-            else:
-                self.description = {"text": descr}
         if "type" in self.block:
             self.datatype = self.block["type"]
         if "source" in self.block:
+            self.expand_macro2()
             src_block = self.block["source"]
             if isinstance(src_block, list):
                 for item in src_block:
@@ -70,9 +67,59 @@ class Column:
                     self.parse_expr(src_block["code"])
             elif isinstance(src_block, str):
                 self.parse_expr(src_block)
+        if "requires" in self.block:
+            req = self.block["requires"]
+            if isinstance(req, list):
+                self.requires = req
+            else:
+                self.requires = [req]
         if "cast" in self.block:
             for t in self.block["cast"]:
                 self.casts[t] = self.block["cast"][t]
+        return
+
+    def is_transformed(self):
+        return self.expression or self.casts
+
+    @classmethod
+    def expand_macro1(cls, block: Dict) -> Optional[List[Dict]]:
+        if not isinstance(block, dict):
+            return [block]
+        name = list(block.keys())[0]
+        if '$' in name:
+            x = Domain.parse_wildcard_column_spec(name)
+            if x is not None:
+                prefix, var, values, postfix = x
+                b1 = yaml.safe_dump(block[name])
+                expansion = []
+                for v in values:
+                    bi = b1.replace(f'${var}', str(v))
+                    b = {f'{prefix}{str(v)}': yaml.safe_load(bi)}
+                    expansion.append(b)
+                return expansion
+        return [block]
+
+    def expand_macro2(self):
+        src_block = self.block["source"]
+        if isinstance(src_block, list):
+            original = src_block
+        elif isinstance(src_block, str):
+            original = [src_block]
+        else:
+            return
+        expansion = []
+        expanded = False
+        for s in original:
+            if '$' in s:
+                var = s[s.find('$') + 1]
+                values = self.block[var]
+                for v in values:
+                    expansion.append(s.replace(f'${var}', v))
+                expanded = True
+            else:
+                expansion.append(s)
+        if expanded:
+            self.block["source"] = expansion
         return
 
     def describe(self) -> str:
@@ -91,13 +138,14 @@ class Column:
             print("ERROR:")
             print(str(self.description))
         if self.expression:
-            text += "\n\n" + self.expression + '\n'
+            exp = ';\n'.join(self.expression)
+            text += "\n\n" + exp + '\n'
         return text
 
     def describe_html(self) -> str:
         text = "\n<TABLE>\n"
         text += "<tr>"
-        text += f'<td align = "center" border = "0"><FONT POINT-SIZE="20"><b>{self.fqn}</b></FONT></td>'
+        text += f'<td align = "center" border = "0"><FONT POINT-SIZE="20"><b>{self.qualified_name}</b></FONT></td>'
         text += f'<td align = "center" border = "0">{self.datatype}</td>'
         text += "</tr>\n"
 
@@ -105,7 +153,7 @@ class Column:
             text += f'<tr><td  align = "center" border = "0"><i>{self.column_type}</i></td></tr>\n'
 
         if self.reference:
-            text += f'<tr><td  align = "center" border = "0" href="{self.column_type}"><i>additional information</i></td></tr>\n'
+            text += f'<tr><td  align = "center" border = "0"><i>For more information see: {self.reference}</i></td></tr>\n'
         if self.description and "text" in self.description:
             value = html.escape(self.description["text"])
             text += f'<tr><td  align = "center" border = "0">{value}</td></tr>\n'
@@ -124,8 +172,9 @@ class Column:
             if n > 0:
                 text += "<hr/>\n"
                 n = 0
-            value = html.escape(self.expression)
-            text += f'\t<tr><td align = "left">{value}</td></tr>\n'
+            for exp in self.expression:
+                value = html.escape(exp)
+                text += f'\t<tr><td align = "left">{value}</td></tr>\n'
         for key in self.casts:
             if n > 0:
                 text += "<hr/>\n"
@@ -134,10 +183,37 @@ class Column:
         text += "\n</TABLE>\n"
         return text
 
+    def html(self, of: str, svg = None):
+        body = self.describe_html()
+        if svg:
+            body += "<hr/>\n"
+            body += f'<object data="{svg}" type="image/svg+xml"> </object>'
+        block = HTML.format(
+            title = f"Column {self.qualified_name}",
+            body = body
+        )
+        with open(of, "wt") as out:
+            print(block, file=out)
+
+    def to_dot(self):
+        node_id = qstr(self.qualified_name)
+        node_label = '<' + self.describe_html() + '>'
+        attrs = {
+            "label": node_label,
+            "shape": "box"
+        }
+        if self.reference:
+            attrs["URL"] = qstr(self.reference)
+            attrs["target"] = "_blank"
+        return f"\t{node_id} [{attrs2string(attrs)}];"
+
+    def __repr__(self):
+        return self.to_dot()
+
     def parse_expr(self, exp: str):
         parsed = sqlparse.parse(exp)[0]
         self.find_all_names(parsed)
-        self.expression = exp
+        self.expression.append(exp)
 
     def find_all_names(self, element):
         if hasattr(element, "tokens"):

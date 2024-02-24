@@ -31,6 +31,7 @@ from timeit import default_timer as timer
 from sortedcontainers import SortedDict
 from psycopg2.extras import execute_values
 
+import nsaph.dictionary.element
 from nsaph.data_model.domain import Domain
 from nsaph.data_model.utils import split, DataReader, regex
 from nsaph.fips import fips_dict
@@ -280,7 +281,7 @@ class Inserter:
         def __init__(self, parent, name:str, table: dict):
             self.reader = parent.reader
             self.reader_path = os.path.basename(self.reader.get_path())
-            self.name = parent.domain.fqn(name)
+            self.name = nsaph.dictionary.element.fqn(name)
             self.mapping = None
             self.range_columns = None
             self.no_empty_str = None

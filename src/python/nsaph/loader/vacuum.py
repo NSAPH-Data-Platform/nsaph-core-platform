@@ -25,6 +25,7 @@ This module executes VACUUM ANALYZE command
 import logging
 from datetime import datetime
 
+import nsaph.dictionary.element
 from nsaph.loader import LoaderBase
 from nsaph.loader.common import CommonConfig
 from nsaph.loader.monitor import DBActivityMonitor
@@ -54,7 +55,7 @@ class Vacuum(LoaderBase):
         domain = self.domain
 
         if self.context.table is not None:
-            tables = [domain.fqn(self.context.table)]
+            tables = [nsaph.dictionary.element.fqn(self.context.table)]
         else:
             tables = [t for t in domain.ddl_by_table]
 

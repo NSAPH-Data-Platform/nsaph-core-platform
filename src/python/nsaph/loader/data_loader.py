@@ -31,6 +31,7 @@ import logging
 import os
 import fnmatch
 
+import nsaph.dictionary.element
 from nsaph.loader.index_builder import IndexBuilder
 from psycopg2.extensions import connection
 
@@ -92,7 +93,7 @@ class DataLoader(LoaderBase):
             print(ddl)
 
     def print_table_ddl(self, table: str):
-        fqn = self.domain.fqn(table)
+        fqn = nsaph.dictionary.element.fqn(table)
         for ddl in self.domain.ddl_by_table[fqn]:
             print(ddl)
         for ddl in self.domain.indices_by_table[fqn]:
@@ -172,7 +173,7 @@ class DataLoader(LoaderBase):
         return objects
 
     def has_been_ingested(self, file:str, table):
-        tfqn = self.domain.fqn(table)
+        tfqn = nsaph.dictionary.element.fqn(table)
         sql = "SELECT 1 FROM {} WHERE {} = '{}' LIMIT 1"\
             .format(tfqn, ORIGINAL_FILE_COLUMN, file)
         logging.debug(sql)
