@@ -1,6 +1,7 @@
 """
 A command line utility to export results of SQL query as Parquet files
 """
+import decimal
 import logging
 import os.path
 from abc import ABC, abstractmethod
@@ -39,6 +40,7 @@ from pyarrow.dataset import Scanner
 
 from nsaph import init_logging
 from nsaph.db import Connection
+from nsaph.util.query_builder import QueryBuilder
 from nsaph_utils.utils.profile_utils import qmem
 from nsaph_utils.utils.io_utils import sizeof_fmt
 
@@ -91,7 +93,7 @@ class PgPqBase(ABC):
             pa_type = pa.int64()
         elif vtype in ["str", "varchar", "text"]:
             pa_type = pa.string()
-        elif vtype.startswith("float"):
+        elif vtype.startswith("float") or vtype in ["numeric"]:
             pa_type = pa.float64()
         elif vtype in ["date"]:
             pa_type = pa.date32()
@@ -155,6 +157,12 @@ class PgPqBase(ABC):
         parser.add_argument("--sql", "-s",
                             help="SQL Query or a path to a file containing SQL query",
                             required=False)
+        parser.add_argument("--schema",
+                            help="Export all columns for all tables in the given schema",
+                            required=False)
+        parser.add_argument("--table", "-t",
+                            help="Export all columns a given table (fully qualified name required)",
+                            required=False)
         parser.add_argument("--partition", "-p",
                             help="Columns to be used for partitioning",
                             nargs='+',
@@ -181,12 +189,28 @@ class PgPqBase(ABC):
                             )
 
         arguments = parser.parse_args()
-        if os.path.isfile(arguments.sql):
-            with open(arguments.sql) as inp:
-                sql = '\n'.join([line for line in inp])
-        else:
-            sql = arguments.sql
+        if arguments.sql and (arguments.table or arguments.schema):
+            raise ValueError("Only one type of argument is accepted: sql, schema or table")
 
+        if arguments.sql:
+            if os.path.isfile(arguments.sql):
+                with open(arguments.sql) as inp:
+                    sql = '\n'.join([line for line in inp])
+            else:
+                sql = arguments.sql
+            cls.export_sql(arguments, sql)
+        elif arguments.table and arguments.schema:
+            raise ValueError("Only one type of argument is accepted: sql, schema or table")
+        elif arguments.table:
+            cls.export_table(arguments, arguments.table)
+        elif arguments.schema:
+            cls.export_schema(arguments)
+        else:
+            raise ValueError("Either of: sql, schema or table is required")
+        logging.info("All done!")
+
+    @classmethod
+    def export_sql(cls, arguments, sql):
         with Connection(arguments.db, arguments.connection) as db:
             if arguments.hard:
                 instance = PgPqPartitionedQuery(db, sql, arguments.output, arguments.partition)
@@ -196,7 +220,22 @@ class PgPqBase(ABC):
                     instance.set_partitioning(arguments.partition)
 
             instance.export()
-        logging.info("All done!")
+
+    @classmethod
+    def export_table(cls, arguments, table: str):
+        logging.info("Exporting: " + table)
+        with Connection(arguments.db, arguments.connection) as cnxn:
+            query_builder = QueryBuilder(cnxn).add_table(table)
+            sql = query_builder.query()
+        cls.export_sql(arguments, sql)
+        logging.info("Exporting: " + table + " DONE")
+
+    @classmethod
+    def export_schema(cls, arguments):
+        with Connection(arguments.db, arguments.connection) as cnxn:
+            tables = QueryBuilder.get_tables(cnxn, arguments.schema)
+        for table in tables:
+            cls.export_table(arguments, table)
 
 
 class PgPqSingleQuery(PgPqBase):
@@ -212,10 +251,16 @@ class PgPqSingleQuery(PgPqBase):
             self.setup_schema()
         return
 
+    @staticmethod
+    def normalize_value(v):
+        if isinstance(v, decimal.Decimal):
+            return float(v)
+        return v
+
     def transform(self, row: Dict) -> Dict:
         if self.transformer:
             row = self.transformer(row)
-        return {p: row[p] for p in row}
+        return {p: self.normalize_value(row[p]) for p in row}
 
     def set_partitioning(self, columns: List[str], values:Optional[List] = None):
         super().set_partitioning(columns)
