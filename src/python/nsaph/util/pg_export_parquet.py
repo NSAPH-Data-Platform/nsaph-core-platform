@@ -1,6 +1,7 @@
 """
 A command line utility to export results of SQL query as Parquet files
 """
+import copy
 import decimal
 import logging
 import os.path
@@ -235,7 +236,10 @@ class PgPqBase(ABC):
         with Connection(arguments.db, arguments.connection) as cnxn:
             tables = QueryBuilder.get_tables(cnxn, arguments.schema)
         for table in tables:
-            cls.export_table(arguments, table)
+            a = copy.deepcopy(arguments)
+            t = table.split('.')[-1]
+            a.output = os.path.join(arguments.output, t)
+            cls.export_table(a, table)
 
 
 class PgPqSingleQuery(PgPqBase):
