@@ -18,12 +18,16 @@
 #
 import sys
 
+import pyarrow
 import pyarrow.parquet as parquet
+from pyarrow import schema
+from pyarrow.dataset import partitioning
 import pandas
 
 
 def avg_for_county(path_to_dir: str, var: str, county: str):
-    table = parquet.read_table(path_to_dir)
+    p = partitioning(schema=schema([("year", pyarrow.int32())]), flavor="filename")
+    table = parquet.read_table(path_to_dir, partitioning=p)
     print(f"Table shape is: {str(table.shape)}")
     print(f"Table schema is: {str(table.schema)}")
     if var not in table.column_names:
